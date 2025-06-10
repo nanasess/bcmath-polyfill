@@ -283,6 +283,9 @@ class BCMathTest extends TestCase
     #[DataProvider('generateScaleCallstaticParams')]
     public function test_argumentsScaleCallstatic(...$params)
     {
+        // Save original scale
+        $originalScale = bcscale();
+        
         //scale with 1, 2, 3 parameters
         if (func_num_args() == 1) {
             bcscale(...$params);
@@ -306,6 +309,10 @@ class BCMathTest extends TestCase
                 $this->markTestSkipped('ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage());
             }
         }
+        
+        // Restore original scale
+        bcscale($originalScale);
+        BCMath::scale($originalScale);
     }
     public static function generatePowModCallstaticParams()
     {
