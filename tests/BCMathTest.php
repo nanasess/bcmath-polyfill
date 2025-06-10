@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
 // use PHPUnit\Framework\Attributes\TestWith;
 
 /**
@@ -203,7 +204,7 @@ class BCMathTest extends TestCase
      #[DataProvider('generatePowModParams')]
      #[RequiresPhp('>7.3')]
 
-     public function testPowMod(...$params)
+    public function testPowMod(...$params)
     {
         $a = bcpowmod(...$params);
         $b = BCMath::powmod(...$params);
@@ -227,7 +228,7 @@ class BCMathTest extends TestCase
 
     public function testBoolScale()
     {
-        if(false) {
+        if (false) {
             $exception_thrown = false;
             try {
                 $a = bcadd('5', '2', false);
@@ -236,7 +237,7 @@ class BCMathTest extends TestCase
             }
             $this->assertSame(true, $exception_thrown);
         } else {
-            $a = bcadd('5','2', false);
+            $a = bcadd('5', '2', false);
             $b = BCMath::add('5', '2', false);
             $this->assertSame($a, $b);
         }
@@ -288,12 +289,12 @@ class BCMathTest extends TestCase
             BCMath::scale(...$params);
             $scale = bcscale();
             $orig = $params[0];
-            $this->assertSame($orig,$scale);
+            $this->assertSame($orig, $scale);
             $scale = BCMath::scale();
-            $this->assertSame($orig,$scale);
+            $this->assertSame($orig, $scale);
         } else {
             $exception_thrown = false;
-            try{
+            try {
                 BCMath::scale(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
@@ -323,10 +324,10 @@ class BCMathTest extends TestCase
         if (func_num_args() > 2 && func_num_args() < 5) {
             $a = bcpowmod(...$params);
             $b = BCMath::powmod(...$params);
-            $this->assertSame($a,$b);
+            $this->assertSame($a, $b);
         } else {
             $exception_thrown = false;
-            try{
+            try {
                 BCMath::powmod(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
@@ -338,5 +339,187 @@ class BCMathTest extends TestCase
                 $this->markTestSkipped('ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Test bcfloor function
+     * requires PHP 8.4
+     */
+    #[RequiresPhp('>=8.4')]
+    public function testFloor()
+    {
+        // Test positive numbers
+        $this->assertSame(bcfloor('4.3'), BCMath::floor('4.3'));
+        $this->assertSame(bcfloor('9.999'), BCMath::floor('9.999'));
+        $this->assertSame(bcfloor('3.14159', 2), BCMath::floor('3.14159', 2));
+        
+        // Test negative numbers
+        $this->assertSame(bcfloor('-4.3'), BCMath::floor('-4.3'));
+        $this->assertSame(bcfloor('-9.999'), BCMath::floor('-9.999'));
+        $this->assertSame(bcfloor('-3.14159', 3), BCMath::floor('-3.14159', 3));
+        
+        // Test integers
+        $this->assertSame(bcfloor('5'), BCMath::floor('5'));
+        $this->assertSame(bcfloor('-5'), BCMath::floor('-5'));
+        $this->assertSame(bcfloor('0'), BCMath::floor('0'));
+        
+        // Test with scale
+        $this->assertSame(bcfloor('1.95583', 0), BCMath::floor('1.95583', 0));
+        $this->assertSame(bcfloor('1.95583', 2), BCMath::floor('1.95583', 2));
+        $this->assertSame(bcfloor('-1.95583', 4), BCMath::floor('-1.95583', 4));
+    }
+
+    /**
+     * Test bcceil function
+     * requires PHP 8.4
+     */
+    #[RequiresPhp('>=8.4')]
+    public function testCeil()
+    {
+        // Test positive numbers
+        $this->assertSame(bcceil('4.3'), BCMath::ceil('4.3'));
+        $this->assertSame(bcceil('9.999'), BCMath::ceil('9.999'));
+        $this->assertSame(bcceil('3.14159', 2), BCMath::ceil('3.14159', 2));
+        
+        // Test negative numbers
+        $this->assertSame(bcceil('-4.3'), BCMath::ceil('-4.3'));
+        $this->assertSame(bcceil('-9.999'), BCMath::ceil('-9.999'));
+        $this->assertSame(bcceil('-3.14159', 3), BCMath::ceil('-3.14159', 3));
+        
+        // Test integers
+        $this->assertSame(bcceil('5'), BCMath::ceil('5'));
+        $this->assertSame(bcceil('-5'), BCMath::ceil('-5'));
+        $this->assertSame(bcceil('0'), BCMath::ceil('0'));
+        
+        // Test with scale
+        $this->assertSame(bcceil('1.95583', 0), BCMath::ceil('1.95583', 0));
+        $this->assertSame(bcceil('1.95583', 2), BCMath::ceil('1.95583', 2));
+        $this->assertSame(bcceil('-1.95583', 4), BCMath::ceil('-1.95583', 4));
+    }
+
+    /**
+     * Test bcround function
+     * requires PHP 8.4
+     */
+    #[RequiresPhp('>=8.4')]
+    public function testRound()
+    {
+        // Test basic rounding
+        $this->assertSame(bcround('3.4'), BCMath::round('3.4'));
+        $this->assertSame(bcround('3.5'), BCMath::round('3.5'));
+        $this->assertSame(bcround('3.6'), BCMath::round('3.6'));
+        $this->assertSame(bcround('-3.4'), BCMath::round('-3.4'));
+        $this->assertSame(bcround('-3.5'), BCMath::round('-3.5'));
+        $this->assertSame(bcround('-3.6'), BCMath::round('-3.6'));
+        
+        // Test with scale
+        $this->assertSame(bcround('1.95583', 2), BCMath::round('1.95583', 2));
+        $this->assertSame(bcround('1.95583', 3), BCMath::round('1.95583', 3));
+        $this->assertSame(bcround('1.2345', 1), BCMath::round('1.2345', 1));
+        
+        // Test different rounding modes
+        $this->assertSame(bcround('1.55', 1, PHP_ROUND_HALF_UP), BCMath::round('1.55', 1, PHP_ROUND_HALF_UP));
+        $this->assertSame(bcround('1.55', 1, PHP_ROUND_HALF_DOWN), BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN));
+        $this->assertSame(bcround('1.55', 1, PHP_ROUND_HALF_EVEN), BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN));
+        $this->assertSame(bcround('1.55', 1, PHP_ROUND_HALF_ODD), BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD));
+        
+        // Test negative scale
+        $this->assertSame(bcround('135', -1), BCMath::round('135', -1));
+        $this->assertSame(bcround('135', -2), BCMath::round('135', -2));
+        $this->assertSame(bcround('1234.5678', -2), BCMath::round('1234.5678', -2));
+    }
+
+    /**
+     * Test bcfloor function without PHP 8.4
+     */
+    public function testFloorPolyfill()
+    {
+        if (function_exists('bcfloor')) {
+            $this->markTestSkipped('bcfloor is available, testing with native function');
+        }
+        
+        // Test positive numbers
+        $this->assertSame('4', BCMath::floor('4.3'));
+        $this->assertSame('9', BCMath::floor('9.999'));
+        $this->assertSame('3.00', BCMath::floor('3.14159', 2));
+        
+        // Test negative numbers
+        $this->assertSame('-5', BCMath::floor('-4.3'));
+        $this->assertSame('-10', BCMath::floor('-9.999'));
+        $this->assertSame('-4.000', BCMath::floor('-3.14159', 3));
+        
+        // Test integers
+        $this->assertSame('5', BCMath::floor('5'));
+        $this->assertSame('-5', BCMath::floor('-5'));
+        $this->assertSame('0', BCMath::floor('0'));
+        
+        // Test with scale
+        $this->assertSame('1', BCMath::floor('1.95583', 0));
+        $this->assertSame('1.00', BCMath::floor('1.95583', 2));
+        $this->assertSame('-2.0000', BCMath::floor('-1.95583', 4));
+    }
+
+    /**
+     * Test bcceil function without PHP 8.4
+     */
+    public function testCeilPolyfill()
+    {
+        if (function_exists('bcceil')) {
+            $this->markTestSkipped('bcceil is available, testing with native function');
+        }
+        
+        // Test positive numbers
+        $this->assertSame('5', BCMath::ceil('4.3'));
+        $this->assertSame('10', BCMath::ceil('9.999'));
+        $this->assertSame('4.00', BCMath::ceil('3.14159', 2));
+        
+        // Test negative numbers
+        $this->assertSame('-4', BCMath::ceil('-4.3'));
+        $this->assertSame('-9', BCMath::ceil('-9.999'));
+        $this->assertSame('-3.000', BCMath::ceil('-3.14159', 3));
+        
+        // Test integers
+        $this->assertSame('5', BCMath::ceil('5'));
+        $this->assertSame('-5', BCMath::ceil('-5'));
+        $this->assertSame('0', BCMath::ceil('0'));
+        
+        // Test with scale
+        $this->assertSame('2', BCMath::ceil('1.95583', 0));
+        $this->assertSame('2.00', BCMath::ceil('1.95583', 2));
+        $this->assertSame('-1.0000', BCMath::ceil('-1.95583', 4));
+    }
+
+    /**
+     * Test bcround function without PHP 8.4
+     */
+    public function testRoundPolyfill()
+    {
+        if (function_exists('bcround')) {
+            $this->markTestSkipped('bcround is available, testing with native function');
+        }
+        
+        // Test basic rounding
+        $this->assertSame('3', BCMath::round('3.4'));
+        $this->assertSame('4', BCMath::round('3.5'));
+        $this->assertSame('4', BCMath::round('3.6'));
+        $this->assertSame('-3', BCMath::round('-3.4'));
+        $this->assertSame('-4', BCMath::round('-3.5'));
+        $this->assertSame('-4', BCMath::round('-3.6'));
+        
+        // Test with scale
+        $this->assertSame('1.96', BCMath::round('1.95583', 2));
+        $this->assertSame('1.956', BCMath::round('1.95583', 3));
+        $this->assertSame('1.2', BCMath::round('1.2345', 1));
+        
+        // Test different rounding modes
+        $this->assertSame('1.6', BCMath::round('1.55', 1, PHP_ROUND_HALF_UP));
+        $this->assertSame('1.5', BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN));
+        $this->assertSame('1.6', BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN));
+        $this->assertSame('1.5', BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD));
+        
+        // Test negative scale
+        $this->assertSame('140', BCMath::round('135', -1));
+        $this->assertSame('100', BCMath::round('135', -2));
+        $this->assertSame('1200', BCMath::round('1234.5678', -2));
     }
 }
