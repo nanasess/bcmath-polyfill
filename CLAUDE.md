@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-このファイルは、Claude Code (claude.ai/code) がこのリポジトリのコードを扱う際のガイダンスを提供します。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## プロジェクト概要
 
-bcmath_compatは、PHP 5.x-8.x向けのbcmath拡張機能のポリフィルライブラリです。bcmath拡張機能がインストールされていない環境でも、bcmath関数を使用できるようにします。
+bcmath_compatは、PHP 8.1+向けのbcmath拡張機能のポリフィルライブラリです。bcmath拡張機能がインストールされていない環境でも、bcmath関数を使用できるようにします。
 
 ## 開発コマンド
 
@@ -58,3 +58,7 @@ composer install
 - bcscale()関数の実装はPHP 7.3+の動作に準拠
 - エラーハンドリングはPHPバージョンに応じて適切なエラークラス（Error、ArithmeticError、DivisionByZeroError等）を使用
 - PSR-2コーディング標準に準拠
+
+## 開発ルール
+
+- Pull Request がマージされたら関連する issues を更新してください
