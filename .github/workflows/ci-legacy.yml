@@ -18,76 +18,15 @@ jobs:
               with:
                   php-version: ${{ matrix.php-version }}
                   extensions: bcmath
+                  tools: composer:v1  # Use Composer v1 for better PHP 5.x compatibility
 
-            - name: Install Composer dependencies (PHP 7.2+)
-              if: matrix.php-version >= '7.2'
-              run: composer install --no-interaction --no-cache
-
-            - name: Install dependencies manually (PHP 5.4-5.5)
-              if: matrix.php-version == '5.4' || matrix.php-version == '5.5'
+            - name: Install dependencies
               run: |
-                  # For PHP 5.4-5.5, use phpseclib 2.x which supports PHP 5.3+
-                  mkdir -p vendor/phpseclib/phpseclib
-                  git clone --depth 1 --branch 2.0 https://github.com/phpseclib/phpseclib.git vendor/phpseclib/phpseclib
-
-                  # Create a simple autoloader for phpseclib 2.x
-                  echo '<?php
-                  spl_autoload_register(function ($class) {
-                      $prefix = "phpseclib\\";
-                      $base_dir = __DIR__ . "/vendor/phpseclib/phpseclib/phpseclib/";
-
-                      $len = strlen($prefix);
-                      if (strncmp($prefix, $class, $len) !== 0) {
-                          return;
-                      }
-
-                      $relative_class = substr($class, $len);
-                      $file = $base_dir . str_replace("\\", "/", $relative_class) . ".php";
-
-                      if (file_exists($file)) {
-                          require $file;
-                      }
-                  });
-
-                  // Also try without namespace for phpseclib 2.x
-                  spl_autoload_register(function ($class) {
-                      $file = __DIR__ . "/vendor/phpseclib/phpseclib/phpseclib/" . str_replace("_", "/", $class) . ".php";
-                      if (file_exists($file)) {
-                          require $file;
-                      }
-                  });
-
-                  // Include the bcmath polyfill
-                  require_once __DIR__ . "/lib/bcmath.php";' > autoload.php
-
-            - name: Install dependencies manually (PHP 5.6-7.1)
-              if: matrix.php-version == '5.6' || matrix.php-version == '7.0' || matrix.php-version == '7.1'
-              run: |
-                  # For PHP 5.6+, use phpseclib 3.x
-                  mkdir -p vendor/phpseclib/phpseclib
-                  git clone --depth 1 --branch 3.0 https://github.com/phpseclib/phpseclib.git vendor/phpseclib/phpseclib
-
-                  # Create a simple autoloader for phpseclib 3.x
-                  echo '<?php
-                  spl_autoload_register(function ($class) {
-                      $prefix = "phpseclib3\\";
-                      $base_dir = __DIR__ . "/vendor/phpseclib/phpseclib/phpseclib/";
-
-                      $len = strlen($prefix);
-                      if (strncmp($prefix, $class, $len) !== 0) {
-                          return;
-                      }
-
-                      $relative_class = substr($class, $len);
-                      $file = $base_dir . str_replace("\\", "/", $relative_class) . ".php";
-
-                      if (file_exists($file)) {
-                          require $file;
-                      }
-                  });
-
-                  // Include the bcmath polyfill
-                  require_once __DIR__ . "/lib/bcmath.php";' > autoload.php
+                  # Force phpseclib 2.x for older PHP versions
+                  if [[ "${{ matrix.php-version }}" < "7.2" ]]; then
+                      composer require phpseclib/phpseclib:^2.0 --no-update
+                  fi
+                  composer install --no-interaction --no-cache --prefer-dist
 
             - name: Run tests with simple test runner
               run: php tests/simple-test-runner.php
