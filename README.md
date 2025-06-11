@@ -16,7 +16,7 @@
 ## 🚀 Features
 
 - ✅ Complete bcmath extension polyfill for PHP 5.x-8.x
-- ✅ Supports all PHP 8.4 bcmath functions including `bcfloor()`, `bcceil()`, and `bcround()`
+- ✅ Supports all PHP 8.4 bcmath functions including `bcfloor()`, `bcceil()`, and `bcround()` (PHP 8.1+ required)
 - ✅ Zero dependencies in production (uses phpseclib for arbitrary precision math)
 - ✅ Seamless fallback when bcmath extension is not available
 - ✅ 100% compatible with native bcmath functions
