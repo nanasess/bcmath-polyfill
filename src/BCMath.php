@@ -162,7 +162,12 @@ abstract class BCMath
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
             // >= PHP 8.0 throws an exception
-            throw new \DivisionByZeroError('Division by zero');
+            if (class_exists('\DivisionByZeroError')) {
+                throw new \DivisionByZeroError('Division by zero');
+            } else {
+                trigger_error('Division by zero', E_WARNING);
+                return 'INF';
+            }
         }
 
         $temp = '1' . str_repeat('0', $scale);
@@ -187,7 +192,12 @@ abstract class BCMath
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
             // >= PHP 8.0 throws an exception
-            throw new \DivisionByZeroError('Division by zero');
+            if (class_exists('\DivisionByZeroError')) {
+                throw new \DivisionByZeroError('Division by zero');
+            } else {
+                trigger_error('Division by zero', E_WARNING);
+                return '';
+            }
         }
 
         list($q) = $x->divide($y);
@@ -234,8 +244,16 @@ abstract class BCMath
         }
 
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (bccomp($y, PHP_INT_MAX) > 0 || bccomp($y, $min) <= 0) {
-            throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
+        $y_big = new BigInteger($y);
+        $max_big = new BigInteger(PHP_INT_MAX);
+        $min_big = new BigInteger($min);
+        if ($y_big->compare($max_big) > 0 || $y_big->compare($min_big) <= 0) {
+            if (class_exists('\ValueError')) {
+                throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
+            } else {
+                trigger_error('bcpow(): Argument #2 ($exponent) is too large', E_WARNING);
+                return false;
+            }
         }
 
         $sign = self::isNegative($x) ? '-' : '';
@@ -273,7 +291,11 @@ abstract class BCMath
         if ($e[0] == '-' || $n == '0') {
             // < PHP 8.0 returned false
             // >= PHP 8.0 throws an exception
-            throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
+            if (class_exists('\ValueError')) {
+                throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
+            } else {
+                return false;
+            }
         }
         if ($n[0] == '-') {
             $n = substr($n, 1);
@@ -377,11 +399,21 @@ abstract class BCMath
         $cnt = count($arguments);
         if ($cnt < $params[$name] - 1) {
             $min = $params[$name] - 1;
-            throw new \ArgumentCountError("bc$name() expects at least $min parameters, " . $cnt . " given");
+            if (class_exists('\ArgumentCountError')) {
+                throw new \ArgumentCountError("bc$name() expects at least $min parameters, " . $cnt . " given");
+            } else {
+                trigger_error("bc$name() expects at least $min parameters, " . $cnt . " given", E_USER_WARNING);
+                return false;
+            }
         }
         if ($cnt > $params[$name]) {
             $str = "bc$name() expects at most {$params[$name]} parameters, " . $cnt . " given";
-            throw new \ArgumentCountError($str);
+            if (class_exists('\ArgumentCountError')) {
+                throw new \ArgumentCountError($str);
+            } else {
+                trigger_error($str, E_USER_WARNING);
+                return false;
+            }
         }
         $numbers = array_slice($arguments, 0, $params[$name] - 1);
 
@@ -410,7 +442,11 @@ abstract class BCMath
             $pos = strpos($int, '.');
             if ($pos !== false) {
                 $int = substr($int, 0, $pos);
-                throw new \ValueError("bc$name(): Argument #2 (\$$names[$i]) cannot have a fractional part");
+                if (class_exists('\ValueError')) {
+                    throw new \ValueError("bc$name(): Argument #2 (\$$names[$i]) cannot have a fractional part");
+                } else {
+                    trigger_error("bc$name(): Argument #2 (\$$names[$i]) cannot have a fractional part", E_WARNING);
+                }
             }
         }
         foreach ($numbers as $i => $arg) {
@@ -421,7 +457,11 @@ abstract class BCMath
                 case is_string($arg):
                 case is_object($arg) && method_exists($arg, '__toString'):
                     if (!is_bool($arg) && !is_numeric("$arg")) {
-                        throw new \ValueError("bc$name: bcmath function argument is not well-formed");
+                        if (class_exists('\ValueError')) {
+                            throw new \ValueError("bc$name: bcmath function argument is not well-formed");
+                        } else {
+                            trigger_error("bc$name: bcmath function argument is not well-formed", E_WARNING);
+                        }
                     }
                     break;
                 // PHP >= 8.1 has deprecated the passing of nulls to string parameters
@@ -432,7 +472,11 @@ abstract class BCMath
                 default:
                     $type = is_object($arg) ? get_class($arg) : gettype($arg);
                     $error = "bc$name(): Argument #$num (\$$names[$i]) must be of type string, $type given";
-                    throw new \TypeError($error);
+                    if (class_exists('\TypeError')) {
+                        throw new \TypeError($error);
+                    } else {
+                        trigger_error($error, E_USER_ERROR);
+                    }
             }
         }
         if (!isset(self::$scale)) {
@@ -446,13 +490,22 @@ abstract class BCMath
             case is_string($scale) && preg_match('#0-9\.#', $scale[0]):
                 break;
             default:
-                $type = is_object($arg) ? get_class($arg) : gettype($arg);
-                $str = "bc$name(): Argument #$params[$name] (\$scale) must be of type ?int, string given";
-                throw new \TypeError($str);
+                $type = is_object($scale) ? get_class($scale) : gettype($scale);
+                $str = "bc$name(): Argument #$params[$name] (\$scale) must be of type ?int, $type given";
+                if (class_exists('\TypeError')) {
+                    throw new \TypeError($str);
+                } else {
+                    trigger_error($str, E_USER_ERROR);
+                }
         }
         $scale = (int) $scale;
         if ($scale < 0) {
-            throw new \ValueError("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647");
+            if (class_exists('\ValueError')) {
+                throw new \ValueError("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647");
+            } else {
+                trigger_error("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647", E_WARNING);
+                $scale = 0;
+            }
         }
 
         $pad = 0;

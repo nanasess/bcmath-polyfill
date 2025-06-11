@@ -138,8 +138,10 @@ class BCMathTestSimple extends SimpleTestCase
                 // If we get here, no exception was thrown
                 throw new Exception('Expected DivisionByZeroError was not thrown');
             } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-                return;
+                // For PHP < 8.0, both should trigger a warning and return a specific result
+                @$a = call_user_func_array('bcdiv', $params);
+                @$b = call_user_func_array(array('bcmath_compat\BCMath', 'div'), $params);
+                $this->assertSame($a, $b);
             }
         } else {
             $a = call_user_func_array('bcdiv', $params);
@@ -178,8 +180,10 @@ class BCMathTestSimple extends SimpleTestCase
                 // If we get here, no exception was thrown
                 throw new Exception('Expected DivisionByZeroError was not thrown');
             } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-                return;
+                // For PHP < 8.0, both should trigger a warning and return a specific result
+                @$a = call_user_func_array('bcmod', $params);
+                @$b = call_user_func_array(array('bcmath_compat\BCMath', 'mod'), $params);
+                $this->assertSame($a, $b);
             }
         } else {
             $a = call_user_func_array('bcmod', $params);
