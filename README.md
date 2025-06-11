@@ -1,41 +1,103 @@
-# bcmath_compat
+# bcmath-polyfill
 
-[![Software License][ico-license]](LICENSE.md)
-[![CI Status](https://github.com/phpseclib/bcmath_compat/actions/workflows/ci.yml/badge.svg?branch=master&event=push "CI Status")](https://github.com/phpseclib/bcmath_compat/actions/workflows/ci.yml?query=branch%3Amaster)
+<p align="center">
+  <strong>PHP 8.4 bcmath functions polyfill with fallback compatibility for environments without bcmath extension.</strong>
+</p>
 
-PHP 5.x-8.x polyfill for bcmath extension
+<p align="center">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square" alt="Software License"></a>
+  <a href="https://github.com/nanasess/bcmath-polyfill/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://github.com/nanasess/bcmath-polyfill/actions/workflows/ci.yml/badge.svg?branch=main&event=push" alt="CI Status"></a>
+  <a href="https://packagist.org/packages/nanasess/bcmath-polyfill"><img src="https://img.shields.io/packagist/v/nanasess/bcmath-polyfill.svg?style=flat-square" alt="Latest Version"></a>
+  <a href="https://packagist.org/packages/nanasess/bcmath-polyfill"><img src="https://img.shields.io/packagist/dt/nanasess/bcmath-polyfill.svg?style=flat-square" alt="Total Downloads"></a>
+</p>
 
-## Installation
+---
 
-With [Composer](https://getcomposer.org/):
+## 🚀 Features
+
+- ✅ Complete bcmath extension polyfill for PHP 8.1+
+- ✅ Supports all PHP 8.4 bcmath functions including `bcfloor()`, `bcceil()`, and `bcround()`
+- ✅ Zero dependencies in production (uses phpseclib for arbitrary precision math)
+- ✅ Seamless fallback when bcmath extension is not available
+- ✅ 100% compatible with native bcmath functions
+
+## 📦 Installation
+
+Install via [Composer](https://getcomposer.org/):
 
 ```bash
-$ composer require phpseclib/bcmath_compat
+composer require nanasess/bcmath-polyfill
 ```
 
-## Limitations
+## 🔧 Usage
 
-- `extension_loaded('bcmath')`
+Simply include the polyfill in your project and use bcmath functions as you normally would:
 
-  bcmath_compat cannot make this return true. The recommended remediation is to not do this.
+```php
+// The polyfill will automatically load when bcmath extension is not available
+require_once 'vendor/autoload.php';
 
-- `ini_set('bcmath.scale', ...)`
+// All bcmath functions work identically to the native extension
+echo bcadd('1.234', '5.678', 2);    // 6.91
+echo bcmul('2.5', '3.5', 1);        // 8.7
+echo bcpow('2', '8');               // 256
 
-  You cannot set configuration options for extensions that are not installed. If you do `ini_set('bcmath.scale', 5)` on a system without bcmath installed then `ini_get('bcmath.scale')` will return `false`. It's similar to what happens when you do `ini_set('zzz', 5)` and then `ini_get('zzz')`. You'll get `false` back.
+// PHP 8.4 functions are also supported
+echo bcfloor('4.7');                // 4
+echo bcceil('4.3');                 // 5
+echo bcround('3.14159', 2);         // 3.14
+```
 
-  The recommended remediation to doing `ini_set('bcmath.scale', ...)` is to do `bcscale(...)`. The recommended remediation for doing `ini_get` is (if you're using PHP >= 7.3.0) to do `bcscale()` or (if you're using PHP < 7.3.0) to do `max(0, strlen(bcadd('0', '0')) - 2)`.
+## 📋 Supported Functions
 
-  Note that `ini_get` always returns a string whereas the recommended remediations return integers.
+### Classic bcmath Functions
+- `bcadd()` - Add two arbitrary precision numbers
+- `bcsub()` - Subtract one arbitrary precision number from another
+- `bcmul()` - Multiply two arbitrary precision numbers
+- `bcdiv()` - Divide two arbitrary precision numbers
+- `bcmod()` - Get modulus of an arbitrary precision number
+- `bcpow()` - Raise an arbitrary precision number to another
+- `bcsqrt()` - Get the square root of an arbitrary precision number
+- `bcscale()` - Set/get default scale parameter
+- `bccomp()` - Compare two arbitrary precision numbers
+- `bcpowmod()` - Raise an arbitrary precision number to another, reduced by a specified modulus
 
-[ico-version]: https://img.shields.io/packagist/v/phpseclib/bcmath_compat.svg?style=flat-square
-[ico-license]: https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
-[ico-travis]: https://img.shields.io/travis/phpseclib/bcmath_compat/master.svg?style=flat-square
-[ico-scrutinizer]: https://img.shields.io/scrutinizer/coverage/g/phpseclib/bcmath_compat.svg?style=flat-square
-[ico-code-quality]: https://img.shields.io/scrutinizer/g/phpseclib/bcmath_compat.svg?style=flat-square
-[ico-downloads]: https://img.shields.io/packagist/dt/phpseclib/bcmath_compat.svg?style=flat-square
+### PHP 8.4 Functions (Added in [PR #6](https://github.com/nanasess/bcmath-polyfill/pull/6))
+- `bcfloor()` - Round down to the nearest integer
+- `bcceil()` - Round up to the nearest integer
+- `bcround()` - Round to a specified precision with configurable rounding modes
 
-[link-packagist]: https://packagist.org/packages/phpseclib/bcmath_compat
-[link-travis]: https://travis-ci.org/phpseclib/bcmath_compat
-[link-scrutinizer]: https://scrutinizer-ci.com/g/phpseclib/bcmath_compat/code-structure
-[link-code-quality]: https://scrutinizer-ci.com/g/phpseclib/bcmath_compat
-[link-downloads]: https://packagist.org/packages/phpseclib/bcmath_compat
+## ⚡ Performance
+
+This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger class for arbitrary precision arithmetic, providing reliable performance for applications that cannot use the native bcmath extension.
+
+## ⚠️ Known Limitations
+
+### Extension Detection
+- `extension_loaded('bcmath')` will return `false` when using the polyfill
+- Recommended approach: Don't check for the extension, just use the functions
+
+### Configuration Options
+- `ini_set('bcmath.scale', ...)` won't work without the native extension
+- Use `bcscale()` instead to set the scale globally
+- To get the current scale:
+  - PHP >= 7.3.0: Use `bcscale()` without arguments
+  - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## 🙏 Credits
+
+This project is a fork of [phpseclib/bcmath_compat](https://github.com/phpseclib/bcmath_compat), originally created by the phpseclib team. We've extended it with PHP 8.4 function support and continue to maintain compatibility with all PHP versions.
+
+---
+
+<p align="center">
+  Made with ❤️ for the PHP community
+</p>
