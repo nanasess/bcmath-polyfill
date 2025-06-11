@@ -22,6 +22,9 @@ jobs:
 
             - name: Install dependencies
               run: |
+                  # Remove dev dependencies first to avoid conflicts
+                  composer remove phpunit/phpunit squizlabs/php_codesniffer --no-update
+                  
                   # Force phpseclib 2.x for older PHP versions (fetch from GitHub for Composer v1 EOL workaround)
                   if [[ "${{ matrix.php-version }}" < "7.2" ]]; then
                       # Use GitHub token to avoid rate limiting
