@@ -374,24 +374,9 @@ abstract class BCMath
             
             return $result;
         } else {
-            // When scale > 0, floor to the specified decimal places
-            // Multiply by 10^scale, floor, then divide back
-            $factor = bcpow('10', (string)$scale);
-            $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
-            
-            // Get the floor of the shifted value
-            $flooredShifted = bcdiv($shifted, '1', 0);
-            
-            // For negative numbers with fractional parts, we need to subtract 1
-            if (strpos($shifted, '.') !== false && $shifted[0] === '-') {
-                $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
-                if (ltrim($fractionalPart, '0') !== '') {
-                    $flooredShifted = bcsub($flooredShifted, '1', 0);
-                }
-            }
-            
-            // Divide back to get the result with proper scale
-            return bcdiv($flooredShifted, $factor, $scale);
+            // When scale > 0, truncate to the specified decimal places
+            // Simply use bcdiv with the desired scale, which truncates
+            return bcdiv($n, '1', $scale);
         }
     }
 
