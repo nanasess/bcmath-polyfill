@@ -23,7 +23,7 @@ jobs:
             - name: Install dependencies
               run: |
                   # Remove dev dependencies first to avoid conflicts
-                  composer remove phpunit/phpunit squizlabs/php_codesniffer --no-update
+                  composer remove phpunit/phpunit squizlabs/php_codesniffer --dev --no-update
                   
                   # Force phpseclib 2.x for older PHP versions (fetch from GitHub for Composer v1 EOL workaround)
                   if [[ "${{ matrix.php-version }}" < "7.2" ]]; then
@@ -33,7 +33,7 @@ jobs:
                       composer config repositories.phpseclib vcs https://oauth2:${{ secrets.GITHUB_TOKEN }}@github.com/phpseclib/phpseclib.git
                       composer require phpseclib/phpseclib:^2.0 --no-update
                   fi
-                  composer install --no-interaction --no-cache --prefer-dist --no-dev
+                  composer install --no-interaction --prefer-dist --no-dev
 
             - name: Run tests with simple test runner
               run: php tests/simple-test-runner.php
