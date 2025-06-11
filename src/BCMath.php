@@ -12,18 +12,21 @@
 
 namespace bcmath_compat;
 
+// For PHP < 7.0, we need to handle class_alias differently
 // Check phpseclib version and use appropriate namespace
 if (class_exists('\phpseclib3\Math\BigInteger')) {
     // phpseclib 3.x
-    class_alias('\phpseclib3\Math\BigInteger', '\bcmath_compat\BigInteger');
+    if (!class_exists('\bcmath_compat\BigInteger')) {
+        class_alias('\phpseclib3\Math\BigInteger', '\bcmath_compat\BigInteger');
+    }
 } elseif (class_exists('\phpseclib\Math\BigInteger')) {
     // phpseclib 2.x
-    class_alias('\phpseclib\Math\BigInteger', '\bcmath_compat\BigInteger');
+    if (!class_exists('\bcmath_compat\BigInteger')) {
+        class_alias('\phpseclib\Math\BigInteger', '\bcmath_compat\BigInteger');
+    }
 } else {
     throw new \RuntimeException('phpseclib is not installed');
 }
-
-use bcmath_compat\BigInteger;
 
 /**
  * BCMath Emulation Class
@@ -92,7 +95,7 @@ abstract class BCMath
      */
     private static function isNegative($x)
     {
-        return $x->compare(new BigInteger()) < 0;
+        return $x->compare(new \bcmath_compat\BigInteger()) < 0;
     }
 
     /**
@@ -171,7 +174,7 @@ abstract class BCMath
         }
 
         $temp = '1' . str_repeat('0', $scale);
-        $temp = new BigInteger($temp);
+        $temp = new \bcmath_compat\BigInteger($temp);
         list($q) = $x->multiply($temp)->divide($y);
 
         return self::format($q, $scale, $scale);
@@ -217,8 +220,8 @@ abstract class BCMath
      */
     private static function comp($x, $y, $scale, $pad)
     {
-        $x = new BigInteger($x[0] . substr($x[1], 0, $scale));
-        $y = new BigInteger($y[0] . substr($y[1], 0, $scale));
+        $x = new \bcmath_compat\BigInteger($x[0] . substr($x[1], 0, $scale));
+        $y = new \bcmath_compat\BigInteger($y[0] . substr($y[1], 0, $scale));
 
         return $x->compare($y);
     }
@@ -244,9 +247,9 @@ abstract class BCMath
         }
 
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        $y_big = new BigInteger($y);
-        $max_big = new BigInteger(PHP_INT_MAX);
-        $min_big = new BigInteger($min);
+        $y_big = new \bcmath_compat\BigInteger($y);
+        $max_big = new \bcmath_compat\BigInteger(PHP_INT_MAX);
+        $min_big = new \bcmath_compat\BigInteger($min);
         if ($y_big->compare($max_big) > 0 || $y_big->compare($min_big) <= 0) {
             if (class_exists('\ValueError')) {
                 throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
@@ -259,7 +262,7 @@ abstract class BCMath
         $sign = self::isNegative($x) ? '-' : '';
         $x = $x->abs();
 
-        $r = new BigInteger(1);
+        $r = new \bcmath_compat\BigInteger(1);
 
         for ($i = 0; $i < abs($y); $i++) {
             $r = $r->multiply($x);
@@ -267,7 +270,7 @@ abstract class BCMath
 
         if ($y < 0) {
             $temp = '1' . str_repeat('0', $scale + $pad * abs($y));
-            $temp = new BigInteger($temp);
+            $temp = new \bcmath_compat\BigInteger($temp);
             list($r) = $temp->divide($r);
             $pad = $scale;
         } else {
@@ -306,9 +309,9 @@ abstract class BCMath
                 '1';
         }
 
-        $x = new BigInteger($x);
-        $e = new BigInteger($e);
-        $n = new BigInteger($n);
+        $x = new \bcmath_compat\BigInteger($x);
+        $e = new \bcmath_compat\BigInteger($e);
+        $n = new \bcmath_compat\BigInteger($n);
 
         $z = $x->powMod($e, $n);
 
@@ -532,7 +535,7 @@ abstract class BCMath
                         $num[1] = '';
                     }
                     $num[1] = str_pad($num[1], $pad, '0');
-                    $num = new BigInteger($num[0] . $num[1]);
+                    $num = new \bcmath_compat\BigInteger($num[0] . $num[1]);
                 }
                 break;
             case 'comp':
