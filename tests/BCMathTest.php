@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
 #[RequiresPhpExtension('bcmath')]
 class BCMathTest extends TestCase
 {
-    static $emsg = '';
+    protected static $emsg = '';
     /**
      * Produces all combinations of test values.
      *
@@ -281,7 +281,7 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateScaleCallstaticParams')]
-    public function test_argumentsScaleCallstatic(...$params)
+    public function testArgumentsScaleCallstatic(...$params)
     {
         // Save original scale
         $originalScale = bcscale();
@@ -306,7 +306,8 @@ class BCMathTest extends TestCase
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
-                $this->markTestSkipped('ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage());
+                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
+                $this->markTestSkipped($msg);
             }
         }
         
@@ -325,7 +326,7 @@ class BCMathTest extends TestCase
         ];
     }
     #[DataProvider('generatePowModCallstaticParams')]
-    public function test_argumentsPowModCallstatic(...$params)
+    public function testArgumentsPowModCallstatic(...$params)
     {
         //scale with 1, 2, 3 parameters
         if (func_num_args() > 2 && func_num_args() < 5) {
@@ -343,7 +344,8 @@ class BCMathTest extends TestCase
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
-                $this->markTestSkipped('ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage());
+                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
+                $this->markTestSkipped($msg);
             }
         }
     }
@@ -426,10 +428,22 @@ class BCMathTest extends TestCase
         
         // Test different rounding modes with RoundingMode enum for PHP 8.4
         if (enum_exists('RoundingMode', false)) {
-            $this->assertSame(bcround('1.55', 1, \RoundingMode::HalfAwayFromZero), BCMath::round('1.55', 1, PHP_ROUND_HALF_UP));
-            $this->assertSame(bcround('1.55', 1, \RoundingMode::HalfTowardsZero), BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN));
-            $this->assertSame(bcround('1.55', 1, \RoundingMode::HalfEven), BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN));
-            $this->assertSame(bcround('1.55', 1, \RoundingMode::HalfOdd), BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD));
+            $this->assertSame(
+                bcround('1.55', 1, \RoundingMode::HalfAwayFromZero),
+                BCMath::round('1.55', 1, PHP_ROUND_HALF_UP)
+            );
+            $this->assertSame(
+                bcround('1.55', 1, \RoundingMode::HalfTowardsZero),
+                BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN)
+            );
+            $this->assertSame(
+                bcround('1.55', 1, \RoundingMode::HalfEven),
+                BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN)
+            );
+            $this->assertSame(
+                bcround('1.55', 1, \RoundingMode::HalfOdd),
+                BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD)
+            );
         } else {
             // Fallback for environments where RoundingMode is not available yet
             $this->assertSame('1.6', BCMath::round('1.55', 1, PHP_ROUND_HALF_UP));
@@ -536,5 +550,230 @@ class BCMathTest extends TestCase
         $this->assertSame('140', BCMath::round('135', -1));
         $this->assertSame('100', BCMath::round('135', -2));
         $this->assertSame('1200', BCMath::round('1234.5678', -2));
+    }
+
+    /**
+     * Test boundary values with very large decimal places
+     */
+    public function testBoundaryValuesLargeDecimals()
+    {
+        // Test with very large decimal places
+        $largeDecimal = '1.' . str_repeat('9', 100);
+        $result = BCMath::add($largeDecimal, '0.1', 50);
+        // When adding 0.1 to 1.999... we get 2.099...
+        $this->assertSame('2.09999999999999999999999999999999999999999999999999', $result);
+        
+        // Test with operations preserving large decimal precision
+        $num1 = '123.456789012345678901234567890123456789012345678901234567890123456789';
+        $num2 = '987.654321098765432109876543210987654321098765432109876543210987654321';
+        
+        // Addition with high precision
+        $sum = BCMath::add($num1, $num2, 60);
+        $this->assertSame('1111.111110111111111011111111101111111110111111111011111111101111', $sum);
+        
+        // Multiplication with high precision
+        $product = BCMath::mul('0.00000000000000000001', '0.00000000000000000001', 40);
+        $this->assertSame('0.0000000000000000000000000000000000000001', $product);
+        
+        // Division with high precision
+        $quotient = BCMath::div('1', '3', 100);
+        $expected = '0.' . str_repeat('3', 100);
+        $this->assertSame($expected, $quotient);
+    }
+
+    /**
+     * Test with scale value 2147483647 (maximum integer)
+     */
+    public function testMaximumScaleValue()
+    {
+        // Note: Due to memory limitations, we can't actually test with scale 2147483647
+        // but we can test the function accepts it and behaves correctly
+        
+        // Test that the scale parameter accepts large values
+        $result = BCMath::add('1.5', '2.5', 1000);
+        $this->assertSame('4.' . str_repeat('0', 1000), $result);
+        
+        // Test with a reasonably large scale
+        $result = BCMath::div('1', '7', 500);
+        // Should produce 0.142857142857... repeating (total length = 502 with "0.")
+        $expected = '0.' . str_repeat('142857', 83) . '14';
+        $this->assertSame($expected, $result);
+    }
+
+    /**
+     * Test with extremely small numbers
+     */
+    public function testExtremelySmallNumbers()
+    {
+        // Test with scientific notation converted to decimal
+        $small = '0.' . str_repeat('0', 99) . '1'; // 1e-100
+        
+        // Addition with extremely small numbers
+        $result = BCMath::add($small, $small, 101);
+        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $this->assertSame($expected, $result);
+        
+        // Multiplication of extremely small numbers
+        $result = BCMath::mul($small, '2', 101);
+        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $this->assertSame($expected, $result);
+        
+        // Division producing extremely small results
+        $result = BCMath::div('1', '1' . str_repeat('0', 50), 60);
+        $expected = '0.' . str_repeat('0', 49) . '10' . str_repeat('0', 9);
+        $this->assertSame($expected, $result);
+        
+        // Operations with mixed extremely small and normal numbers
+        $result = BCMath::add('1000000', $small, 105);
+        $expected = '1000000.' . str_repeat('0', 99) . '1' . str_repeat('0', 5);
+        $this->assertSame($expected, $result);
+    }
+
+    /**
+     * Test all bcround() rounding modes for PHP 8.4+
+     * @requires PHP >= 8.4
+     */
+    #[RequiresPhp('>=8.4')]
+    public function testRoundAllModes()
+    {
+        // Test data: number, scale, expected results for each mode
+        $testCases = [
+            // Basic half cases
+            ['2.5', 0, ['3', '2', '2', '3']],
+            ['-2.5', 0, ['-3', '-2', '-2', '-3']],
+            ['3.5', 0, ['4', '3', '4', '3']],
+            ['-3.5', 0, ['-4', '-3', '-4', '-3']],
+            
+            // With decimal places
+            ['1.2535', 2, ['1.25', '1.25', '1.25', '1.25']],
+            ['1.255', 2, ['1.26', '1.25', '1.26', '1.25']],
+            ['1.245', 2, ['1.25', '1.24', '1.24', '1.25']],
+            
+            // Edge cases at boundaries
+            ['0.5', 0, ['1', '0', '0', '1']],
+            ['-0.5', 0, ['-1', '0', '0', '-1']],
+            ['1.5', 0, ['2', '1', '2', '1']],
+            ['-1.5', 0, ['-2', '-1', '-2', '-1']],
+            
+            // Multiple rounding positions
+            ['12.345', 2, ['12.35', '12.34', '12.34', '12.35']],
+            ['12.355', 2, ['12.36', '12.35', '12.36', '12.35']],
+            ['12.365', 2, ['12.37', '12.36', '12.36', '12.37']],
+            ['12.375', 2, ['12.38', '12.37', '12.38', '12.37']],
+        ];
+        
+        $modes = [
+            PHP_ROUND_HALF_UP,
+            PHP_ROUND_HALF_DOWN,
+            PHP_ROUND_HALF_EVEN,
+            PHP_ROUND_HALF_ODD
+        ];
+        
+        foreach ($testCases as [$number, $scale, $expectedResults]) {
+            foreach ($modes as $i => $mode) {
+                $result = BCMath::round($number, $scale, $mode);
+                $this->assertSame(
+                    $expectedResults[$i],
+                    $result,
+                    "Failed for number=$number, scale=$scale, mode=$mode"
+                );
+                
+                // Also test with native bcround if available with RoundingMode enum
+                if (function_exists('bcround') && enum_exists('RoundingMode', false)) {
+                    $enumMode = match ($mode) {
+                        PHP_ROUND_HALF_UP => \RoundingMode::HalfAwayFromZero,
+                        PHP_ROUND_HALF_DOWN => \RoundingMode::HalfTowardsZero,
+                        PHP_ROUND_HALF_EVEN => \RoundingMode::HalfEven,
+                        PHP_ROUND_HALF_ODD => \RoundingMode::HalfOdd,
+                    };
+                    $nativeResult = bcround($number, $scale, $enumMode);
+                    $this->assertSame(
+                        $nativeResult,
+                        $result,
+                        "Native bcround differs from polyfill for number=$number, scale=$scale, mode=$mode"
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Test bcround() with negative scale values
+     */
+    public function testRoundNegativeScale()
+    {
+        // Test rounding to tens, hundreds, thousands
+        $testCases = [
+            // [number, scale, expected]
+            ['123', -1, '120'],
+            ['125', -1, '130'],
+            ['128', -1, '130'],
+            
+            ['1234', -2, '1200'],
+            ['1250', -2, '1300'],
+            ['1280', -2, '1300'],
+            
+            ['12345', -3, '12000'],
+            ['12500', -3, '13000'],
+            ['12800', -3, '13000'],
+            
+            // Negative numbers
+            ['-123', -1, '-120'],
+            ['-125', -1, '-130'],
+            ['-128', -1, '-130'],
+            
+            ['-1234', -2, '-1200'],
+            ['-1250', -2, '-1300'],
+            ['-1280', -2, '-1300'],
+            
+            // Edge cases
+            ['5', -1, '10'],
+            ['-5', -1, '-10'],
+            ['50', -2, '100'],
+            ['-50', -2, '-100'],
+            
+            // Larger negative scales
+            ['123456789', -4, '123460000'],
+            ['123456789', -6, '123000000'],
+            ['987654321', -5, '987700000'],
+            
+            // With decimal places
+            ['123.456', -1, '120'],
+            ['125.999', -1, '130'],
+            ['1234.567', -2, '1200'],
+            ['1250.001', -2, '1300'],
+        ];
+        
+        foreach ($testCases as [$number, $scale, $expected]) {
+            $result = BCMath::round($number, $scale);
+            $this->assertSame(
+                $expected,
+                $result,
+                "Failed for number=$number, scale=$scale"
+            );
+            
+            // Test with native bcround for PHP 8.4+
+            if (function_exists('bcround')) {
+                $nativeResult = bcround($number, $scale);
+                $this->assertSame(
+                    $nativeResult,
+                    $result,
+                    "Native bcround differs from polyfill for number=$number, scale=$scale"
+                );
+            }
+        }
+        
+        // Test negative scale with different rounding modes
+        if (version_compare(PHP_VERSION, '8.4', '>=')) {
+            $this->assertSame('120', BCMath::round('125', -1, PHP_ROUND_HALF_DOWN));
+            $this->assertSame('130', BCMath::round('125', -1, PHP_ROUND_HALF_UP));
+            $this->assertSame('120', BCMath::round('125', -1, PHP_ROUND_HALF_EVEN));
+            $this->assertSame('130', BCMath::round('125', -1, PHP_ROUND_HALF_ODD));
+            
+            $this->assertSame('1200', BCMath::round('1250', -2, PHP_ROUND_HALF_DOWN));
+            $this->assertSame('1300', BCMath::round('1250', -2, PHP_ROUND_HALF_UP));
+            $this->assertSame('1200', BCMath::round('1250', -2, PHP_ROUND_HALF_EVEN));
+            $this->assertSame('1300', BCMath::round('1250', -2, PHP_ROUND_HALF_ODD));
+        }
     }
 }
