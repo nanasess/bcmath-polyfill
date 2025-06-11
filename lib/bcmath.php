@@ -150,38 +150,44 @@ if (!function_exists('bcadd')) {
         return BCMath::sub($left_operand, $right_operand, $scale);
     }
 
-    /**
-     * Round down to the nearest integer (PHP 8.4+)
-     *
-     * @var string $operand
-     * @var int $scale optional
-     */
-    function bcfloor($operand, $scale = 0)
-    {
-        return BCMath::floor($operand, $scale);
+    if (!function_exists('bcfloor')) {
+        /**
+         * Round down to the nearest integer (PHP 8.4+)
+         *
+         * @var string $operand
+         * @var int $scale optional
+         */
+        function bcfloor($operand, $scale = 0)
+        {
+            return BCMath::floor($operand, $scale);
+        }
     }
 
-    /**
-     * Round up to the nearest integer (PHP 8.4+)
-     *
-     * @var string $operand
-     * @var int $scale optional
-     */
-    function bcceil($operand, $scale = 0)
-    {
-        return BCMath::ceil($operand, $scale);
+    if (!function_exists('bcceil')) {
+        /**
+         * Round up to the nearest integer (PHP 8.4+)
+         *
+         * @var string $operand
+         * @var int $scale optional
+         */
+        function bcceil($operand, $scale = 0)
+        {
+            return BCMath::ceil($operand, $scale);
+        }
     }
 
-    /**
-     * Round to a given decimal place (PHP 8.4+)
-     *
-     * @var string $operand
-     * @var int $precision optional
-     * @var int $mode optional
-     */
-    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP)
-    {
-        return BCMath::round($operand, $precision, $mode);
+    if (!function_exists('bcround')) {
+        /**
+         * Round to a given decimal place (PHP 8.4+)
+         *
+         * @var string $operand
+         * @var int $precision optional
+         * @var int $mode optional
+         */
+        function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP)
+        {
+            return BCMath::round($operand, $precision, $mode);
+        }
     }
 }
 
