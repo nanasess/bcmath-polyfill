@@ -360,24 +360,39 @@ abstract class BCMath
             return '0';
         }
 
-        // Use bcdiv to divide by 1 with scale 0 to get the floor
-        // This effectively truncates the decimal part
-        $result = bcdiv($n, '1', 0);
-        
-        // For negative numbers with fractional parts, we need to subtract 1
-        if (strpos($n, '.') !== false && $n[0] === '-') {
-            $fractionalPart = substr($n, strpos($n, '.') + 1);
-            if (ltrim($fractionalPart, '0') !== '') {
-                $result = bcsub($result, '1', 0);
+        if ($scale == 0) {
+            // When scale is 0, just get the integer part
+            $result = bcdiv($n, '1', 0);
+            
+            // For negative numbers with fractional parts, we need to subtract 1
+            if (strpos($n, '.') !== false && $n[0] === '-') {
+                $fractionalPart = substr($n, strpos($n, '.') + 1);
+                if (ltrim($fractionalPart, '0') !== '') {
+                    $result = bcsub($result, '1', 0);
+                }
             }
+            
+            return $result;
+        } else {
+            // When scale > 0, floor to the specified decimal places
+            // Multiply by 10^scale, floor, then divide back
+            $factor = bcpow('10', (string)$scale);
+            $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
+            
+            // Get the floor of the shifted value
+            $flooredShifted = bcdiv($shifted, '1', 0);
+            
+            // For negative numbers with fractional parts, we need to subtract 1
+            if (strpos($shifted, '.') !== false && $shifted[0] === '-') {
+                $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
+                if (ltrim($fractionalPart, '0') !== '') {
+                    $flooredShifted = bcsub($flooredShifted, '1', 0);
+                }
+            }
+            
+            // Divide back to get the result with proper scale
+            return bcdiv($flooredShifted, $factor, $scale);
         }
-        
-        // Apply the requested scale
-        if ($scale > 0) {
-            $result .= '.' . str_repeat('0', $scale);
-        }
-        
-        return $result;
     }
 
     /**
@@ -397,23 +412,39 @@ abstract class BCMath
             return '0';
         }
 
-        // Use bcdiv to divide by 1 with scale 0 to get the truncated value
-        $result = bcdiv($n, '1', 0);
-        
-        // For positive numbers with fractional parts, we need to add 1
-        if (strpos($n, '.') !== false && $n[0] !== '-') {
-            $fractionalPart = substr($n, strpos($n, '.') + 1);
-            if (ltrim($fractionalPart, '0') !== '') {
-                $result = bcadd($result, '1', 0);
+        if ($scale == 0) {
+            // When scale is 0, just get the integer part
+            $result = bcdiv($n, '1', 0);
+            
+            // For positive numbers with fractional parts, we need to add 1
+            if (strpos($n, '.') !== false && $n[0] !== '-') {
+                $fractionalPart = substr($n, strpos($n, '.') + 1);
+                if (ltrim($fractionalPart, '0') !== '') {
+                    $result = bcadd($result, '1', 0);
+                }
             }
+            
+            return $result;
+        } else {
+            // When scale > 0, ceil to the specified decimal places
+            // Multiply by 10^scale, ceil, then divide back
+            $factor = bcpow('10', (string)$scale);
+            $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
+            
+            // Get the ceiling of the shifted value
+            $ceiledShifted = bcdiv($shifted, '1', 0);
+            
+            // For positive numbers with fractional parts, we need to add 1
+            if (strpos($shifted, '.') !== false && $shifted[0] !== '-') {
+                $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
+                if (ltrim($fractionalPart, '0') !== '') {
+                    $ceiledShifted = bcadd($ceiledShifted, '1', 0);
+                }
+            }
+            
+            // Divide back to get the result with proper scale
+            return bcdiv($ceiledShifted, $factor, $scale);
         }
-        
-        // Apply the requested scale
-        if ($scale > 0) {
-            $result .= '.' . str_repeat('0', $scale);
-        }
-        
-        return $result;
     }
 
     /**
