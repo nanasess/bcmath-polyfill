@@ -12,7 +12,18 @@
 
 namespace bcmath_compat;
 
-use phpseclib3\Math\BigInteger;
+// Check phpseclib version and use appropriate namespace
+if (class_exists('\phpseclib3\Math\BigInteger')) {
+    // phpseclib 3.x
+    class_alias('\phpseclib3\Math\BigInteger', '\bcmath_compat\BigInteger');
+} elseif (class_exists('\phpseclib\Math\BigInteger')) {
+    // phpseclib 2.x
+    class_alias('\phpseclib\Math\BigInteger', '\bcmath_compat\BigInteger');
+} else {
+    throw new \RuntimeException('phpseclib is not installed');
+}
+
+use bcmath_compat\BigInteger;
 
 /**
  * BCMath Emulation Class
