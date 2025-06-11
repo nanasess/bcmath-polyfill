@@ -149,7 +149,9 @@ if (!function_exists('bcadd')) {
     {
         return BCMath::sub($left_operand, $right_operand, $scale);
     }
+}
 
+if (!function_exists('bcfloor')) {
     /**
      * Round down to the nearest integer (PHP 8.4+)
      *
@@ -160,7 +162,9 @@ if (!function_exists('bcadd')) {
     {
         return BCMath::floor($operand, $scale);
     }
+}
 
+if (!function_exists('bcceil')) {
     /**
      * Round up to the nearest integer (PHP 8.4+)
      *
@@ -171,7 +175,9 @@ if (!function_exists('bcadd')) {
     {
         return BCMath::ceil($operand, $scale);
     }
+}
 
+if (!function_exists('bcround')) {
     /**
      * Round to a given decimal place (PHP 8.4+)
      *
