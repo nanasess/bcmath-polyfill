@@ -24,6 +24,8 @@ jobs:
               run: |
                   # Force phpseclib 2.x for older PHP versions (fetch from GitHub for Composer v1 EOL workaround)
                   if [[ "${{ matrix.php-version }}" < "7.2" ]]; then
+                      # Use GitHub token to avoid rate limiting
+                      composer config -g github-oauth.github.com ${{ secrets.GITHUB_TOKEN }}
                       composer config repositories.phpseclib vcs https://github.com/phpseclib/phpseclib.git
                       composer require phpseclib/phpseclib:^2.0 --no-update
                   fi
