@@ -344,6 +344,175 @@ abstract class BCMath
     }
 
     /**
+     * Round down to the nearest integer
+     *
+     * @var string $n
+     * @var int $scale
+     * @var int $pad
+     */
+    private static function floor($n, $scale, $pad)
+    {
+        if (!is_numeric($n)) {
+            if (version_compare(PHP_VERSION, '8.4', '>=')) {
+                throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
+            }
+            trigger_error('bcfloor(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+            return '0';
+        }
+
+        // Use bcdiv to divide by 1 with scale 0 to get the floor
+        // This effectively truncates the decimal part
+        $result = bcdiv($n, '1', 0);
+        
+        // For negative numbers with fractional parts, we need to subtract 1
+        if (strpos($n, '.') !== false && $n[0] === '-') {
+            $fractionalPart = substr($n, strpos($n, '.') + 1);
+            if (ltrim($fractionalPart, '0') !== '') {
+                $result = bcsub($result, '1', 0);
+            }
+        }
+        
+        // Apply the requested scale
+        if ($scale > 0) {
+            $result .= '.' . str_repeat('0', $scale);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Round up to the nearest integer
+     *
+     * @var string $n
+     * @var int $scale
+     * @var int $pad
+     */
+    private static function ceil($n, $scale, $pad)
+    {
+        if (!is_numeric($n)) {
+            if (version_compare(PHP_VERSION, '8.4', '>=')) {
+                throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
+            }
+            trigger_error('bcceil(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+            return '0';
+        }
+
+        // Use bcdiv to divide by 1 with scale 0 to get the truncated value
+        $result = bcdiv($n, '1', 0);
+        
+        // For positive numbers with fractional parts, we need to add 1
+        if (strpos($n, '.') !== false && $n[0] !== '-') {
+            $fractionalPart = substr($n, strpos($n, '.') + 1);
+            if (ltrim($fractionalPart, '0') !== '') {
+                $result = bcadd($result, '1', 0);
+            }
+        }
+        
+        // Apply the requested scale
+        if ($scale > 0) {
+            $result .= '.' . str_repeat('0', $scale);
+        }
+        
+        return $result;
+    }
+
+    /**
+     * Round to a given decimal place
+     *
+     * @var string $n
+     * @var int $scale
+     * @var int $pad
+     * @var int $mode
+     */
+    private static function round($n, $scale, $pad, $mode = PHP_ROUND_HALF_UP)
+    {
+        if (!is_numeric($n)) {
+            if (version_compare(PHP_VERSION, '8.4', '>=')) {
+                throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
+            }
+            trigger_error('bcround(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+            return '0';
+        }
+
+        // Based on: https://stackoverflow.com/a/1653826
+        if ($scale < 0) {
+            // When scale is negative, we round to the left of the decimal point
+            $absScale = abs($scale);
+            $factor = bcpow('10', (string)$absScale);
+            $shifted = bcdiv($n, $factor, 10); // Use a high precision for intermediate calculation
+            
+            // Apply rounding
+            $rounded = self::bcroundHelper($shifted, 0, $mode);
+            
+            // Shift back
+            return bcmul($rounded, $factor, 0);
+        } else {
+            return self::bcroundHelper($n, $scale, $mode);
+        }
+    }
+    
+    /**
+     * Helper function for bcround
+     *
+     * @var string $number
+     * @var int $precision
+     * @var int $mode
+     */
+    private static function bcroundHelper($number, $precision, $mode = PHP_ROUND_HALF_UP)
+    {
+        if (strpos($number, '.') === false) {
+            $number .= '.0';
+        }
+        
+        // Extract sign
+        $sign = '';
+        if ($number[0] === '-') {
+            $sign = '-';
+            $number = substr($number, 1);
+        }
+        
+        // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
+        if ($mode === PHP_ROUND_HALF_UP) {
+            $addition = '0.' . str_repeat('0', $precision) . '5';
+            $number = bcadd($number, $addition, $precision + 1);
+        } elseif ($mode === PHP_ROUND_HALF_DOWN) {
+            // For HALF_DOWN, we need to check the digit at precision+1
+            list($int, $dec) = explode('.', $number);
+            if (isset($dec[$precision])) {
+                $digit = (int)$dec[$precision];
+                if ($digit == 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
+                    // Exactly 0.5, don't round up
+                } elseif ($digit > 5 || ($digit == 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
+                    $addition = '0.' . str_repeat('0', $precision) . '1';
+                    $number = bcadd($number, $addition, $precision + 1);
+                }
+            }
+        } else {
+            // For other modes, use PHP's round and convert back
+            $rounded = round((float)($sign . $number), $precision, $mode);
+            $result = number_format($rounded, $precision, '.', '');
+            return $result;
+        }
+        
+        // Truncate to the desired precision
+        $pos = strpos($number, '.');
+        if ($pos !== false) {
+            if ($precision > 0) {
+                $number = substr($number, 0, $pos + $precision + 1);
+                // Pad with zeros if necessary
+                $currentPrecision = strlen($number) - $pos - 1;
+                if ($currentPrecision < $precision) {
+                    $number .= str_repeat('0', $precision - $currentPrecision);
+                }
+            } else {
+                $number = substr($number, 0, $pos);
+            }
+        }
+        
+        return $sign . $number;
+    }
+
+    /**
      * __callStatic Magic Method
      *
      * @var string $name
@@ -361,18 +530,37 @@ abstract class BCMath
             'powmod' => 4,
             'scale' => 1,
             'sqrt' => 2,
-            'sub' => 3
+            'sub' => 3,
+            'floor' => 2,
+            'ceil' => 2,
+            'round' => 3
         ];
         $cnt = count($arguments);
-        if ($cnt < $params[$name] - 1) {
-            $min = $params[$name] - 1;
-            throw new \ArgumentCountError("bc$name() expects at least $min parameters, " . $cnt . " given");
+        
+        // Special handling for round which can have 1-3 parameters
+        if ($name === 'round') {
+            if ($cnt < 1) {
+                throw new \ArgumentCountError("bcround() expects at least 1 parameter, " . $cnt . " given");
+            }
+            if ($cnt > 3) {
+                throw new \ArgumentCountError("bcround() expects at most 3 parameters, " . $cnt . " given");
+            }
+        } else {
+            if ($cnt < $params[$name] - 1) {
+                $min = $params[$name] - 1;
+                throw new \ArgumentCountError("bc$name() expects at least $min parameters, " . $cnt . " given");
+            }
+            if ($cnt > $params[$name]) {
+                $str = "bc$name() expects at most {$params[$name]} parameters, " . $cnt . " given";
+                throw new \ArgumentCountError($str);
+            }
         }
-        if ($cnt > $params[$name]) {
-            $str = "bc$name() expects at most {$params[$name]} parameters, " . $cnt . " given";
-            throw new \ArgumentCountError($str);
+        // For round, we only need the first parameter as a number
+        if ($name === 'round') {
+            $numbers = array_slice($arguments, 0, 1);
+        } else {
+            $numbers = array_slice($arguments, 0, $params[$name] - 1);
         }
-        $numbers = array_slice($arguments, 0, $params[$name] - 1);
 
         $ints = [];
         switch ($name) {
@@ -387,7 +575,12 @@ abstract class BCMath
                 $names = ['base', 'exponent', 'modulus'];
                 break;
             case 'sqrt':
+            case 'floor':
+            case 'ceil':
                 $names = ['num'];
+                break;
+            case 'round':
+                $names = ['num', 'precision', 'mode'];
                 break;
             default:
                 $names = ['num1', 'num2'];
@@ -428,7 +621,12 @@ abstract class BCMath
             $scale = ini_get('bcmath.scale');
             self::$scale = $scale !== false ? max(intval($scale), 0) : 0;
         }
-        $scale = isset($arguments[$params[$name] - 1]) ? $arguments[$params[$name] - 1] : self::$scale;
+        // For round, scale is the second parameter (precision)
+        if ($name === 'round') {
+            $scale = isset($arguments[1]) ? $arguments[1] : self::$scale;
+        } else {
+            $scale = isset($arguments[$params[$name] - 1]) ? $arguments[$params[$name] - 1] : self::$scale;
+        }
         switch (true) {
             case is_bool($scale):
             case is_numeric($scale):
@@ -440,7 +638,8 @@ abstract class BCMath
                 throw new \TypeError($str);
         }
         $scale = (int) $scale;
-        if ($scale < 0) {
+        // For bcround, negative scale is allowed
+        if ($scale < 0 && $name !== 'round') {
             throw new \ValueError("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647");
         }
 
@@ -480,10 +679,23 @@ abstract class BCMath
                 }
                 break;
             case 'sqrt':
+            case 'floor':
+            case 'ceil':
+            case 'round':
                 $numbers = [$arguments[0]];
         }
 
-        $arguments = array_merge($numbers, $ints, [$scale, $pad]);
+        // Special handling for round function which has a mode parameter
+        if ($name === 'round') {
+            // bcround can have 1, 2, or 3 parameters
+            // Get the mode from the original arguments if provided
+            $originalCnt = count($arguments);
+            $mode = ($originalCnt >= 3) ? $arguments[2] : PHP_ROUND_HALF_UP;
+            $arguments = array_merge($numbers, $ints, [$scale, $pad, $mode]);
+        } else {
+            $arguments = array_merge($numbers, $ints, [$scale, $pad]);
+        }
+        
         $result = call_user_func_array(self::class . "::$name", $arguments);
         return preg_match('#^-0\.?0*$#', $result) ? substr($result, 1) : $result;
     }
