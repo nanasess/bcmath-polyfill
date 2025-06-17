@@ -357,6 +357,10 @@ class BCMathTest extends TestCase
     #[RequiresPhp('>=8.4')]
     public function testFloor()
     {
+        if (!function_exists('bcfloor')) {
+            $this->markTestSkipped('bcfloor is not available in PHP < 8.4');
+        }
+        
         // Test positive numbers
         $this->assertSame(bcfloor('4.3'), BCMath::floor('4.3'));
         $this->assertSame(bcfloor('9.999'), BCMath::floor('9.999'));
@@ -385,6 +389,10 @@ class BCMathTest extends TestCase
     #[RequiresPhp('>=8.4')]
     public function testCeil()
     {
+        if (!function_exists('bcceil')) {
+            $this->markTestSkipped('bcceil is not available in PHP < 8.4');
+        }
+        
         // Test positive numbers
         $this->assertSame(bcceil('4.3'), BCMath::ceil('4.3'));
         $this->assertSame(bcceil('9.999'), BCMath::ceil('9.999'));
@@ -413,6 +421,10 @@ class BCMathTest extends TestCase
     #[RequiresPhp('>=8.4')]
     public function testRound()
     {
+        if (!function_exists('bcround')) {
+            $this->markTestSkipped('bcround is not available in PHP < 8.4');
+        }
+        
         // Test basic rounding
         $this->assertSame(bcround('3.4'), BCMath::round('3.4'));
         $this->assertSame(bcround('3.5'), BCMath::round('3.5'));
