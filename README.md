@@ -84,6 +84,31 @@ This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInte
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
 
+## 🔄 Key Differences from phpseclib/bcmath_compat
+
+| Feature | phpseclib/bcmath_compat | bcmath-polyfill |
+|---------|------------------------|-----------------|
+| **PHP 8.4 functions** | ❌ Not supported | ✅ Full support |
+| `bcfloor()` | ❌ | ✅ |
+| `bcceil()` | ❌ | ✅ |
+| `bcround()` | ❌ | ✅ |
+| **PHP 8.2+ deprecations** | ⚠️ Warnings | ✅ Fixed |
+| **Test suite pollution** | ⚠️ Issues | ✅ Fixed |
+| **Active maintenance** | ❌ Limited | ✅ Active |
+| **CI/CD (PHP versions)** | GitHub Actions (8.1, 8.2, 8.3) | GitHub Actions (8.1, 8.2, 8.3, 8.4) |
+
+### Migration from phpseclib/bcmath_compat
+
+Switching is seamless - no code changes required:
+
+```bash
+# Remove old package
+composer remove phpseclib/bcmath_compat
+
+# Install bcmath-polyfill
+composer require nanasess/bcmath-polyfill
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
