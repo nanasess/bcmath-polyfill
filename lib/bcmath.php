@@ -122,7 +122,7 @@ if (!function_exists('bcadd')) {
      *
      * @var int $scale
      */
-    function bcscale($scale = null)
+    function bcscale($scale = null): ?int
     {
         return BCMath::scale($scale);
     }
