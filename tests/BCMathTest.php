@@ -56,7 +56,7 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testAdd(...$params)
+    public function testAdd(...$params): void
     {
         $a = bcadd(...$params);
         $b = BCMath::add(...$params);
@@ -69,7 +69,7 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testSub(...$params)
+    public function testSub(...$params): void
     {
         $a = bcsub(...$params);
         $b = BCMath::sub(...$params);
@@ -87,7 +87,7 @@ class BCMathTest extends TestCase
 
     #[RequiresPhp('>7.3')]
     #[DataProvider('generateTwoParams')]
-    public function testMul(...$params)
+    public function testMul(...$params): void
     {
         $a = bcmul(...$params);
         $b = BCMath::mul(...$params);
@@ -100,7 +100,7 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testDiv(...$params)
+    public function testDiv(...$params): void
     {
         if ($params[1] === '0' || $params[1] === '-0') {
             if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
@@ -122,7 +122,7 @@ class BCMathTest extends TestCase
 
     #[DataProvider('generateTwoParams')]
     #[RequiresPhp('>7.2')]
-    public function testMod(...$params)
+    public function testMod(...$params): void
     {
         if ($params[1] === '0' || $params[1] === '-0') {
             if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
@@ -167,7 +167,7 @@ class BCMathTest extends TestCase
      */
     #[DataProvider('generatePowParams')]
     #[RequiresPhp('>7.3')]
-    public function testPow(...$params)
+    public function testPow(...$params): void
     {
         $a = bcpow(...$params);
         $b = BCMath::pow(...$params);
@@ -205,7 +205,7 @@ class BCMathTest extends TestCase
     #[DataProvider('generatePowModParams')]
     #[RequiresPhp('>7.3')]
 
-    public function testPowMod(...$params)
+    public function testPowMod(...$params): void
     {
         // Skip the specific test case on 32-bit Windows due to architecture limitations
         if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows'
@@ -218,7 +218,7 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function testSqrt()
+    public function testSqrt(): void
     {
         $a = bcsqrt('152.2756', 4);
         $b = BCMath::sqrt('152.2756', 4);
@@ -233,7 +233,7 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function testBoolScale()
+    public function testBoolScale(): void
     {
         if (false) {
             $exception_thrown = false;
@@ -250,7 +250,7 @@ class BCMathTest extends TestCase
         }
     }
 
-    public function testIntParam()
+    public function testIntParam(): void
     {
         $a = bccomp('9223372036854775807', 16);
         $b = BCMath::comp('9223372036854775807', 16);
@@ -288,7 +288,7 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateScaleCallstaticParams')]
-    public function testArgumentsScaleCallstatic(...$params)
+    public function testArgumentsScaleCallstatic(...$params): void
     {
         // Save original scale
         $originalScale = bcscale();
@@ -333,7 +333,7 @@ class BCMathTest extends TestCase
         ];
     }
     #[DataProvider('generatePowModCallstaticParams')]
-    public function testArgumentsPowModCallstatic(...$params)
+    public function testArgumentsPowModCallstatic(...$params): void
     {
         //scale with 1, 2, 3 parameters
         if (func_num_args() > 2 && func_num_args() < 5) {
@@ -362,7 +362,7 @@ class BCMathTest extends TestCase
      * requires PHP 8.4
      */
     #[RequiresPhp('>=8.4')]
-    public function testFloor()
+    public function testFloor(): void
     {
         if (!function_exists('bcfloor')) {
             $this->markTestSkipped('bcfloor is not available in PHP < 8.4');
@@ -394,7 +394,7 @@ class BCMathTest extends TestCase
      * requires PHP 8.4
      */
     #[RequiresPhp('>=8.4')]
-    public function testCeil()
+    public function testCeil(): void
     {
         if (!function_exists('bcceil')) {
             $this->markTestSkipped('bcceil is not available in PHP < 8.4');
@@ -426,7 +426,7 @@ class BCMathTest extends TestCase
      * requires PHP 8.4
      */
     #[RequiresPhp('>=8.4')]
-    public function testRound()
+    public function testRound(): void
     {
         if (!function_exists('bcround')) {
             $this->markTestSkipped('bcround is not available in PHP < 8.4');
@@ -480,7 +480,7 @@ class BCMathTest extends TestCase
     /**
      * Test bcfloor function without PHP 8.4
      */
-    public function testFloorPolyfill()
+    public function testFloorPolyfill(): void
     {
         if (function_exists('bcfloor')) {
             $this->markTestSkipped('bcfloor is available, testing with native function');
@@ -510,7 +510,7 @@ class BCMathTest extends TestCase
     /**
      * Test bcceil function without PHP 8.4
      */
-    public function testCeilPolyfill()
+    public function testCeilPolyfill(): void
     {
         if (function_exists('bcceil')) {
             $this->markTestSkipped('bcceil is available, testing with native function');
@@ -540,7 +540,7 @@ class BCMathTest extends TestCase
     /**
      * Test bcround function without PHP 8.4
      */
-    public function testRoundPolyfill()
+    public function testRoundPolyfill(): void
     {
         if (function_exists('bcround')) {
             $this->markTestSkipped('bcround is available, testing with native function');
@@ -574,7 +574,7 @@ class BCMathTest extends TestCase
     /**
      * Test boundary values with very large decimal places
      */
-    public function testBoundaryValuesLargeDecimals()
+    public function testBoundaryValuesLargeDecimals(): void
     {
         // Test with very large decimal places
         $largeDecimal = '1.' . str_repeat('9', 100);
@@ -603,7 +603,7 @@ class BCMathTest extends TestCase
     /**
      * Test with scale value 2147483647 (maximum integer)
      */
-    public function testMaximumScaleValue()
+    public function testMaximumScaleValue(): void
     {
         // Note: Due to memory limitations, we can't actually test with scale 2147483647
         // but we can test the function accepts it and behaves correctly
@@ -622,7 +622,7 @@ class BCMathTest extends TestCase
     /**
      * Test with extremely small numbers
      */
-    public function testExtremelySmallNumbers()
+    public function testExtremelySmallNumbers(): void
     {
         // Test with scientific notation converted to decimal
         $small = '0.' . str_repeat('0', 99) . '1'; // 1e-100
@@ -653,7 +653,7 @@ class BCMathTest extends TestCase
      * @requires PHP >= 8.4
      */
     #[RequiresPhp('>=8.4')]
-    public function testRoundAllModes()
+    public function testRoundAllModes(): void
     {
         // Test data: number, scale, expected results for each mode
         $testCases = [
@@ -719,7 +719,7 @@ class BCMathTest extends TestCase
     /**
      * Test bcround() with negative scale values
      */
-    public function testRoundNegativeScale()
+    public function testRoundNegativeScale(): void
     {
         // Test rounding to tens, hundreds, thousands
         $testCases = [
