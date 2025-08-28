@@ -1,7 +1,8 @@
-<?php //declare(strict_types=1);
+<?php
+
+//declare(strict_types=1);
 
 use bcmath_compat\BCMath;
-
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -49,7 +50,7 @@ class BCMathTest extends TestCase
             ['-0.0000005', '0', 3],
             ['-0.0000005', '0.0000001', 3],
             ['-0', '0'],
-            ['-0', '-0', 4]
+            ['-0', '-0', 4],
         ];
         return $r;
     }
@@ -103,7 +104,7 @@ class BCMathTest extends TestCase
     {
         if ($params[1] === '0' || $params[1] === '-0') {
             if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->setExpectedException('DivisionByZeroError');
+                $this->expectException('DivisionByZeroError');
             } else {
                 $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
             }
@@ -125,7 +126,7 @@ class BCMathTest extends TestCase
     {
         if ($params[1] === '0' || $params[1] === '-0') {
             if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->setExpectedException('DivisionByZeroError');
+                $this->expectException('DivisionByZeroError');
             } else {
                 $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
             }
@@ -156,7 +157,7 @@ class BCMathTest extends TestCase
             ['-9.99', '-3', 10],
             ['0.15', '15', 10],
             ['0.15', '-1', 10],
-            ['5', '0', 4]
+            ['5', '0', 4],
         ];
     }
 
@@ -201,14 +202,14 @@ class BCMathTest extends TestCase
      * dataProvider generatePowModParams
      * requires PHP 7.3
      */
-     #[DataProvider('generatePowModParams')]
-     #[RequiresPhp('>7.3')]
+    #[DataProvider('generatePowModParams')]
+    #[RequiresPhp('>7.3')]
 
     public function testPowMod(...$params)
     {
         // Skip the specific test case on 32-bit Windows due to architecture limitations
-        if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows' &&
-            $params[0] === '-9' && $params[1] === '1024' && $params[2] === '123') {
+        if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows'
+            && $params[0] === '-9' && $params[1] === '1024' && $params[2] === '123') {
             $this->markTestSkipped('Known limitation on 32-bit Windows');
         }
 
@@ -686,7 +687,7 @@ class BCMathTest extends TestCase
             PHP_ROUND_HALF_UP,
             PHP_ROUND_HALF_DOWN,
             PHP_ROUND_HALF_EVEN,
-            PHP_ROUND_HALF_ODD
+            PHP_ROUND_HALF_ODD,
         ];
 
         foreach ($testCases as [$number, $scale, $expectedResults]) {

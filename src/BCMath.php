@@ -127,7 +127,7 @@ abstract class BCMath
         if ($x == '0' || $y == '0') {
             $r = '0';
             if ($scale) {
-                $r.= '.' . str_repeat('0', $scale);
+                $r .= '.' . str_repeat('0', $scale);
             }
             return $r;
         }
@@ -156,7 +156,7 @@ abstract class BCMath
 
         $temp = '1' . str_repeat('0', $scale);
         $temp = new BigInteger($temp);
-        list($q) = $x->multiply($temp)->divide($y);
+        [$q] = $x->multiply($temp)->divide($y);
 
         return self::format($q, $scale, $scale);
     }
@@ -179,7 +179,7 @@ abstract class BCMath
             throw new \DivisionByZeroError('Division by zero');
         }
 
-        list($q) = $x->divide($y);
+        [$q] = $x->divide($y);
         $z = $y->multiply($q);
         $z = $x->subtract($z);
 
@@ -217,7 +217,7 @@ abstract class BCMath
         if ($y == '0') {
             $r = '1';
             if ($scale) {
-                $r.= '.' . str_repeat('0', $scale);
+                $r .= '.' . str_repeat('0', $scale);
             }
             return $r;
         }
@@ -239,10 +239,10 @@ abstract class BCMath
         if ($y < 0) {
             $temp = '1' . str_repeat('0', $scale + $pad * abs($y));
             $temp = new BigInteger($temp);
-            list($r) = $temp->divide($r);
+            [$r] = $temp->divide($r);
             $pad = $scale;
         } else {
-            $pad*= abs($y);
+            $pad *= abs($y);
         }
 
         return $sign . self::format($r, $scale, $pad);
@@ -268,9 +268,9 @@ abstract class BCMath
             $n = substr($n, 1);
         }
         if ($e == '0') {
-            return $scale ?
-                '1.' . str_repeat('0', $scale) :
-                '1';
+            return $scale
+                ? '1.' . str_repeat('0', $scale)
+                : '1';
         }
 
         $x = new BigInteger($x);
@@ -279,9 +279,9 @@ abstract class BCMath
 
         $z = $x->powMod($e, $n);
 
-        return $scale ?
-            "$z." . str_repeat('0', $scale) :
-            "$z";
+        return $scale
+            ? "$z." . str_repeat('0', $scale)
+            : "$z";
     }
 
     /**
@@ -319,18 +319,18 @@ abstract class BCMath
                     break;
                 }
             }
-            $result.= $x;
+            $result .= $x;
             $y = $x * (20 * $p + $x);
             $p = 10 * $p + $x;
             $c = 100 * ($c - $y);
             if (isset($parts[++$i])) {
-                $c+= $parts[$i];
+                $c += $parts[$i];
             }
             if ((!$c && $i >= $decStart)  || $i - $decStart == $scale) {
                 break;
             }
             if ($decStart == $i) {
-                $result.= '.';
+                $result .= '.';
             }
         }
 
@@ -363,7 +363,7 @@ abstract class BCMath
         if ($scale == 0) {
             // When scale is 0, just get the integer part
             $result = bcdiv($n, '1', 0);
-            
+
             // For negative numbers with fractional parts, we need to subtract 1
             if (strpos($n, '.') !== false && $n[0] === '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
@@ -371,7 +371,7 @@ abstract class BCMath
                     $result = bcsub($result, '1', 0);
                 }
             }
-            
+
             return $result;
         } else {
             // When scale > 0, truncate to the specified decimal places
@@ -400,7 +400,7 @@ abstract class BCMath
         if ($scale == 0) {
             // When scale is 0, just get the integer part
             $result = bcdiv($n, '1', 0);
-            
+
             // For positive numbers with fractional parts, we need to add 1
             if (strpos($n, '.') !== false && $n[0] !== '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
@@ -408,17 +408,17 @@ abstract class BCMath
                     $result = bcadd($result, '1', 0);
                 }
             }
-            
+
             return $result;
         } else {
             // When scale > 0, ceil to the specified decimal places
             // Multiply by 10^scale, ceil, then divide back
-            $factor = bcpow('10', (string)$scale);
+            $factor = bcpow('10', (string) $scale);
             $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
-            
+
             // Get the ceiling of the shifted value
             $ceiledShifted = bcdiv($shifted, '1', 0);
-            
+
             // For positive numbers with fractional parts, we need to add 1
             if (strpos($shifted, '.') !== false && $shifted[0] !== '-') {
                 $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
@@ -426,7 +426,7 @@ abstract class BCMath
                     $ceiledShifted = bcadd($ceiledShifted, '1', 0);
                 }
             }
-            
+
             // Divide back to get the result with proper scale
             return bcdiv($ceiledShifted, $factor, $scale);
         }
@@ -454,19 +454,19 @@ abstract class BCMath
         if ($scale < 0) {
             // When scale is negative, we round to the left of the decimal point
             $absScale = abs($scale);
-            $factor = bcpow('10', (string)$absScale);
+            $factor = bcpow('10', (string) $absScale);
             $shifted = bcdiv($n, $factor, 10); // Use a high precision for intermediate calculation
-            
+
             // Apply rounding
             $rounded = self::bcroundHelper($shifted, 0, $mode);
-            
+
             // Shift back
             return bcmul($rounded, $factor, 0);
         } else {
             return self::bcroundHelper($n, $scale, $mode);
         }
     }
-    
+
     /**
      * Helper function for bcround
      *
@@ -479,23 +479,23 @@ abstract class BCMath
         if (strpos($number, '.') === false) {
             $number .= '.0';
         }
-        
+
         // Extract sign
         $sign = '';
         if ($number[0] === '-') {
             $sign = '-';
             $number = substr($number, 1);
         }
-        
+
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
         if ($mode === PHP_ROUND_HALF_UP) {
             $addition = '0.' . str_repeat('0', $precision) . '5';
             $number = bcadd($number, $addition, $precision + 1);
         } elseif ($mode === PHP_ROUND_HALF_DOWN) {
             // For HALF_DOWN, we need to check the digit at precision+1
-            list($int, $dec) = explode('.', $number);
+            [$int, $dec] = explode('.', $number);
             if (isset($dec[$precision])) {
-                $digit = (int)$dec[$precision];
+                $digit = (int) $dec[$precision];
                 if ($digit == 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
                     // Exactly 0.5, don't round up
                 } elseif ($digit > 5 || ($digit == 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
@@ -505,11 +505,11 @@ abstract class BCMath
             }
         } else {
             // For other modes, use PHP's round and convert back
-            $rounded = round((float)($sign . $number), $precision, $mode);
+            $rounded = round((float) ($sign . $number), $precision, $mode);
             $result = number_format($rounded, $precision, '.', '');
             return $result;
         }
-        
+
         // Truncate to the desired precision
         $pos = strpos($number, '.');
         if ($pos !== false) {
@@ -524,7 +524,7 @@ abstract class BCMath
                 $number = substr($number, 0, $pos);
             }
         }
-        
+
         return $sign . $number;
     }
 
@@ -549,10 +549,10 @@ abstract class BCMath
             'sub' => 3,
             'floor' => 2,
             'ceil' => 2,
-            'round' => 3
+            'round' => 3,
         ];
         $cnt = count($arguments);
-        
+
         // Special handling for round which can have 1-3 parameters
         if ($name === 'round') {
             if ($cnt < 1) {
@@ -622,7 +622,7 @@ abstract class BCMath
                         throw new \ValueError("bc$name: bcmath function argument is not well-formed");
                     }
                     break;
-                // PHP >= 8.1 has deprecated the passing of nulls to string parameters
+                    // PHP >= 8.1 has deprecated the passing of nulls to string parameters
                 case is_null($arg):
                     $error = "bc$name(): Passing null to parameter #$num (\$$names[$i]) of type string is deprecated";
                     trigger_error($error, E_USER_DEPRECATED);
@@ -639,9 +639,9 @@ abstract class BCMath
         }
         // For round, scale is the second parameter (precision)
         if ($name === 'round') {
-            $scale = isset($arguments[1]) ? $arguments[1] : self::$scale;
+            $scale = $arguments[1] ?? self::$scale;
         } else {
-            $scale = isset($arguments[$params[$name] - 1]) ? $arguments[$params[$name] - 1] : self::$scale;
+            $scale = $arguments[$params[$name] - 1] ?? self::$scale;
         }
         switch (true) {
             case is_bool($scale):
@@ -711,7 +711,7 @@ abstract class BCMath
         } else {
             $arguments = array_merge($numbers, $ints, [$scale, $pad]);
         }
-        
+
         $result = call_user_func_array(self::class . "::$name", $arguments);
         return preg_match('#^-0\.?0*$#', $result) ? substr($result, 1) : $result;
     }
