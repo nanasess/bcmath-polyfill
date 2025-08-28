@@ -39,7 +39,7 @@ if (!function_exists('bcadd')) {
      * @var string $right_operand
      * @var int $scale optional
      */
-    function bcadd($left_operand, $right_operand, $scale = 0)
+    function bcadd($left_operand, $right_operand, $scale = 0): string
     {
         return BCMath::add($left_operand, $right_operand, $scale);
     }
@@ -51,7 +51,7 @@ if (!function_exists('bcadd')) {
      * @var string $right_operand
      * @var int $scale optional
      */
-    function bccomp($left_operand, $right_operand, $scale = 0)
+    function bccomp($left_operand, $right_operand, $scale = 0): int
     {
         return BCMath::comp($left_operand, $right_operand, $scale);
     }
@@ -63,7 +63,7 @@ if (!function_exists('bcadd')) {
      * @var string $divisor
      * @var int $scale optional
      */
-    function bcdiv($dividend, $divisor, $scale = 0)
+    function bcdiv($dividend, $divisor, $scale = 0): string
     {
         return BCMath::div($dividend, $divisor, $scale);
     }
@@ -75,7 +75,7 @@ if (!function_exists('bcadd')) {
      * @var string $divisor
      * @var int $scale optional
      */
-    function bcmod($dividend, $divisor, $scale = 0)
+    function bcmod($dividend, $divisor, $scale = 0): string
     {
         return BCMath::mod($dividend, $divisor, $scale);
     }
@@ -87,7 +87,7 @@ if (!function_exists('bcadd')) {
      * @var string $right_operand
      * @var int $scale optional
      */
-    function bcmul($dividend, $divisor, $scale = 0)
+    function bcmul($dividend, $divisor, $scale = 0): string
     {
         return BCMath::mul($dividend, $divisor, $scale);
     }
@@ -99,7 +99,7 @@ if (!function_exists('bcadd')) {
      * @var string $exponent
      * @var int $scale optional
      */
-    function bcpow($base, $exponent, $scale = 0)
+    function bcpow($base, $exponent, $scale = 0): string
     {
         return BCMath::pow($base, $exponent, $scale);
     }
@@ -112,7 +112,7 @@ if (!function_exists('bcadd')) {
      * @var string $modulus
      * @var int $scale optional
      */
-    function bcpowmod($base, $exponent, $modulus, $scale = 0)
+    function bcpowmod($base, $exponent, $modulus, $scale = 0): string
     {
         return BCMath::powmod($base, $exponent, $modulus, $scale);
     }
@@ -133,7 +133,7 @@ if (!function_exists('bcadd')) {
      * @var string $operand
      * @var int $scale optional
      */
-    function bcsqrt($operand, $scale = 0)
+    function bcsqrt($operand, $scale = 0): string
     {
         return BCMath::sqrt($operand, $scale);
     }
@@ -145,7 +145,7 @@ if (!function_exists('bcadd')) {
      * @var string $right_operand
      * @var int $scale optional
      */
-    function bcsub($left_operand, $right_operand, $scale = 0)
+    function bcsub($left_operand, $right_operand, $scale = 0): string
     {
         return BCMath::sub($left_operand, $right_operand, $scale);
     }
@@ -158,7 +158,7 @@ if (!function_exists('bcfloor')) {
      * @var string $operand
      * @var int $scale optional
      */
-    function bcfloor($operand, $scale = 0)
+    function bcfloor($operand, $scale = 0): string
     {
         return BCMath::floor($operand, $scale);
     }
@@ -171,7 +171,7 @@ if (!function_exists('bcceil')) {
      * @var string $operand
      * @var int $scale optional
      */
-    function bcceil($operand, $scale = 0)
+    function bcceil($operand, $scale = 0): string
     {
         return BCMath::ceil($operand, $scale);
     }
@@ -185,7 +185,7 @@ if (!function_exists('bcround')) {
      * @var int $precision optional
      * @var int $mode optional
      */
-    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP)
+    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
         return BCMath::round($operand, $precision, $mode);
     }

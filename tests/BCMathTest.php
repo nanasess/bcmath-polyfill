@@ -22,7 +22,7 @@ class BCMathTest extends TestCase
      *
      * @return array
      */
-    public static function generateTwoParams()
+    public static function generateTwoParams(): array
     {
         $r = [
             ['9', '9'],
@@ -142,7 +142,7 @@ class BCMathTest extends TestCase
      *
      * @return array
      */
-    public static function generatePowParams()
+    public static function generatePowParams(): array
     {
         return [
             ['9', '9'],
@@ -179,7 +179,7 @@ class BCMathTest extends TestCase
      *
      * @return array
      */
-    public static function generatePowModParams()
+    public static function generatePowModParams(): array
     {
         return [
             ['9', '9', '17'],
@@ -257,7 +257,7 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function setExpectedException($name, $message = null, $code = null)
+    public function setExpectedException($name, $message = null, $code = null): void
     {
         if (version_compare(PHP_VERSION, '7.0.0') < 0) {
             parent::setExpectedException($name, $message, $code);
@@ -277,7 +277,7 @@ class BCMathTest extends TestCase
         }
     }
 
-    public static function generateScaleCallstaticParams()
+    public static function generateScaleCallstaticParams(): array
     {
         return [
             [4],
@@ -322,7 +322,7 @@ class BCMathTest extends TestCase
         bcscale($originalScale);
         BCMath::scale($originalScale);
     }
-    public static function generatePowModCallstaticParams()
+    public static function generatePowModCallstaticParams(): array
     {
         return [
             ['9'],
