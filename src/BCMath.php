@@ -365,7 +365,7 @@ abstract class BCMath
             $result = bcdiv($n, '1', 0);
 
             // For negative numbers with fractional parts, we need to subtract 1
-            if (strpos($n, '.') !== false && $n[0] === '-') {
+            if (str_contains($n, '.') && $n[0] === '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
                 if (ltrim($fractionalPart, '0') !== '') {
                     $result = bcsub($result, '1', 0);
@@ -402,7 +402,7 @@ abstract class BCMath
             $result = bcdiv($n, '1', 0);
 
             // For positive numbers with fractional parts, we need to add 1
-            if (strpos($n, '.') !== false && $n[0] !== '-') {
+            if (str_contains($n, '.') && $n[0] !== '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
                 if (ltrim($fractionalPart, '0') !== '') {
                     $result = bcadd($result, '1', 0);
@@ -420,7 +420,7 @@ abstract class BCMath
             $ceiledShifted = bcdiv($shifted, '1', 0);
 
             // For positive numbers with fractional parts, we need to add 1
-            if (strpos($shifted, '.') !== false && $shifted[0] !== '-') {
+            if (str_contains($shifted, '.') && $shifted[0] !== '-') {
                 $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
                 if (ltrim($fractionalPart, '0') !== '') {
                     $ceiledShifted = bcadd($ceiledShifted, '1', 0);
@@ -476,7 +476,7 @@ abstract class BCMath
      */
     private static function bcroundHelper($number, $precision, $mode = PHP_ROUND_HALF_UP): string
     {
-        if (strpos($number, '.') === false) {
+        if (!str_contains($number, '.')) {
             $number .= '.0';
         }
 
@@ -628,7 +628,7 @@ abstract class BCMath
                     trigger_error($error, E_USER_DEPRECATED);
                     break;
                 default:
-                    $type = is_object($arg) ? get_class($arg) : gettype($arg);
+                    $type = get_debug_type($arg);
                     $error = "bc$name(): Argument #$num (\$$names[$i]) must be of type string, $type given";
                     throw new \TypeError($error);
             }
@@ -649,7 +649,7 @@ abstract class BCMath
             case is_string($scale) && preg_match('#0-9\.#', $scale[0]):
                 break;
             default:
-                $type = is_object($arg) ? get_class($arg) : gettype($arg);
+                $type = get_debug_type($arg);
                 $str = "bc$name(): Argument #$params[$name] (\$scale) must be of type ?int, string given";
                 throw new \TypeError($str);
         }
@@ -713,6 +713,6 @@ abstract class BCMath
         }
 
         $result = call_user_func_array(self::class . "::$name", $arguments);
-        return preg_match('#^-0\.?0*$#', $result) ? substr($result, 1) : $result;
+        return preg_match('#^-0\.?0*$#', (string) $result) ? substr((string) $result, 1) : $result;
     }
 }

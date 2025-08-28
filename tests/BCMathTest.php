@@ -239,7 +239,7 @@ class BCMathTest extends TestCase
             $exception_thrown = false;
             try {
                 $a = bcadd('5', '2', false);
-            } catch (TypeError $e) {
+            } catch (TypeError) {
                 $exception_thrown = true;
             }
             $this->assertSame(true, $exception_thrown);
