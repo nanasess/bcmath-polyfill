@@ -19,12 +19,10 @@ class BCMathTest extends TestCase
     protected static $emsg = '';
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
     public static function generateTwoParams(): array
     {
-        $r = [
+        return [
             ['9', '9'],
             ['9.99', '9.99'],
             ['9.99', '9.99', 2],
@@ -52,7 +50,6 @@ class BCMathTest extends TestCase
             ['-0', '0'],
             ['-0', '-0', 4],
         ];
-        return $r;
     }
 
     #[DataProvider('generateTwoParams')]
@@ -103,11 +100,7 @@ class BCMathTest extends TestCase
     public function testDiv(...$params): void
     {
         if ($params[1] === '0' || $params[1] === '-0') {
-            if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->expectException('DivisionByZeroError');
-            } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-            }
+            $this->expectException('DivisionByZeroError');
         }
 
         $a = bcdiv(...$params);
@@ -125,11 +118,7 @@ class BCMathTest extends TestCase
     public function testMod(...$params): void
     {
         if ($params[1] === '0' || $params[1] === '-0') {
-            if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->expectException('DivisionByZeroError');
-            } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-            }
+            $this->expectException('DivisionByZeroError');
         }
 
         $a = bcmod(...$params);
@@ -139,8 +128,6 @@ class BCMathTest extends TestCase
 
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
     public static function generatePowParams(): array
     {
@@ -176,8 +163,6 @@ class BCMathTest extends TestCase
 
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
     public static function generatePowModParams(): array
     {
@@ -190,12 +175,6 @@ class BCMathTest extends TestCase
             ['3', '0', '13'],
             ['-3', '0', '13', 4],
         ];
-
-        if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-            $a = array_merge($a, [['9', '-1024', '127', 5]]);
-        }
-
-        return $a;
     }
 
     /**

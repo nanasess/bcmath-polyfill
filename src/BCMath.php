@@ -506,8 +506,7 @@ abstract class BCMath
         } else {
             // For other modes, use PHP's round and convert back
             $rounded = round((float) ($sign . $number), $precision, $mode);
-            $result = number_format($rounded, $precision, '.', '');
-            return $result;
+            return number_format($rounded, $precision, '.', '');
         }
 
         // Truncate to the desired precision
