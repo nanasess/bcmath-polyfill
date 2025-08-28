@@ -15,9 +15,8 @@ return RectorConfig::configure()
         __DIR__ . '/tests',
     ])
     ->withPhpSets(php81: true)
-    ->withCodeQualityLevel(0)
     ->withComposerBased(phpunit: true)
-    ->withPreparedSets(typeDeclarations: true, deadCode: true)
+    ->withPreparedSets(typeDeclarations: true, deadCode: true, codeQuality: true)
     ->withSkip([
         RemoveAlwaysTrueIfConditionRector::class => [
             __DIR__ . '/tests/BCMathTest.php',

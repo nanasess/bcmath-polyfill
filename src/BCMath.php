@@ -133,7 +133,7 @@ abstract class BCMath
         }
 
         $z = $x->abs()->multiply($y->abs());
-        $sign = (self::isNegative($x) ^ self::isNegative($y)) ? '-' : '';
+        $sign = ((self::isNegative($x) ^ self::isNegative($y)) !== 0) ? '-' : '';
 
         return $sign . self::format($z, $scale, 2 * $pad);
     }
@@ -302,7 +302,7 @@ abstract class BCMath
         $temp = explode('.', $n);
         $decStart = ceil(strlen($temp[0]) / 2);
         $n = implode('', $temp);
-        if (strlen($n) % 2) {
+        if (strlen($n) % 2 !== 0) {
             $n = "0$n";
         }
         $parts = str_split($n, 2);
@@ -571,11 +571,7 @@ abstract class BCMath
             }
         }
         // For round, we only need the first parameter as a number
-        if ($name === 'round') {
-            $numbers = array_slice($arguments, 0, 1);
-        } else {
-            $numbers = array_slice($arguments, 0, $params[$name] - 1);
-        }
+        $numbers = $name === 'round' ? array_slice($arguments, 0, 1) : array_slice($arguments, 0, $params[$name] - 1);
 
         $ints = [];
         switch ($name) {
@@ -637,11 +633,7 @@ abstract class BCMath
             self::$scale = $scale !== false ? max(intval($scale), 0) : 0;
         }
         // For round, scale is the second parameter (precision)
-        if ($name === 'round') {
-            $scale = $arguments[1] ?? self::$scale;
-        } else {
-            $scale = $arguments[$params[$name] - 1] ?? self::$scale;
-        }
+        $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$params[$name] - 1] ?? self::$scale;
         switch (true) {
             case is_bool($scale):
             case is_numeric($scale):
