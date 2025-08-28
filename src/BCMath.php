@@ -25,16 +25,16 @@ abstract class BCMath
     /**
      * Default scale parameter for all bc math functions
      */
-    private static $scale;
+    private static ?int $scale = null;
 
     /**
      * Set or get default scale parameter for all bc math functions
      *
      * Uses the PHP 7.3+ behavior
      *
-     * @var int $scale optional
+     * @param ?int $scale optional
      */
-    private static function scale($scale = null)
+    private static function scale($scale = null): ?int
     {
         if (isset($scale)) {
             self::$scale = (int) $scale;
@@ -47,12 +47,12 @@ abstract class BCMath
      *
      * Places the decimal place at the appropriate place, adds trailing 0's as appropriate, etc
      *
-     * @var string $x
-     * @var int $scale
-     * @var int $pad
-     * @var boolean $trim
+     * @param string $x
+     * @param int $scale
+     * @param int $pad
+     * @param boolean $trim
      */
-    private static function format($x, $scale, $pad)
+    private static function format($x, $scale, $pad): string
     {
         $sign = self::isNegative($x) ? '-' : '';
         $x = str_replace('-', '', $x);
@@ -77,9 +77,9 @@ abstract class BCMath
     /**
      * Negativity Test
      *
-     * @var BigInteger $x
+     * @param BigInteger $x
      */
-    private static function isNegative($x)
+    private static function isNegative($x): bool
     {
         return $x->compare(new BigInteger()) < 0;
     }
@@ -87,12 +87,12 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function add($x, $y, $scale, $pad)
+    private static function add($x, $y, $scale, $pad): string
     {
         $z = $x->add($y);
 
@@ -102,12 +102,12 @@ abstract class BCMath
     /**
      * Subtract one arbitrary precision number from another
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function sub($x, $y, $scale, $pad)
+    private static function sub($x, $y, $scale, $pad): string
     {
         $z = $x->subtract($y);
 
@@ -117,12 +117,12 @@ abstract class BCMath
     /**
      * Multiply two arbitrary precision numbers
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function mul($x, $y, $scale, $pad)
+    private static function mul($x, $y, $scale, $pad): string
     {
         if ($x == '0' || $y == '0') {
             $r = '0';
@@ -141,12 +141,12 @@ abstract class BCMath
     /**
      * Divide two arbitrary precision numbers
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function div($x, $y, $scale, $pad)
+    private static function div($x, $y, $scale, $pad): string
     {
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
@@ -166,12 +166,12 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function mod($x, $y, $scale, $pad)
+    private static function mod($x, $y, $scale, $pad): string
     {
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
@@ -189,12 +189,12 @@ abstract class BCMath
     /**
      * Compare two arbitrary precision numbers
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function comp($x, $y, $scale, $pad)
+    private static function comp($x, $y, $scale, $pad): int
     {
         $x = new BigInteger($x[0] . substr($x[1], 0, $scale));
         $y = new BigInteger($y[0] . substr($y[1], 0, $scale));
@@ -207,12 +207,12 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      *
-     * @var string $x
-     * @var string $y
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $y
+     * @param int $scale
+     * @param int $pad
      */
-    private static function pow($x, $y, $scale, $pad)
+    private static function pow($x, $y, $scale, $pad): string
     {
         if ($y == '0') {
             $r = '1';
@@ -251,13 +251,13 @@ abstract class BCMath
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus
      *
-     * @var string $x
-     * @var string $e
-     * @var string $n
-     * @var int $scale
-     * @var int $pad
+     * @param string $x
+     * @param string $e
+     * @param string $n
+     * @param int $scale
+     * @param int $pad
      */
-    private static function powmod($x, $e, $n, $scale, $pad)
+    private static function powmod($x, $e, $n, $scale, $pad): string
     {
         if ($e[0] == '-' || $n == '0') {
             // < PHP 8.0 returned false
@@ -287,11 +287,11 @@ abstract class BCMath
     /**
      * Get the square root of an arbitrary precision number
      *
-     * @var string $n
-     * @var int $scale
-     * @var int $pad
+     * @param string $n
+     * @param int $scale
+     * @param int $pad
      */
-    private static function sqrt($n, $scale, $pad)
+    private static function sqrt($n, $scale, $pad): string
     {
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
@@ -346,11 +346,11 @@ abstract class BCMath
     /**
      * Round down to the nearest integer
      *
-     * @var string $n
-     * @var int $scale
-     * @var int $pad
+     * @param string $n
+     * @param int $scale
+     * @param int $pad
      */
-    private static function floor($n, $scale, $pad)
+    private static function floor($n, $scale, $pad): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -383,11 +383,11 @@ abstract class BCMath
     /**
      * Round up to the nearest integer
      *
-     * @var string $n
-     * @var int $scale
-     * @var int $pad
+     * @param string $n
+     * @param int $scale
+     * @param int $pad
      */
-    private static function ceil($n, $scale, $pad)
+    private static function ceil($n, $scale, $pad): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -435,12 +435,12 @@ abstract class BCMath
     /**
      * Round to a given decimal place
      *
-     * @var string $n
-     * @var int $scale
-     * @var int $pad
-     * @var int $mode
+     * @param string $n
+     * @param int $scale
+     * @param int $pad
+     * @param int $mode
      */
-    private static function round($n, $scale, $pad, $mode = PHP_ROUND_HALF_UP)
+    private static function round($n, $scale, $pad, $mode = PHP_ROUND_HALF_UP): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -470,11 +470,11 @@ abstract class BCMath
     /**
      * Helper function for bcround
      *
-     * @var string $number
-     * @var int $precision
-     * @var int $mode
+     * @param string $number
+     * @param int $precision
+     * @param int $mode
      */
-    private static function bcroundHelper($number, $precision, $mode = PHP_ROUND_HALF_UP)
+    private static function bcroundHelper($number, $precision, $mode = PHP_ROUND_HALF_UP): string
     {
         if (strpos($number, '.') === false) {
             $number .= '.0';
@@ -531,8 +531,8 @@ abstract class BCMath
     /**
      * __callStatic Magic Method
      *
-     * @var string $name
-     * @var array $arguments
+     * @param string $name
+     * @param array $arguments
      */
     public static function __callStatic($name, $arguments)
     {

@@ -214,9 +214,7 @@ class BCMathTest extends TestCase
         }
 
         $a = bcpowmod(...$params);
-        var_dump('bcpowmod: a ', $a);
         $b = BCMath::powmod(...$params);
-        var_dump('BCMath::powmod: b ', $b);
         $this->assertSame($a, $b);
     }
 
