@@ -11,12 +11,10 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@v4
-            -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
+            -   name: Install dependencies
+                uses: php-actions/composer@v6
                 with:
-                    php-version: '8.3'
-            -   name: Composer Install
-                run: composer install --no-interaction --no-cache
+                    php_version: '8.1'
             -   name: Run PHP-CS-Fixer
                 run: vendor/bin/php-cs-fixer fix --dry-run --diff --allow-risky=yes
 
@@ -27,14 +25,14 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@v4
-            -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
+            -   name: Install dependencies
+                uses: php-actions/composer@v6
                 with:
-                    php-version: '8.3'
-            -   name: Composer Install
-                run: composer install --no-interaction --no-cache
+                    php_version: '8.1'
             -   name: Run PHPStan
-                run: vendor/bin/phpstan analyse
+                uses: php-actions/phpstan@v3
+                with:
+                    php_version: '8.1'
 
     tests:
         name: Tests
@@ -44,14 +42,14 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@v4
-            -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
+            -   name: Install dependencies
+                uses: php-actions/composer@v6
                 with:
-                    php-version: ${{ matrix.php-version }}
-            -   name: Composer Install
-                run: composer install --no-interaction --no-cache
-            -   name: PHPUnit
-                run: vendor/bin/phpunit
+                    php_version: ${{ matrix.php-version }}
+            -   name: Run PHPUnit
+                uses: php-actions/phpunit@v4
+                with:
+                    php_version: ${{ matrix.php-version }}
         strategy:
             fail-fast: false
             matrix:
