@@ -651,7 +651,7 @@ abstract class BCMath
                     // PHP >= 8.1 has deprecated the passing of nulls to string parameters
                 case is_null($arg):
                     $error = "bc{$name}(): Passing null to parameter #{$num} (\${$names[$i]}) of type string is deprecated";
-                    trigger_error($error, E_USER_DEPRECATED);
+                    @trigger_error($error, E_USER_DEPRECATED);
 
                     break;
 
@@ -664,7 +664,7 @@ abstract class BCMath
         }
         if (!isset(self::$scale)) {
             $scale = ini_get('bcmath.scale');
-            self::$scale = $scale !== false ? max(intval($scale), 0) : 0;
+            self::$scale = $scale !== false ? max((int) $scale, 0) : 0;
         }
         // For round, scale is the second parameter (precision)
         $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$params[$name] - 1] ?? self::$scale;

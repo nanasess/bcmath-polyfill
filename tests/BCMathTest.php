@@ -2,8 +2,8 @@
 
 // declare(strict_types=1);
 
-use PHPUnit\Framework\Attributes\CoversNothing;
 use bcmath_compat\BCMath;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
@@ -25,7 +25,7 @@ class BCMathTest extends TestCase
     /**
      * Produces all combinations of test values.
      */
-    public static function generateTwoParams(): array
+    public static function generateTwoParams(): iterable
     {
         return [
             ['9', '9'],
@@ -132,7 +132,7 @@ class BCMathTest extends TestCase
     /**
      * Produces all combinations of test values.
      */
-    public static function generatePowParams(): array
+    public static function generatePowParams(): iterable
     {
         return [
             ['9', '9'],
@@ -167,7 +167,7 @@ class BCMathTest extends TestCase
     /**
      * Produces all combinations of test values.
      */
-    public static function generatePowModParams(): array
+    public static function generatePowModParams(): iterable
     {
         return [
             ['9', '9', '17'],
@@ -224,7 +224,7 @@ class BCMathTest extends TestCase
             } catch (TypeError) {
                 $exception_thrown = true;
             }
-            $this->assertSame(true, $exception_thrown);
+            $this->assertTrue($exception_thrown);
         } else {
             $a = bcadd('5', '2', false);
             $b = BCMath::add('5', '2', false);
@@ -255,7 +255,7 @@ class BCMathTest extends TestCase
         }
     }
 
-    public static function generateScaleCallstaticParams(): array
+    public static function generateScaleCallstaticParams(): iterable
     {
         return [
             [4],
@@ -288,7 +288,7 @@ class BCMathTest extends TestCase
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
             }
-            $this->assertSame(true, $exception_thrown);
+            $this->assertTrue($exception_thrown);
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
@@ -302,7 +302,7 @@ class BCMathTest extends TestCase
         BCMath::scale($originalScale);
     }
 
-    public static function generatePowModCallstaticParams(): array
+    public static function generatePowModCallstaticParams(): iterable
     {
         return [
             ['9'],
@@ -329,7 +329,7 @@ class BCMathTest extends TestCase
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
             }
-            $this->assertSame(true, $exception_thrown);
+            $this->assertTrue($exception_thrown);
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
