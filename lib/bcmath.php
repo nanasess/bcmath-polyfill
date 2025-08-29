@@ -83,8 +83,8 @@ if (!function_exists('bcadd')) {
     /**
      * Multiply two arbitrary precision numbers
      *
-     * @param string $left_operand
-     * @param string $right_operand
+     * @param string $dividend
+     * @param string $divisor
      * @param int $scale optional
      */
     function bcmul($dividend, $divisor, $scale = 0): string

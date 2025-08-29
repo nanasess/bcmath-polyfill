@@ -31,7 +31,7 @@ use phpseclib3\Math\BigInteger;
  * @method static string sqrt(string $operand, int $scale = 0)
  * @method static string floor(string $num, int $scale = 0)
  * @method static string ceil(string $num, int $scale = 0)
- * @method static string round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP)
+ * @method static string round(string $num, int $precision = 0, int $mode = 1) // $mode default is PHP_ROUND_HALF_UP (1)
  */
 abstract class BCMath
 {
@@ -63,7 +63,6 @@ abstract class BCMath
      * @param string $x
      * @param int $scale
      * @param int $pad
-     * @param boolean $trim
      */
     private static function format($x, $scale, $pad = 0): string
     {
@@ -100,8 +99,8 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -115,8 +114,8 @@ abstract class BCMath
     /**
      * Subtract one arbitrary precision number from another
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -130,8 +129,8 @@ abstract class BCMath
     /**
      * Multiply two arbitrary precision numbers
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -154,8 +153,8 @@ abstract class BCMath
     /**
      * Divide two arbitrary precision numbers
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -179,8 +178,8 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -220,8 +219,8 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      *
-     * @param string $x
-     * @param string $y
+     * @param BigInteger $x
+     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
@@ -264,9 +263,9 @@ abstract class BCMath
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus
      *
-     * @param string $x
-     * @param string $e
-     * @param string $n
+     * @param BigInteger $x
+     * @param BigInteger $e
+     * @param BigInteger $n
      * @param int $scale
      * @param int $pad
      */
@@ -653,7 +652,7 @@ abstract class BCMath
             case is_string($scale) && preg_match('#0-9\.#', $scale[0]):
                 break;
             default:
-                $type = get_debug_type($arg);
+                $type = get_debug_type($scale);
                 $str = "bc$name(): Argument #$params[$name] (\$scale) must be of type ?int, string given";
                 throw new \TypeError($str);
         }
