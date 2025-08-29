@@ -625,7 +625,6 @@ class BCMathTest extends TestCase
 
     /**
      * Test all bcround() rounding modes for PHP 8.4+
-     * @requires PHP >= 8.4
      */
     #[RequiresPhp('>=8.4')]
     public function testRoundAllModes(): void

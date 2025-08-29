@@ -99,12 +99,10 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers
      *
-     * @param BigInteger $x
-     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
-    private static function add($x, $y, $scale, $pad = 0): string
+    private static function add(BigInteger $x, BigInteger $y, $scale, $pad = 0): string
     {
         $z = $x->add($y);
 
@@ -114,12 +112,10 @@ abstract class BCMath
     /**
      * Subtract one arbitrary precision number from another
      *
-     * @param BigInteger $x
-     * @param BigInteger $y
      * @param int $scale
      * @param int $pad
      */
-    private static function sub($x, $y, $scale, $pad = 0): string
+    private static function sub(BigInteger $x, BigInteger $y, $scale, $pad = 0): string
     {
         $z = $x->subtract($y);
 

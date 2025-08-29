@@ -7,3 +7,7 @@ parameters:
 		- src
 		- tests
 		- lib
+	# ignoreErrors:
+	# 	-
+	# 		message: '#^Static method bcmath_compat\\BCMath::[a-zA-Z_]+\(\) is unused\.$#'
+	# 		identifier: method.unused
