@@ -19,6 +19,19 @@ use phpseclib3\Math\BigInteger;
  *
  * @author  Jim Wigginton <terrafrost@php.net>
  * @access  public
+ *
+ * @method static string add(string $num1, string $num2, int $scale = 0)
+ * @method static string sub(string $num1, string $num2, int $scale = 0)
+ * @method static string mul(string $num1, string $num2, int $scale = 0)
+ * @method static string div(string $num1, string $num2, int $scale = 0)
+ * @method static string mod(string $num1, string $num2, int $scale = 0)
+ * @method static int comp(string $num1, string $num2, int $scale = 0)
+ * @method static string pow(string $num, string $exponent, int $scale = 0)
+ * @method static string powmod(string $base, string $exponent, string $modulus, int $scale = 0)
+ * @method static string sqrt(string $operand, int $scale = 0)
+ * @method static string floor(string $num, int $scale = 0)
+ * @method static string ceil(string $num, int $scale = 0)
+ * @method static string round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP)
  */
 abstract class BCMath
 {
@@ -191,10 +204,10 @@ abstract class BCMath
      *
      * @param string $x
      * @param string $y
-     * @param int $scale
+     * @param ?int $scale
      * @param int $pad
      */
-    private static function comp($x, $y, $scale, $pad = 0): int
+    private static function comp($x, $y, $scale = 0, $pad = 0): int
     {
         $x = new BigInteger($x[0] . substr($x[1], 0, $scale));
         $y = new BigInteger($y[0] . substr($y[1], 0, $scale));
@@ -288,10 +301,10 @@ abstract class BCMath
      * Get the square root of an arbitrary precision number
      *
      * @param string $n
-     * @param int $scale
+     * @param ?int $scale
      * @param int $pad
      */
-    private static function sqrt($n, $scale, $pad = 0): string
+    private static function sqrt($n, $scale = 0, $pad = 0): string
     {
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
@@ -436,11 +449,11 @@ abstract class BCMath
      * Round to a given decimal place
      *
      * @param string $n
-     * @param int $scale
-     * @param int $pad
+     * @param int $precision
      * @param int $mode
+     * @param int $pad
      */
-    private static function round($n, $scale, $pad = 0, $mode = PHP_ROUND_HALF_UP): string
+    private static function round($n, $precision, $mode = PHP_ROUND_HALF_UP, $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -451,10 +464,10 @@ abstract class BCMath
         }
 
         // Based on: https://stackoverflow.com/a/1653826
-        if ($scale < 0) {
-            // When scale is negative, we round to the left of the decimal point
-            $absScale = abs($scale);
-            $factor = bcpow('10', (string) $absScale);
+        if ($precision < 0) {
+            // When precision is negative, we round to the left of the decimal point
+            $absPrecision = abs($precision);
+            $factor = bcpow('10', (string) $absPrecision);
             $shifted = bcdiv($n, $factor, 10); // Use a high precision for intermediate calculation
 
             // Apply rounding
@@ -463,7 +476,7 @@ abstract class BCMath
             // Shift back
             return bcmul($rounded, $factor, 0);
         } else {
-            return self::bcroundHelper($n, $scale, $mode);
+            return self::bcroundHelper($n, $precision, $mode);
         }
     }
 
@@ -548,7 +561,7 @@ abstract class BCMath
             'sub' => 3,
             'floor' => 2,
             'ceil' => 2,
-            'round' => 3,
+            'round' => 4,
         ];
         $cnt = count($arguments);
 
@@ -645,7 +658,7 @@ abstract class BCMath
                 throw new \TypeError($str);
         }
         $scale = (int) $scale;
-        // For bcround, negative scale is allowed
+        // For bcround, negative precision is allowed
         if ($scale < 0 && $name !== 'round') {
             throw new \ValueError("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647");
         }
@@ -696,9 +709,11 @@ abstract class BCMath
         if ($name === 'round') {
             // bcround can have 1, 2, or 3 parameters
             // Get the mode from the original arguments if provided
-            $originalCnt = count($arguments);
-            $mode = ($originalCnt >= 3) ? $arguments[2] : PHP_ROUND_HALF_UP;
-            $arguments = array_merge($numbers, $ints, [$scale, $pad, $mode]);
+            $originalArgs = $arguments;
+            $originalCnt = count($originalArgs);
+            $precision = ($originalCnt >= 2) ? $originalArgs[1] : $scale;
+            $mode = ($originalCnt >= 3) ? $originalArgs[2] : PHP_ROUND_HALF_UP;
+            $arguments = array_merge($numbers, [$precision, $mode, $pad]);
         } else {
             $arguments = array_merge($numbers, $ints, [$scale, $pad]);
         }

@@ -238,10 +238,6 @@ class BCMathTest extends TestCase
 
     public function setExpectedException($name, $message = null, $code = null): void
     {
-        if (version_compare(PHP_VERSION, '7.0.0') < 0) {
-            parent::setExpectedException($name, $message, $code);
-            return;
-        }
         switch ($name) {
             case 'PHPUnit_Framework_Error_Notice':
             case 'PHPUnit_Framework_Error_Warning':
