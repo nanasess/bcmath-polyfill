@@ -1,22 +1,27 @@
 <?php
 
-//declare(strict_types=1);
+// declare(strict_types=1);
 
+use PHPUnit\Framework\Attributes\CoversNothing;
 use bcmath_compat\BCMath;
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
-use PHPUnit\Framework\Attributes\RequiresPhp;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresPhp;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 
 // use PHPUnit\Framework\Attributes\TestWith;
 
 /**
- * requires extension bcmath
+ * requires extension bcmath.
+ *
+ * @internal
  */
 #[RequiresPhpExtension('bcmath')]
+#[CoversNothing]
 class BCMathTest extends TestCase
 {
     protected static $emsg = '';
+
     /**
      * Produces all combinations of test values.
      */
@@ -44,7 +49,7 @@ class BCMathTest extends TestCase
             ['9', '0'],
             ['0', '9'],
             // this became deprecated in PHP 8.1
-            //[null, '9'],
+            // [null, '9'],
             ['-0.0000005', '0', 3],
             ['-0.0000005', '0.0000001', 3],
             ['-0', '0'],
@@ -79,9 +84,8 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * requires PHP 7.3
+     * requires PHP 7.3.
      */
-
     #[RequiresPhp('>7.3')]
     #[DataProvider('generateTwoParams')]
     public function testMul(...$params): void
@@ -110,9 +114,8 @@ class BCMathTest extends TestCase
 
     /**
      * dataProvider generateTwoParams
-     * requires PHP 7.2
+     * requires PHP 7.2.
      */
-
     #[DataProvider('generateTwoParams')]
     #[RequiresPhp('>7.2')]
     public function testMod(...$params): void
@@ -179,11 +182,10 @@ class BCMathTest extends TestCase
 
     /**
      * dataProvider generatePowModParams
-     * requires PHP 7.3
+     * requires PHP 7.3.
      */
     #[DataProvider('generatePowModParams')]
     #[RequiresPhp('>7.3')]
-
     public function testPowMod(...$params): void
     {
         // Skip the specific test case on 32-bit Windows due to architecture limitations
@@ -216,6 +218,7 @@ class BCMathTest extends TestCase
     {
         if (false) {
             $exception_thrown = false;
+
             try {
                 $a = bcadd('5', '2', false);
             } catch (TypeError) {
@@ -256,9 +259,9 @@ class BCMathTest extends TestCase
     {
         return [
             [4],
-            [4,2],
-            [4,2,3],
-            [4,2,3,5],
+            [4, 2],
+            [4, 2, 3],
+            [4, 2, 3, 5],
         ];
     }
 
@@ -268,7 +271,7 @@ class BCMathTest extends TestCase
         // Save original scale
         $originalScale = bcscale();
 
-        //scale with 1, 2, 3 parameters
+        // scale with 1, 2, 3 parameters
         if (func_num_args() == 1) {
             bcscale(...$params);
             BCMath::scale(...$params);
@@ -279,6 +282,7 @@ class BCMathTest extends TestCase
             $this->assertSame($orig, $scale);
         } else {
             $exception_thrown = false;
+
             try {
                 BCMath::scale(...$params);
             } catch (ArgumentCountError $e) {
@@ -288,7 +292,7 @@ class BCMathTest extends TestCase
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
+                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
                 $this->markTestSkipped($msg);
             }
         }
@@ -297,6 +301,7 @@ class BCMathTest extends TestCase
         bcscale($originalScale);
         BCMath::scale($originalScale);
     }
+
     public static function generatePowModCallstaticParams(): array
     {
         return [
@@ -307,16 +312,18 @@ class BCMathTest extends TestCase
             ['9', '17', '-111', 5, 8],
         ];
     }
+
     #[DataProvider('generatePowModCallstaticParams')]
     public function testArgumentsPowModCallstatic(...$params): void
     {
-        //scale with 1, 2, 3 parameters
+        // scale with 1, 2, 3 parameters
         if (func_num_args() > 2 && func_num_args() < 5) {
             $a = bcpowmod(...$params);
             $b = BCMath::powmod(...$params);
             $this->assertSame($a, $b);
         } else {
             $exception_thrown = false;
+
             try {
                 BCMath::powmod(...$params);
             } catch (ArgumentCountError $e) {
@@ -326,7 +333,7 @@ class BCMathTest extends TestCase
             if (true) {
                 // start the unit test with: (showing the wrong given values)
                 // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
+                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
                 $this->markTestSkipped($msg);
             }
         }
@@ -334,7 +341,7 @@ class BCMathTest extends TestCase
 
     /**
      * Test bcfloor function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
     public function testFloor(): void
@@ -366,7 +373,7 @@ class BCMathTest extends TestCase
 
     /**
      * Test bcceil function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
     public function testCeil(): void
@@ -398,7 +405,7 @@ class BCMathTest extends TestCase
 
     /**
      * Test bcround function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
     public function testRound(): void
@@ -453,7 +460,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcfloor function without PHP 8.4
+     * Test bcfloor function without PHP 8.4.
      */
     public function testFloorPolyfill(): void
     {
@@ -483,7 +490,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcceil function without PHP 8.4
+     * Test bcceil function without PHP 8.4.
      */
     public function testCeilPolyfill(): void
     {
@@ -513,7 +520,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcround function without PHP 8.4
+     * Test bcround function without PHP 8.4.
      */
     public function testRoundPolyfill(): void
     {
@@ -547,12 +554,12 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test boundary values with very large decimal places
+     * Test boundary values with very large decimal places.
      */
     public function testBoundaryValuesLargeDecimals(): void
     {
         // Test with very large decimal places
-        $largeDecimal = '1.' . str_repeat('9', 100);
+        $largeDecimal = '1.'.str_repeat('9', 100);
         $result = BCMath::add($largeDecimal, '0.1', 50);
         // When adding 0.1 to 1.999... we get 2.099...
         $this->assertSame('2.09999999999999999999999999999999999999999999999999', $result);
@@ -571,12 +578,12 @@ class BCMathTest extends TestCase
 
         // Division with high precision
         $quotient = BCMath::div('1', '3', 100);
-        $expected = '0.' . str_repeat('3', 100);
+        $expected = '0.'.str_repeat('3', 100);
         $this->assertSame($expected, $quotient);
     }
 
     /**
-     * Test with scale value 2147483647 (maximum integer)
+     * Test with scale value 2147483647 (maximum integer).
      */
     public function testMaximumScaleValue(): void
     {
@@ -585,46 +592,46 @@ class BCMathTest extends TestCase
 
         // Test that the scale parameter accepts large values
         $result = BCMath::add('1.5', '2.5', 1000);
-        $this->assertSame('4.' . str_repeat('0', 1000), $result);
+        $this->assertSame('4.'.str_repeat('0', 1000), $result);
 
         // Test with a reasonably large scale
         $result = BCMath::div('1', '7', 500);
         // Should produce 0.142857142857... repeating (total length = 502 with "0.")
-        $expected = '0.' . str_repeat('142857', 83) . '14';
+        $expected = '0.'.str_repeat('142857', 83).'14';
         $this->assertSame($expected, $result);
     }
 
     /**
-     * Test with extremely small numbers
+     * Test with extremely small numbers.
      */
     public function testExtremelySmallNumbers(): void
     {
         // Test with scientific notation converted to decimal
-        $small = '0.' . str_repeat('0', 99) . '1'; // 1e-100
+        $small = '0.'.str_repeat('0', 99).'1'; // 1e-100
 
         // Addition with extremely small numbers
         $result = BCMath::add($small, $small, 101);
-        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $expected = '0.'.str_repeat('0', 99).'20';
         $this->assertSame($expected, $result);
 
         // Multiplication of extremely small numbers
         $result = BCMath::mul($small, '2', 101);
-        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $expected = '0.'.str_repeat('0', 99).'20';
         $this->assertSame($expected, $result);
 
         // Division producing extremely small results
-        $result = BCMath::div('1', '1' . str_repeat('0', 50), 60);
-        $expected = '0.' . str_repeat('0', 49) . '10' . str_repeat('0', 9);
+        $result = BCMath::div('1', '1'.str_repeat('0', 50), 60);
+        $expected = '0.'.str_repeat('0', 49).'10'.str_repeat('0', 9);
         $this->assertSame($expected, $result);
 
         // Operations with mixed extremely small and normal numbers
         $result = BCMath::add('1000000', $small, 105);
-        $expected = '1000000.' . str_repeat('0', 99) . '1' . str_repeat('0', 5);
+        $expected = '1000000.'.str_repeat('0', 99).'1'.str_repeat('0', 5);
         $this->assertSame($expected, $result);
     }
 
     /**
-     * Test all bcround() rounding modes for PHP 8.4+
+     * Test all bcround() rounding modes for PHP 8.4+.
      */
     #[RequiresPhp('>=8.4')]
     public function testRoundAllModes(): void
@@ -668,7 +675,7 @@ class BCMathTest extends TestCase
                 $this->assertSame(
                     $expectedResults[$i],
                     $result,
-                    "Failed for number=$number, scale=$scale, mode=$mode"
+                    "Failed for number={$number}, scale={$scale}, mode={$mode}"
                 );
 
                 // Also test with native bcround if available with RoundingMode enum
@@ -683,7 +690,7 @@ class BCMathTest extends TestCase
                     $this->assertSame(
                         $nativeResult,
                         $result,
-                        "Native bcround differs from polyfill for number=$number, scale=$scale, mode=$mode"
+                        "Native bcround differs from polyfill for number={$number}, scale={$scale}, mode={$mode}"
                     );
                 }
             }
@@ -691,7 +698,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcround() with negative scale values
+     * Test bcround() with negative scale values.
      */
     public function testRoundNegativeScale(): void
     {
@@ -742,7 +749,7 @@ class BCMathTest extends TestCase
             $this->assertSame(
                 $expected,
                 $result,
-                "Failed for number=$number, scale=$scale"
+                "Failed for number={$number}, scale={$scale}"
             );
 
             // Test with native bcround for PHP 8.4+
@@ -751,7 +758,7 @@ class BCMathTest extends TestCase
                 $this->assertSame(
                     $nativeResult,
                     $result,
-                    "Native bcround differs from polyfill for number=$number, scale=$scale"
+                    "Native bcround differs from polyfill for number={$number}, scale={$scale}"
                 );
             }
         }

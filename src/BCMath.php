@@ -1,7 +1,7 @@
 <?php
 
 /**
- * BCMath Emulation Class
+ * BCMath Emulation Class.
  *
  * PHP version 5 and 7
  *
@@ -15,10 +15,9 @@ namespace bcmath_compat;
 use phpseclib3\Math\BigInteger;
 
 /**
- * BCMath Emulation Class
+ * BCMath Emulation Class.
  *
  * @author  Jim Wigginton <terrafrost@php.net>
- * @access  public
  *
  * @method static string add(string $num1, string $num2, int $scale = 0)
  * @method static string sub(string $num1, string $num2, int $scale = 0)
@@ -36,12 +35,12 @@ use phpseclib3\Math\BigInteger;
 abstract class BCMath
 {
     /**
-     * Default scale parameter for all bc math functions
+     * Default scale parameter for all bc math functions.
      */
     private static ?int $scale = null;
 
     /**
-     * Set or get default scale parameter for all bc math functions
+     * Set or get default scale parameter for all bc math functions.
      *
      * Uses the PHP 7.3+ behavior
      *
@@ -52,11 +51,12 @@ abstract class BCMath
         if (isset($scale)) {
             self::$scale = (int) $scale;
         }
+
         return self::$scale;
     }
 
     /**
-     * Formats numbers
+     * Formats numbers.
      *
      * Places the decimal place at the appropriate place, adds trailing 0's as appropriate, etc
      *
@@ -83,11 +83,12 @@ abstract class BCMath
         } elseif ($scale) {
             $temp[1] = str_repeat('0', $scale);
         }
-        return $sign . rtrim(implode('.', $temp), '.');
+
+        return $sign.rtrim(implode('.', $temp), '.');
     }
 
     /**
-     * Negativity Test
+     * Negativity Test.
      *
      * @param BigInteger $x
      */
@@ -97,7 +98,7 @@ abstract class BCMath
     }
 
     /**
-     * Add two arbitrary precision numbers
+     * Add two arbitrary precision numbers.
      *
      * @param int $scale
      * @param int $pad
@@ -110,7 +111,7 @@ abstract class BCMath
     }
 
     /**
-     * Subtract one arbitrary precision number from another
+     * Subtract one arbitrary precision number from another.
      *
      * @param int $scale
      * @param int $pad
@@ -123,7 +124,7 @@ abstract class BCMath
     }
 
     /**
-     * Multiply two arbitrary precision numbers
+     * Multiply two arbitrary precision numbers.
      *
      * @param BigInteger $x
      * @param BigInteger $y
@@ -135,19 +136,20 @@ abstract class BCMath
         if ($x == '0' || $y == '0') {
             $r = '0';
             if ($scale) {
-                $r .= '.' . str_repeat('0', $scale);
+                $r .= '.'.str_repeat('0', $scale);
             }
+
             return $r;
         }
 
         $z = $x->abs()->multiply($y->abs());
         $sign = ((self::isNegative($x) ^ self::isNegative($y)) !== 0) ? '-' : '';
 
-        return $sign . self::format($z, $scale, 2 * $pad);
+        return $sign.self::format($z, $scale, 2 * $pad);
     }
 
     /**
-     * Divide two arbitrary precision numbers
+     * Divide two arbitrary precision numbers.
      *
      * @param BigInteger $x
      * @param BigInteger $y
@@ -162,7 +164,7 @@ abstract class BCMath
             throw new \DivisionByZeroError('Division by zero');
         }
 
-        $temp = '1' . str_repeat('0', $scale);
+        $temp = '1'.str_repeat('0', $scale);
         $temp = new BigInteger($temp);
         [$q] = $x->multiply($temp)->divide($y);
 
@@ -170,7 +172,7 @@ abstract class BCMath
     }
 
     /**
-     * Get modulus of an arbitrary precision number
+     * Get modulus of an arbitrary precision number.
      *
      * Uses the PHP 7.2+ behavior
      *
@@ -195,7 +197,7 @@ abstract class BCMath
     }
 
     /**
-     * Compare two arbitrary precision numbers
+     * Compare two arbitrary precision numbers.
      *
      * @param string $x
      * @param string $y
@@ -204,14 +206,14 @@ abstract class BCMath
      */
     private static function comp($x, $y, $scale = 0, $pad = 0): int
     {
-        $x = new BigInteger($x[0] . substr($x[1], 0, $scale));
-        $y = new BigInteger($y[0] . substr($y[1], 0, $scale));
+        $x = new BigInteger($x[0].substr($x[1], 0, $scale));
+        $y = new BigInteger($y[0].substr($y[1], 0, $scale));
 
         return $x->compare($y);
     }
 
     /**
-     * Raise an arbitrary precision number to another
+     * Raise an arbitrary precision number to another.
      *
      * Uses the PHP 7.2+ behavior
      *
@@ -225,8 +227,9 @@ abstract class BCMath
         if ($y == '0') {
             $r = '1';
             if ($scale) {
-                $r .= '.' . str_repeat('0', $scale);
+                $r .= '.'.str_repeat('0', $scale);
             }
+
             return $r;
         }
 
@@ -245,7 +248,7 @@ abstract class BCMath
         }
 
         if ($y < 0) {
-            $temp = '1' . str_repeat('0', $scale + $pad * abs($y));
+            $temp = '1'.str_repeat('0', $scale + $pad * abs($y));
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $pad = $scale;
@@ -253,11 +256,11 @@ abstract class BCMath
             $pad *= abs($y);
         }
 
-        return $sign . self::format($r, $scale, $pad);
+        return $sign.self::format($r, $scale, $pad);
     }
 
     /**
-     * Raise an arbitrary precision number to another, reduced by a specified modulus
+     * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
      * @param string $x
      * @param string $e
@@ -277,7 +280,7 @@ abstract class BCMath
         }
         if ($e == '0') {
             return $scale
-                ? '1.' . str_repeat('0', $scale)
+                ? '1.'.str_repeat('0', $scale)
                 : '1';
         }
 
@@ -288,12 +291,12 @@ abstract class BCMath
         $z = $x->powMod($e, $n);
 
         return $scale
-            ? "$z." . str_repeat('0', $scale)
-            : "$z";
+            ? "{$z}.".str_repeat('0', $scale)
+            : "{$z}";
     }
 
     /**
-     * Get the square root of an arbitrary precision number
+     * Get the square root of an arbitrary precision number.
      *
      * @param string $n
      * @param ?int $scale
@@ -311,7 +314,7 @@ abstract class BCMath
         $decStart = ceil(strlen($temp[0]) / 2);
         $n = implode('', $temp);
         if (strlen($n) % 2 !== 0) {
-            $n = "0$n";
+            $n = "0{$n}";
         }
         $parts = str_split($n, 2);
         $parts = array_map('intval', $parts);
@@ -324,6 +327,7 @@ abstract class BCMath
             for ($x = 1; $x <= 10; $x++) {
                 if ($x * (20 * $p + $x) > $c) {
                     $x--;
+
                     break;
                 }
             }
@@ -334,7 +338,7 @@ abstract class BCMath
             if (isset($parts[++$i])) {
                 $c += $parts[$i];
             }
-            if ((!$c && $i >= $decStart)  || $i - $decStart == $scale) {
+            if ((!$c && $i >= $decStart) || $i - $decStart == $scale) {
                 break;
             }
             if ($decStart == $i) {
@@ -348,11 +352,12 @@ abstract class BCMath
         } elseif ($scale) {
             $result[1] = str_repeat('0', $scale);
         }
+
         return implode('.', $result);
     }
 
     /**
-     * Round down to the nearest integer
+     * Round down to the nearest integer.
      *
      * @param string $n
      * @param int $scale
@@ -365,6 +370,7 @@ abstract class BCMath
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
             }
             trigger_error('bcfloor(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+
             return '0';
         }
 
@@ -381,15 +387,15 @@ abstract class BCMath
             }
 
             return $result;
-        } else {
-            // When scale > 0, truncate to the specified decimal places
-            // Simply use bcdiv with the desired scale, which truncates
-            return bcdiv($n, '1', $scale);
         }
+
+        // When scale > 0, truncate to the specified decimal places
+        // Simply use bcdiv with the desired scale, which truncates
+        return bcdiv($n, '1', $scale);
     }
 
     /**
-     * Round up to the nearest integer
+     * Round up to the nearest integer.
      *
      * @param string $n
      * @param int $scale
@@ -402,6 +408,7 @@ abstract class BCMath
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
             }
             trigger_error('bcceil(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+
             return '0';
         }
 
@@ -418,30 +425,29 @@ abstract class BCMath
             }
 
             return $result;
-        } else {
-            // When scale > 0, ceil to the specified decimal places
-            // Multiply by 10^scale, ceil, then divide back
-            $factor = bcpow('10', (string) $scale);
-            $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
-
-            // Get the ceiling of the shifted value
-            $ceiledShifted = bcdiv($shifted, '1', 0);
-
-            // For positive numbers with fractional parts, we need to add 1
-            if (str_contains($shifted, '.') && $shifted[0] !== '-') {
-                $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
-                if (ltrim($fractionalPart, '0') !== '') {
-                    $ceiledShifted = bcadd($ceiledShifted, '1', 0);
-                }
-            }
-
-            // Divide back to get the result with proper scale
-            return bcdiv($ceiledShifted, $factor, $scale);
         }
+        // When scale > 0, ceil to the specified decimal places
+        // Multiply by 10^scale, ceil, then divide back
+        $factor = bcpow('10', (string) $scale);
+        $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
+
+        // Get the ceiling of the shifted value
+        $ceiledShifted = bcdiv($shifted, '1', 0);
+
+        // For positive numbers with fractional parts, we need to add 1
+        if (str_contains($shifted, '.') && $shifted[0] !== '-') {
+            $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
+            if (ltrim($fractionalPart, '0') !== '') {
+                $ceiledShifted = bcadd($ceiledShifted, '1', 0);
+            }
+        }
+
+        // Divide back to get the result with proper scale
+        return bcdiv($ceiledShifted, $factor, $scale);
     }
 
     /**
-     * Round to a given decimal place
+     * Round to a given decimal place.
      *
      * @param string $n
      * @param int $precision
@@ -455,6 +461,7 @@ abstract class BCMath
                 throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
             }
             trigger_error('bcround(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+
             return '0';
         }
 
@@ -470,13 +477,13 @@ abstract class BCMath
 
             // Shift back
             return bcmul($rounded, $factor, 0);
-        } else {
-            return self::bcroundHelper($n, $precision, $mode);
         }
+
+        return self::bcroundHelper($n, $precision, $mode);
     }
 
     /**
-     * Helper function for bcround
+     * Helper function for bcround.
      *
      * @param string $number
      * @param int $precision
@@ -497,7 +504,7 @@ abstract class BCMath
 
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
         if ($mode === PHP_ROUND_HALF_UP) {
-            $addition = '0.' . str_repeat('0', $precision) . '5';
+            $addition = '0.'.str_repeat('0', $precision).'5';
             $number = bcadd($number, $addition, $precision + 1);
         } elseif ($mode === PHP_ROUND_HALF_DOWN) {
             // For HALF_DOWN, we need to check the digit at precision+1
@@ -507,13 +514,14 @@ abstract class BCMath
                 if ($digit == 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
                     // Exactly 0.5, don't round up
                 } elseif ($digit > 5 || ($digit == 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
-                    $addition = '0.' . str_repeat('0', $precision) . '1';
+                    $addition = '0.'.str_repeat('0', $precision).'1';
                     $number = bcadd($number, $addition, $precision + 1);
                 }
             }
         } else {
             // For other modes, use PHP's round and convert back
-            $rounded = round((float) ($sign . $number), $precision, $mode);
+            $rounded = round((float) ($sign.$number), $precision, $mode);
+
             return number_format($rounded, $precision, '.', '');
         }
 
@@ -532,11 +540,11 @@ abstract class BCMath
             }
         }
 
-        return $sign . $number;
+        return $sign.$number;
     }
 
     /**
-     * __callStatic Magic Method
+     * __callStatic Magic Method.
      *
      * @param string $name
      * @param array $arguments
@@ -563,18 +571,20 @@ abstract class BCMath
         // Special handling for round which can have 1-3 parameters
         if ($name === 'round') {
             if ($cnt < 1) {
-                throw new \ArgumentCountError("bcround() expects at least 1 parameter, " . $cnt . " given");
+                throw new \ArgumentCountError('bcround() expects at least 1 parameter, '.$cnt.' given');
             }
             if ($cnt > 3) {
-                throw new \ArgumentCountError("bcround() expects at most 3 parameters, " . $cnt . " given");
+                throw new \ArgumentCountError('bcround() expects at most 3 parameters, '.$cnt.' given');
             }
         } else {
             if ($cnt < $params[$name] - 1) {
                 $min = $params[$name] - 1;
-                throw new \ArgumentCountError("bc$name() expects at least $min parameters, " . $cnt . " given");
+
+                throw new \ArgumentCountError("bc{$name}() expects at least {$min} parameters, ".$cnt.' given');
             }
             if ($cnt > $params[$name]) {
-                $str = "bc$name() expects at most {$params[$name]} parameters, " . $cnt . " given";
+                $str = "bc{$name}() expects at most {$params[$name]} parameters, ".$cnt.' given';
+
                 throw new \ArgumentCountError($str);
             }
         }
@@ -582,25 +592,34 @@ abstract class BCMath
         $numbers = $name === 'round' ? array_slice($arguments, 0, 1) : array_slice($arguments, 0, $params[$name] - 1);
 
         $ints = [];
+
         switch ($name) {
             case 'pow':
                 $ints = array_slice($numbers, count($numbers) - 1);
                 $numbers = array_slice($numbers, 0, count($numbers) - 1);
                 $names = ['exponent'];
+
                 break;
+
             case 'powmod':
                 $ints = $numbers;
                 $numbers = [];
                 $names = ['base', 'exponent', 'modulus'];
+
                 break;
+
             case 'sqrt':
             case 'floor':
             case 'ceil':
                 $names = ['num'];
+
                 break;
+
             case 'round':
                 $names = ['num', 'precision', 'mode'];
+
                 break;
+
             default:
                 $names = ['num1', 'num2'];
         }
@@ -611,28 +630,35 @@ abstract class BCMath
             $pos = strpos($int, '.');
             if ($pos !== false) {
                 $int = substr($int, 0, $pos);
-                throw new \ValueError("bc$name(): Argument #2 (\$$names[$i]) cannot have a fractional part");
+
+                throw new \ValueError("bc{$name}(): Argument #2 (\${$names[$i]}) cannot have a fractional part");
             }
         }
         foreach ($numbers as $i => $arg) {
             $num = $i + 1;
+
             switch (true) {
                 case is_bool($arg):
                 case is_numeric($arg):
                 case is_string($arg):
                 case is_object($arg) && method_exists($arg, '__toString'):
-                    if (!is_bool($arg) && !is_numeric("$arg")) {
-                        throw new \ValueError("bc$name: bcmath function argument is not well-formed");
+                    if (!is_bool($arg) && !is_numeric("{$arg}")) {
+                        throw new \ValueError("bc{$name}: bcmath function argument is not well-formed");
                     }
+
                     break;
+
                     // PHP >= 8.1 has deprecated the passing of nulls to string parameters
                 case is_null($arg):
-                    $error = "bc$name(): Passing null to parameter #$num (\$$names[$i]) of type string is deprecated";
+                    $error = "bc{$name}(): Passing null to parameter #{$num} (\${$names[$i]}) of type string is deprecated";
                     trigger_error($error, E_USER_DEPRECATED);
+
                     break;
+
                 default:
                     $type = get_debug_type($arg);
-                    $error = "bc$name(): Argument #$num (\$$names[$i]) must be of type string, $type given";
+                    $error = "bc{$name}(): Argument #{$num} (\${$names[$i]}) must be of type string, {$type} given";
+
                     throw new \TypeError($error);
             }
         }
@@ -642,20 +668,23 @@ abstract class BCMath
         }
         // For round, scale is the second parameter (precision)
         $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$params[$name] - 1] ?? self::$scale;
+
         switch (true) {
             case is_bool($scale):
             case is_numeric($scale):
             case is_string($scale) && preg_match('#0-9\.#', $scale[0]):
                 break;
+
             default:
                 $type = get_debug_type($scale);
-                $str = "bc$name(): Argument #$params[$name] (\$scale) must be of type ?int, string given";
+                $str = "bc{$name}(): Argument #{$params[$name]} (\$scale) must be of type ?int, string given";
+
                 throw new \TypeError($str);
         }
         $scale = (int) $scale;
         // For bcround, negative precision is allowed
         if ($scale < 0 && $name !== 'round') {
-            throw new \ValueError("bc$name(): Argument #$params[$name] (\$scale) must be between 0 and 2147483647");
+            throw new \ValueError("bc{$name}(): Argument #{$params[$name]} (\$scale) must be between 0 and 2147483647");
         }
 
         $pad = 0;
@@ -670,6 +699,7 @@ abstract class BCMath
                 $pad = max($pad, strlen($num[1]));
             }
         }
+
         switch ($name) {
             case 'add':
             case 'sub':
@@ -682,9 +712,11 @@ abstract class BCMath
                         $num[1] = '';
                     }
                     $num[1] = str_pad($num[1], $pad, '0');
-                    $num = new BigInteger($num[0] . $num[1]);
+                    $num = new BigInteger($num[0].$num[1]);
                 }
+
                 break;
+
             case 'comp':
                 foreach ($numbers as &$num) {
                     if (!isset($num[1])) {
@@ -692,7 +724,9 @@ abstract class BCMath
                     }
                     $num[1] = str_pad($num[1], $pad, '0');
                 }
+
                 break;
+
             case 'sqrt':
             case 'floor':
             case 'ceil':
@@ -713,7 +747,8 @@ abstract class BCMath
             $arguments = array_merge($numbers, $ints, [$scale, $pad]);
         }
 
-        $result = call_user_func_array(self::class . "::$name", $arguments);
+        $result = call_user_func_array(self::class."::{$name}", $arguments);
+
         return preg_match('#^-0\.?0*$#', (string) $result) ? substr((string) $result, 1) : $result;
     }
 }

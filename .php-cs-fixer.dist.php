@@ -11,6 +11,15 @@ return (new PhpCsFixer\Config())
         '@PER-CS' => true,
         '@PHP81Migration' => true,
         '@PHPUnit100Migration:risky' => true,
+        '@PhpCsFixer' => true,
+        'fully_qualified_strict_types' => false,
+        'yoda_style' => false,
+        'php_unit_data_provider_method_order' => false,
+        'phpdoc_align' => false,
+        'ordered_class_elements' => false,
+        'increment_style' => false,
+        // '@PhpCsFixer:risky' => true,
     ])
+
     ->setFinder($finder)
 ;

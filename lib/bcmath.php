@@ -1,7 +1,7 @@
 <?php
 
 /**
- * bcmath polyfill
+ * bcmath polyfill.
  *
  * PHP versions 5 and 7
  *
@@ -26,14 +26,15 @@
  * @author    Jim Wigginton <terrafrost@php.net>
  * @copyright 2019 Jim Wigginton
  * @license   http://www.opensource.org/licenses/mit-license.html  MIT License
- * @link      http://phpseclib.sourceforge.net
+ *
+ * @see      http://phpseclib.sourceforge.net
  */
 
 use bcmath_compat\BCMath;
 
 if (!function_exists('bcadd')) {
     /**
-     * Add two arbitrary precision numbers
+     * Add two arbitrary precision numbers.
      *
      * @param string $left_operand
      * @param string $right_operand
@@ -45,7 +46,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Compare two arbitrary precision numbers
+     * Compare two arbitrary precision numbers.
      *
      * @param string $left_operand
      * @param string $right_operand
@@ -57,7 +58,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Divide two arbitrary precision numbers
+     * Divide two arbitrary precision numbers.
      *
      * @param string $dividend
      * @param string $divisor
@@ -69,7 +70,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Get modulus of an arbitrary precision number
+     * Get modulus of an arbitrary precision number.
      *
      * @param string $dividend
      * @param string $divisor
@@ -81,7 +82,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Multiply two arbitrary precision numbers
+     * Multiply two arbitrary precision numbers.
      *
      * @param string $dividend
      * @param string $divisor
@@ -93,7 +94,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Raise an arbitrary precision number to another
+     * Raise an arbitrary precision number to another.
      *
      * @param string $base
      * @param string $exponent
@@ -105,7 +106,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Raise an arbitrary precision number to another, reduced by a specified modulus
+     * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
      * @param string $base
      * @param string $exponent
@@ -118,7 +119,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Set or get default scale parameter for all bc math functions
+     * Set or get default scale parameter for all bc math functions.
      *
      * @param int $scale
      */
@@ -128,7 +129,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Get the square root of an arbitrary precision number
+     * Get the square root of an arbitrary precision number.
      *
      * @param string $operand
      * @param int $scale optional
@@ -139,7 +140,7 @@ if (!function_exists('bcadd')) {
     }
 
     /**
-     * Subtract one arbitrary precision number from another
+     * Subtract one arbitrary precision number from another.
      *
      * @param string $left_operand
      * @param string $right_operand
@@ -153,7 +154,7 @@ if (!function_exists('bcadd')) {
 
 if (!function_exists('bcfloor')) {
     /**
-     * Round down to the nearest integer (PHP 8.4+)
+     * Round down to the nearest integer (PHP 8.4+).
      *
      * @param string $operand
      * @param int $scale optional
@@ -166,7 +167,7 @@ if (!function_exists('bcfloor')) {
 
 if (!function_exists('bcceil')) {
     /**
-     * Round up to the nearest integer (PHP 8.4+)
+     * Round up to the nearest integer (PHP 8.4+).
      *
      * @param string $operand
      * @param int $scale optional
@@ -179,7 +180,7 @@ if (!function_exists('bcceil')) {
 
 if (!function_exists('bcround')) {
     /**
-     * Round to a given decimal place (PHP 8.4+)
+     * Round to a given decimal place (PHP 8.4+).
      *
      * @param string $operand
      * @param int $precision optional
