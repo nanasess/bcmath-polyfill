@@ -52,7 +52,7 @@ abstract class BCMath
      * @param int $pad
      * @param boolean $trim
      */
-    private static function format($x, $scale, $pad): string
+    private static function format($x, $scale, $pad = 0): string
     {
         $sign = self::isNegative($x) ? '-' : '';
         $x = str_replace('-', '', $x);
@@ -92,7 +92,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function add($x, $y, $scale, $pad): string
+    private static function add($x, $y, $scale, $pad = 0): string
     {
         $z = $x->add($y);
 
@@ -107,7 +107,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function sub($x, $y, $scale, $pad): string
+    private static function sub($x, $y, $scale, $pad = 0): string
     {
         $z = $x->subtract($y);
 
@@ -122,7 +122,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function mul($x, $y, $scale, $pad): string
+    private static function mul($x, $y, $scale, $pad = 0): string
     {
         if ($x == '0' || $y == '0') {
             $r = '0';
@@ -146,7 +146,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function div($x, $y, $scale, $pad): string
+    private static function div($x, $y, $scale, $pad = 0): string
     {
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
@@ -171,7 +171,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function mod($x, $y, $scale, $pad): string
+    private static function mod($x, $y, $scale, $pad = 0): string
     {
         if ($y == '0') {
             // < PHP 8.0 triggered a warning
@@ -194,7 +194,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function comp($x, $y, $scale, $pad): int
+    private static function comp($x, $y, $scale, $pad = 0): int
     {
         $x = new BigInteger($x[0] . substr($x[1], 0, $scale));
         $y = new BigInteger($y[0] . substr($y[1], 0, $scale));
@@ -212,7 +212,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function pow($x, $y, $scale, $pad): string
+    private static function pow($x, $y, $scale, $pad = 0): string
     {
         if ($y == '0') {
             $r = '1';
@@ -257,7 +257,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function powmod($x, $e, $n, $scale, $pad): string
+    private static function powmod($x, $e, $n, $scale, $pad = 0): string
     {
         if ($e[0] == '-' || $n == '0') {
             // < PHP 8.0 returned false
@@ -291,7 +291,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function sqrt($n, $scale, $pad): string
+    private static function sqrt($n, $scale, $pad = 0): string
     {
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
@@ -350,7 +350,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function floor($n, $scale, $pad): string
+    private static function floor($n, $scale, $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -387,7 +387,7 @@ abstract class BCMath
      * @param int $scale
      * @param int $pad
      */
-    private static function ceil($n, $scale, $pad): string
+    private static function ceil($n, $scale, $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -440,7 +440,7 @@ abstract class BCMath
      * @param int $pad
      * @param int $mode
      */
-    private static function round($n, $scale, $pad, $mode = PHP_ROUND_HALF_UP): string
+    private static function round($n, $scale, $pad = 0, $mode = PHP_ROUND_HALF_UP): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
