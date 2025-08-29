@@ -220,7 +220,7 @@ abstract class BCMath
      * Uses the PHP 7.2+ behavior
      *
      * @param BigInteger $x
-     * @param BigInteger $y
+     * @param string $y
      * @param int $scale
      * @param int $pad
      */
@@ -263,9 +263,9 @@ abstract class BCMath
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus
      *
-     * @param BigInteger $x
-     * @param BigInteger $e
-     * @param BigInteger $n
+     * @param string $x
+     * @param string $e
+     * @param string $n
      * @param int $scale
      * @param int $pad
      */
