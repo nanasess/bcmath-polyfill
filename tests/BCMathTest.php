@@ -63,10 +63,6 @@ class BCMathTest extends TestCase
         $a = bcadd(...$params);
         $b = BCMath::add(...$params);
 
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
-
         $this->assertSame($a, $b);
     }
 
@@ -75,10 +71,6 @@ class BCMathTest extends TestCase
     {
         $a = bcsub(...$params);
         $b = BCMath::sub(...$params);
-
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
 
         $this->assertSame($a, $b);
     }
@@ -92,10 +84,6 @@ class BCMathTest extends TestCase
     {
         $a = bcmul(...$params);
         $b = BCMath::mul(...$params);
-
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
 
         $this->assertSame($a, $b);
     }
@@ -216,20 +204,9 @@ class BCMathTest extends TestCase
 
     public function testBoolScale(): void
     {
-        if (false) {
-            $exception_thrown = false;
-
-            try {
-                $a = bcadd('5', '2', false);
-            } catch (TypeError) {
-                $exception_thrown = true;
-            }
-            $this->assertTrue($exception_thrown);
-        } else {
-            $a = bcadd('5', '2', false);
-            $b = BCMath::add('5', '2', false);
-            $this->assertSame($a, $b);
-        }
+        $a = bcadd('5', '2', false);
+        $b = BCMath::add('5', '2', false);
+        $this->assertSame($a, $b);
     }
 
     public function testIntParam(): void
@@ -289,12 +266,10 @@ class BCMathTest extends TestCase
                 $exception_thrown = true;
             }
             $this->assertTrue($exception_thrown);
-            if (true) {
-                // start the unit test with: (showing the wrong given values)
-                // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            // start the unit test with: (showing the wrong given values)
+            // phpunit --testdox-test testdox.txt --display-skipped
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
 
         // Restore original scale
@@ -330,12 +305,10 @@ class BCMathTest extends TestCase
                 $exception_thrown = true;
             }
             $this->assertTrue($exception_thrown);
-            if (true) {
-                // start the unit test with: (showing the wrong given values)
-                // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            // start the unit test with: (showing the wrong given values)
+            // phpunit --testdox-test testdox.txt --display-skipped
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
     }
 
