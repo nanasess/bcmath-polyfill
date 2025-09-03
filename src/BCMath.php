@@ -60,14 +60,13 @@ abstract class BCMath
      *
      * Places the decimal place at the appropriate place, adds trailing 0's as appropriate, etc
      *
-     * @param string $x
      * @param int $scale
      * @param int $pad
      */
-    private static function format($x, $scale, $pad = 0): string
+    private static function format(BigInteger $x, $scale, $pad = 0): string
     {
         $sign = self::isNegative($x) ? '-' : '';
-        $x = str_replace('-', '', $x);
+        $x = str_replace('-', '', (string) $x);
 
         if (strlen($x) != $pad) {
             $x = str_pad($x, $pad, '0', STR_PAD_LEFT);
@@ -234,7 +233,7 @@ abstract class BCMath
         }
 
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (bccomp($y, PHP_INT_MAX) > 0 || bccomp($y, $min) <= 0) {
+        if (self::comp($y, (string) PHP_INT_MAX) > 0 || self::comp($y, (string) $min) <= 0) {
             throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
@@ -242,18 +241,18 @@ abstract class BCMath
         $x = $x->abs();
 
         $r = new BigInteger(1);
-
-        for ($i = 0; $i < abs($y); $i++) {
+        $absY = self::isNegative(new BigInteger($y)) ? self::mul($y, '-1') : $y;
+        for ($i = 0; $i < $absY; $i++) {
             $r = $r->multiply($x);
         }
 
         if ($y < 0) {
-            $temp = '1'.str_repeat('0', $scale + $pad * abs($y));
+            $temp = '1'.str_repeat('0', $scale + (int)self::mul((string)$pad, $absY));
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $pad = $scale;
         } else {
-            $pad *= abs($y);
+            $pad = (int)self::mul((string)$pad, $absY);
         }
 
         return $sign.self::format($r, $scale, $pad);
@@ -547,9 +546,9 @@ abstract class BCMath
      * __callStatic Magic Method.
      *
      * @param string $name
-     * @param array $arguments
+     * @param array<int, string|bool|int|BCMath|null> $arguments
      */
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic(string $name, array $arguments): string
     {
         static $params = [
             'add' => 3,

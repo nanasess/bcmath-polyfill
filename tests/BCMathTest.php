@@ -89,14 +89,14 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testDiv(...$params): void
+    public function testDiv(string $num1, string $num2, ?int $scale = null): void
     {
-        if ($params[1] === '0' || $params[1] === '-0') {
+        if ($num2 === '0' || $num2 === '-0') {
             $this->expectException('DivisionByZeroError');
         }
 
-        $a = bcdiv(...$params);
-        $b = BCMath::div(...$params);
+        $a = $scale !== null ? bcdiv($num1, $num2, $scale) : bcdiv($num1, $num2);
+        $b = $scale !== null ? BCMath::div($num1, $num2, $scale) : BCMath::div($num1, $num2);
         $this->assertSame($a, $b);
     }
 
@@ -106,14 +106,14 @@ class BCMathTest extends TestCase
      */
     #[DataProvider('generateTwoParams')]
     #[RequiresPhp('>7.2')]
-    public function testMod(...$params): void
+    public function testMod(string $num1, string $num2, ?int $scale = null): void
     {
-        if ($params[1] === '0' || $params[1] === '-0') {
+        if ($num2 === '0' || $num2 === '-0') {
             $this->expectException('DivisionByZeroError');
         }
 
-        $a = bcmod(...$params);
-        $b = BCMath::mod(...$params);
+        $a = $scale !== null ? bcmod($num1, $num2, $scale) : bcmod($num1, $num2);
+        $b = $scale !== null ? BCMath::mod($num1, $num2, $scale) : BCMath::mod($num1, $num2);
         $this->assertSame($a, $b);
     }
 
@@ -174,16 +174,16 @@ class BCMathTest extends TestCase
      */
     #[DataProvider('generatePowModParams')]
     #[RequiresPhp('>7.3')]
-    public function testPowMod(...$params): void
+    public function testPowMod(string $base, string $exponent, string $modulus, ?int $scale = null): void
     {
         // Skip the specific test case on 32-bit Windows due to architecture limitations
         if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows'
-            && $params[0] === '-9' && $params[1] === '1024' && $params[2] === '123') {
+            && $base === '-9' && $exponent === '1024' && $modulus === '123') {
             $this->markTestSkipped('Known limitation on 32-bit Windows');
         }
 
-        $a = bcpowmod(...$params);
-        $b = BCMath::powmod(...$params);
+        $a = $scale !== null ? bcpowmod($base, $exponent, $modulus, $scale) : bcpowmod($base, $exponent, $modulus);
+        $b = $scale !== null ? BCMath::powmod($base, $exponent, $modulus, $scale) : BCMath::powmod($base, $exponent, $modulus);
         $this->assertSame($a, $b);
     }
 
@@ -204,14 +204,18 @@ class BCMathTest extends TestCase
 
     public function testBoolScale(): void
     {
+        // @phpstan-ignore-next-line
         $a = bcadd('5', '2', false);
+        // @phpstan-ignore-next-line
         $b = BCMath::add('5', '2', false);
         $this->assertSame($a, $b);
     }
 
     public function testIntParam(): void
     {
+        // @phpstan-ignore-next-line
         $a = bccomp('9223372036854775807', 16);
+        // @phpstan-ignore-next-line
         $b = BCMath::comp('9223372036854775807', 16);
         $this->assertSame($a, $b);
     }
@@ -295,6 +299,7 @@ class BCMathTest extends TestCase
         if (func_num_args() > 2 && func_num_args() < 5) {
             $a = bcpowmod(...$params);
             $b = BCMath::powmod(...$params);
+            // @phpstan-ignore-next-line
             $this->assertSame($a, $b);
         } else {
             $exception_thrown = false;
