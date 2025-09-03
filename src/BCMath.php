@@ -199,11 +199,10 @@ abstract class BCMath
      * Compare two arbitrary precision numbers.
      *
      * @param string $x
-     * @param string $y
      * @param ?int $scale
      * @param int $pad
      */
-    private static function comp($x, $y, $scale = 0, $pad = 0): int
+    private static function comp($x, string $y, $scale = 0, $pad = 0): int
     {
         $x = new BigInteger($x[0].substr($x[1], 0, $scale));
         $y = new BigInteger($y[0].substr($y[1], 0, $scale));
@@ -545,7 +544,6 @@ abstract class BCMath
     /**
      * __callStatic Magic Method.
      *
-     * @param string $name
      * @param array<int, string|bool|int|BCMath|null> $arguments
      */
     public static function __callStatic(string $name, array $arguments): string|int
