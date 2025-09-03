@@ -247,12 +247,12 @@ abstract class BCMath
         }
 
         if ($y < 0) {
-            $temp = '1'.str_repeat('0', $scale + $pad * (int)$absY);
+            $temp = '1'.str_repeat('0', $scale + $pad * (int) $absY);
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $pad = $scale;
         } else {
-            $pad *= (int)$absY;
+            $pad *= (int) $absY;
         }
 
         return $sign.self::format($r, $scale, $pad);
@@ -545,10 +545,9 @@ abstract class BCMath
     /**
      * __callStatic Magic Method.
      *
-     * @param string $name
-     * @param array<int, string|bool|int|BCMath|null> $arguments
+     * @param array<int, null|BCMath|bool|int|string> $arguments
      */
-    public static function __callStatic(string $name, array $arguments): string|int
+    public static function __callStatic(string $name, array $arguments): int|string
     {
         static $params = [
             'add' => 3,
@@ -746,7 +745,7 @@ abstract class BCMath
             $arguments = array_merge($numbers, $ints, [$scale, $pad]);
         }
 
-        /** @var string|int $result */
+        /** @var int|string $result */
         $result = call_user_func_array(self::class."::{$name}", $arguments);
 
         // comp() and scale() should return int, not string

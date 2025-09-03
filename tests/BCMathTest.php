@@ -26,7 +26,7 @@ class BCMathTest extends TestCase
      * Produces all combinations of test values.
      */
     /**
-     * @return array<int, array<int, string|int>>
+     * @return array<int, array<int, int|string>>
      */
     public static function generateTwoParams(): iterable
     {
@@ -124,7 +124,7 @@ class BCMathTest extends TestCase
      * Produces all combinations of test values.
      */
     /**
-     * @return array<int, array<int, string|int>>
+     * @return array<int, array<int, int|string>>
      */
     public static function generatePowParams(): iterable
     {
@@ -162,7 +162,7 @@ class BCMathTest extends TestCase
      * Produces all combinations of test values.
      */
     /**
-     * @return array<int, array<int, string|int>>
+     * @return array<int, array<int, int|string>>
      */
     public static function generatePowModParams(): iterable
     {
@@ -300,7 +300,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * @return array<int, array<int, string|int>>
+     * @return array<int, array<int, int|string>>
      */
     public static function generatePowModCallstaticParams(): iterable
     {
@@ -314,7 +314,7 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * @param array<int, string|int> $params
+     * @param array<int, int|string> $params
      */
     #[DataProvider('generatePowModCallstaticParams')]
     public function testArgumentsPowModCallstatic(...$params): void
