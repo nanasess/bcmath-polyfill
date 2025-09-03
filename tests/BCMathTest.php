@@ -237,7 +237,7 @@ class BCMathTest extends TestCase
                 $name = str_replace('_', '\\', $name);
         }
         $this->expectException($name);
-        if (!empty($message)) {
+        if ($message !== null && $message !== '' && $message !== '0') {
             $this->expectExceptionMessage($message);
         }
         if (!empty($code)) {
