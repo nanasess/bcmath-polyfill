@@ -233,7 +233,7 @@ abstract class BCMath
         }
 
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (self::comp($y, (string) PHP_INT_MAX) > 0 || self::comp($y, (string) $min) <= 0) {
+        if (self::comp($y, (string) PHP_INT_MAX) > 0 || self::comp($y, (string) $min) < 0) {
             throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
@@ -241,18 +241,18 @@ abstract class BCMath
         $x = $x->abs();
 
         $r = new BigInteger(1);
-        $absY = self::isNegative(new BigInteger($y)) ? self::mul($y, '-1') : $y;
+        $absY = self::isNegative(new BigInteger($y)) ? substr($y, 1) : $y;
         for ($i = 0; $i < $absY; $i++) {
             $r = $r->multiply($x);
         }
 
         if ($y < 0) {
-            $temp = '1'.str_repeat('0', $scale + (int)self::mul((string)$pad, $absY));
+            $temp = '1'.str_repeat('0', $scale + $pad * (int)$absY);
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $pad = $scale;
         } else {
-            $pad = (int)self::mul((string)$pad, $absY);
+            $pad *= (int)$absY;
         }
 
         return $sign.self::format($r, $scale, $pad);
@@ -548,7 +548,7 @@ abstract class BCMath
      * @param string $name
      * @param array<int, string|bool|int|BCMath|null> $arguments
      */
-    public static function __callStatic(string $name, array $arguments): string
+    public static function __callStatic(string $name, array $arguments): string|int
     {
         static $params = [
             'add' => 3,
@@ -746,7 +746,13 @@ abstract class BCMath
             $arguments = array_merge($numbers, $ints, [$scale, $pad]);
         }
 
+        /** @var string|int $result */
         $result = call_user_func_array(self::class."::{$name}", $arguments);
+
+        // comp() and scale() should return int, not string
+        if ($name === 'comp' || $name === 'scale') {
+            return (int) $result;
+        }
 
         return preg_match('#^-0\.?0*$#', (string) $result) ? substr((string) $result, 1) : $result;
     }

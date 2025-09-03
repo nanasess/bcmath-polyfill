@@ -20,10 +20,13 @@ use PHPUnit\Framework\TestCase;
 #[CoversNothing]
 class BCMathTest extends TestCase
 {
-    protected static $emsg = '';
+    protected static string $emsg = '';
 
     /**
      * Produces all combinations of test values.
+     */
+    /**
+     * @return array<int, array<int, string|int>>
      */
     public static function generateTwoParams(): iterable
     {
@@ -58,19 +61,19 @@ class BCMathTest extends TestCase
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testAdd(...$params): void
+    public function testAdd(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcadd(...$params);
-        $b = BCMath::add(...$params);
+        $a = $scale !== null ? bcadd($num1, $num2, $scale) : bcadd($num1, $num2);
+        $b = $scale !== null ? BCMath::add($num1, $num2, $scale) : BCMath::add($num1, $num2);
 
         $this->assertSame($a, $b);
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testSub(...$params): void
+    public function testSub(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcsub(...$params);
-        $b = BCMath::sub(...$params);
+        $a = $scale !== null ? bcsub($num1, $num2, $scale) : bcsub($num1, $num2);
+        $b = $scale !== null ? BCMath::sub($num1, $num2, $scale) : BCMath::sub($num1, $num2);
 
         $this->assertSame($a, $b);
     }
@@ -80,10 +83,10 @@ class BCMathTest extends TestCase
      */
     #[RequiresPhp('>7.3')]
     #[DataProvider('generateTwoParams')]
-    public function testMul(...$params): void
+    public function testMul(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcmul(...$params);
-        $b = BCMath::mul(...$params);
+        $a = $scale !== null ? bcmul($num1, $num2, $scale) : bcmul($num1, $num2);
+        $b = $scale !== null ? BCMath::mul($num1, $num2, $scale) : BCMath::mul($num1, $num2);
 
         $this->assertSame($a, $b);
     }
@@ -120,6 +123,9 @@ class BCMathTest extends TestCase
     /**
      * Produces all combinations of test values.
      */
+    /**
+     * @return array<int, array<int, string|int>>
+     */
     public static function generatePowParams(): iterable
     {
         return [
@@ -145,15 +151,18 @@ class BCMathTest extends TestCase
      */
     #[DataProvider('generatePowParams')]
     #[RequiresPhp('>7.3')]
-    public function testPow(...$params): void
+    public function testPow(string $base, string $exponent, ?int $scale = null): void
     {
-        $a = bcpow(...$params);
-        $b = BCMath::pow(...$params);
+        $a = $scale !== null ? bcpow($base, $exponent, $scale) : bcpow($base, $exponent);
+        $b = $scale !== null ? BCMath::pow($base, $exponent, $scale) : BCMath::pow($base, $exponent);
         $this->assertSame($a, $b);
     }
 
     /**
      * Produces all combinations of test values.
+     */
+    /**
+     * @return array<int, array<int, string|int>>
      */
     public static function generatePowModParams(): iterable
     {
@@ -220,7 +229,7 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function setExpectedException($name, $message = null, $code = null): void
+    public function setExpectedException(string $name, ?string $message = null, mixed $code = null): void
     {
         switch ($name) {
             case 'PHPUnit_Framework_Error_Notice':
@@ -236,6 +245,9 @@ class BCMathTest extends TestCase
         }
     }
 
+    /**
+     * @return array<int, array<int, int>>
+     */
     public static function generateScaleCallstaticParams(): iterable
     {
         return [
@@ -246,6 +258,9 @@ class BCMathTest extends TestCase
         ];
     }
 
+    /**
+     * @param array<int, int> $params
+     */
     #[DataProvider('generateScaleCallstaticParams')]
     public function testArgumentsScaleCallstatic(...$params): void
     {
@@ -254,7 +269,9 @@ class BCMathTest extends TestCase
 
         // scale with 1, 2, 3 parameters
         if (func_num_args() == 1) {
+            // @phpstan-ignore-next-line
             bcscale(...$params);
+            // @phpstan-ignore-next-line
             BCMath::scale(...$params);
             $scale = bcscale();
             $orig = $params[0];
@@ -265,6 +282,7 @@ class BCMathTest extends TestCase
             $exception_thrown = false;
 
             try {
+                // @phpstan-ignore-next-line
                 BCMath::scale(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
@@ -281,6 +299,9 @@ class BCMathTest extends TestCase
         BCMath::scale($originalScale);
     }
 
+    /**
+     * @return array<int, array<int, string|int>>
+     */
     public static function generatePowModCallstaticParams(): iterable
     {
         return [
@@ -292,12 +313,17 @@ class BCMathTest extends TestCase
         ];
     }
 
+    /**
+     * @param array<int, string|int> $params
+     */
     #[DataProvider('generatePowModCallstaticParams')]
     public function testArgumentsPowModCallstatic(...$params): void
     {
         // scale with 1, 2, 3 parameters
         if (func_num_args() > 2 && func_num_args() < 5) {
+            // @phpstan-ignore-next-line
             $a = bcpowmod(...$params);
+            // @phpstan-ignore-next-line
             $b = BCMath::powmod(...$params);
             // @phpstan-ignore-next-line
             $this->assertSame($a, $b);
@@ -305,6 +331,7 @@ class BCMathTest extends TestCase
             $exception_thrown = false;
 
             try {
+                // @phpstan-ignore-next-line
                 BCMath::powmod(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
