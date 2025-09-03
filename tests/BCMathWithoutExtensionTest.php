@@ -13,7 +13,7 @@ class BCMathWithoutExtensionTest extends TestCase
         }
     }
 
-    public function testBcaddWithoutExtension()
+    public function testBcaddWithoutExtension(): void
     {
         $this->assertSame('3.14', bcadd('1.1', '2.04', 2));
         $this->assertSame('100', bcadd('99', '1'));
@@ -27,7 +27,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('0', bcadd('-0', '0'));
     }
 
-    public function testBcsubWithoutExtension()
+    public function testBcsubWithoutExtension(): void
     {
         $this->assertSame('-0.94', bcsub('1.1', '2.04', 2));
         $this->assertSame('98', bcsub('99', '1'));
@@ -41,7 +41,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('0', bcsub('-0', '0'));
     }
 
-    public function testBcmulWithoutExtension()
+    public function testBcmulWithoutExtension(): void
     {
         $this->assertSame('2.244', bcmul('1.1', '2.04', 3));
         $this->assertSame('99', bcmul('99', '1'));
@@ -53,7 +53,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('-0.015', bcmul('0.15', '-0.1', 3));
     }
 
-    public function testBcdivWithoutExtension()
+    public function testBcdivWithoutExtension(): void
     {
         $this->assertSame('0.53', bcdiv('1.1', '2.04', 2));
         $this->assertSame('99', bcdiv('99', '1'));
@@ -65,13 +65,13 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('-1.500', bcdiv('0.15', '-0.1', 3));
     }
 
-    public function testBcdivByZeroError()
+    public function testBcdivByZeroError(): void
     {
         $this->expectException(\DivisionByZeroError::class);
         bcdiv('1', '0');
     }
 
-    public function testBcmodWithoutExtension()
+    public function testBcmodWithoutExtension(): void
     {
         $this->assertSame('1.1', bcmod('1.1', '2.04', 2));
         $this->assertSame('0', bcmod('99', '1'));
@@ -82,13 +82,13 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('0.00', bcmod('0.15', '0.15', 2));
     }
 
-    public function testBcmodByZeroError()
+    public function testBcmodByZeroError(): void
     {
         $this->expectException(\DivisionByZeroError::class);
         bcmod('1', '0');
     }
 
-    public function testBcpowWithoutExtension()
+    public function testBcpowWithoutExtension(): void
     {
         $this->assertSame('387420489', bcpow('9', '9'));
         $this->assertSame('-387420489', bcpow('-9', '9'));
@@ -102,7 +102,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('1.0000', bcpow('5', '0', 4));
     }
 
-    public function testBcsqrtWithoutExtension()
+    public function testBcsqrtWithoutExtension(): void
     {
         $this->assertSame('12.3407', bcsqrt('152.2756', 4));
         $this->assertSame('200', bcsqrt('40000'));
@@ -112,7 +112,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('0', bcsqrt('0'));
     }
 
-    public function testBcscaleWithoutExtension()
+    public function testBcscaleWithoutExtension(): void
     {
         // Save original scale
         $originalScale = bcscale();
@@ -131,7 +131,7 @@ class BCMathWithoutExtensionTest extends TestCase
         bcscale($originalScale);
     }
 
-    public function testBccompWithoutExtension()
+    public function testBccompWithoutExtension(): void
     {
         $this->assertSame(0, bccomp('1.1', '1.1'));
         $this->assertSame(-1, bccomp('1.1', '2.04'));
@@ -145,7 +145,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame(0, bccomp('0', '0'));
     }
 
-    public function testBcfloorWithoutExtension()
+    public function testBcfloorWithoutExtension(): void
     {
         $this->assertSame('3', bcfloor('3.14'));
         $this->assertSame('-4', bcfloor('-3.14'));
@@ -159,7 +159,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('-2.0000', bcfloor('-1.95583', 4));
     }
 
-    public function testBcceilWithoutExtension()
+    public function testBcceilWithoutExtension(): void
     {
         $this->assertSame('4', bcceil('3.14'));
         $this->assertSame('-3', bcceil('-3.14'));
@@ -173,7 +173,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('-1.0000', bcceil('-1.95583', 4));
     }
 
-    public function testBcroundWithoutExtension()
+    public function testBcroundWithoutExtension(): void
     {
         // Test basic rounding
         $this->assertSame('3', bcround('3.4'));
@@ -200,7 +200,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('1200', bcround('1234.5678', -2));
     }
 
-    public function testPowmodWithoutExtension()
+    public function testPowmodWithoutExtension(): void
     {
         $this->assertSame('9', bcpowmod('9', '9', '17'));
         $this->assertSame('999', bcpowmod('999', '999', '111', 0));
@@ -208,7 +208,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('1', bcpowmod('3', '0', '13'));
     }
 
-    public function testComplexCalculations()
+    public function testComplexCalculations(): void
     {
         // Test chained operations
         $result = bcadd(bcmul('5', '3', 2), bcdiv('10', '4', 2), 2);
@@ -227,7 +227,7 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('0.33333333333333333333', $result);
     }
 
-    public function testScaleDefault()
+    public function testScaleDefault(): void
     {
         // Test that default scale is respected
         bcscale(3);
@@ -240,7 +240,7 @@ class BCMathWithoutExtensionTest extends TestCase
         bcscale(0);
     }
 
-    public function testEdgeCases()
+    public function testEdgeCases(): void
     {
         // Test zero operations
         $this->assertSame('0', bcadd('0', '0'));
