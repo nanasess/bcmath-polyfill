@@ -1,7 +1,7 @@
 <?php
 
 /**
- * bcmath polyfill
+ * bcmath polyfill.
  *
  * PHP versions 5 and 7
  *
@@ -26,126 +26,127 @@
  * @author    Jim Wigginton <terrafrost@php.net>
  * @copyright 2019 Jim Wigginton
  * @license   http://www.opensource.org/licenses/mit-license.html  MIT License
- * @link      http://phpseclib.sourceforge.net
+ *
+ * @see      http://phpseclib.sourceforge.net
  */
 
 use bcmath_compat\BCMath;
 
 if (!function_exists('bcadd')) {
     /**
-     * Add two arbitrary precision numbers
+     * Add two arbitrary precision numbers.
      *
-     * @var string $left_operand
-     * @var string $right_operand
-     * @var int $scale optional
+     * @param string $left_operand
+     * @param string $right_operand
+     * @param int $scale optional
      */
-    function bcadd($left_operand, $right_operand, $scale = 0)
+    function bcadd($left_operand, $right_operand, $scale = 0): string
     {
         return BCMath::add($left_operand, $right_operand, $scale);
     }
 
     /**
-     * Compare two arbitrary precision numbers
+     * Compare two arbitrary precision numbers.
      *
-     * @var string $left_operand
-     * @var string $right_operand
-     * @var int $scale optional
+     * @param string $left_operand
+     * @param string $right_operand
+     * @param int $scale optional
      */
-    function bccomp($left_operand, $right_operand, $scale = 0)
+    function bccomp($left_operand, $right_operand, $scale = 0): int
     {
         return BCMath::comp($left_operand, $right_operand, $scale);
     }
 
     /**
-     * Divide two arbitrary precision numbers
+     * Divide two arbitrary precision numbers.
      *
-     * @var string $dividend
-     * @var string $divisor
-     * @var int $scale optional
+     * @param string $dividend
+     * @param string $divisor
+     * @param int $scale optional
      */
-    function bcdiv($dividend, $divisor, $scale = 0)
+    function bcdiv($dividend, $divisor, $scale = 0): string
     {
         return BCMath::div($dividend, $divisor, $scale);
     }
 
     /**
-     * Get modulus of an arbitrary precision number
+     * Get modulus of an arbitrary precision number.
      *
-     * @var string $dividend
-     * @var string $divisor
-     * @var int $scale optional
+     * @param string $dividend
+     * @param string $divisor
+     * @param int $scale optional
      */
-    function bcmod($dividend, $divisor, $scale = 0)
+    function bcmod($dividend, $divisor, $scale = 0): string
     {
         return BCMath::mod($dividend, $divisor, $scale);
     }
 
     /**
-     * Multiply two arbitrary precision numbers
+     * Multiply two arbitrary precision numbers.
      *
-     * @var string $left_operand
-     * @var string $right_operand
-     * @var int $scale optional
+     * @param string $dividend
+     * @param string $divisor
+     * @param int $scale optional
      */
-    function bcmul($dividend, $divisor, $scale = 0)
+    function bcmul($dividend, $divisor, $scale = 0): string
     {
         return BCMath::mul($dividend, $divisor, $scale);
     }
 
     /**
-     * Raise an arbitrary precision number to another
+     * Raise an arbitrary precision number to another.
      *
-     * @var string $base
-     * @var string $exponent
-     * @var int $scale optional
+     * @param string $base
+     * @param string $exponent
+     * @param int $scale optional
      */
-    function bcpow($base, $exponent, $scale = 0)
+    function bcpow($base, $exponent, $scale = 0): string
     {
         return BCMath::pow($base, $exponent, $scale);
     }
 
     /**
-     * Raise an arbitrary precision number to another, reduced by a specified modulus
+     * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
-     * @var string $base
-     * @var string $exponent
-     * @var string $modulus
-     * @var int $scale optional
+     * @param string $base
+     * @param string $exponent
+     * @param string $modulus
+     * @param int $scale optional
      */
-    function bcpowmod($base, $exponent, $modulus, $scale = 0)
+    function bcpowmod($base, $exponent, $modulus, $scale = 0): string
     {
         return BCMath::powmod($base, $exponent, $modulus, $scale);
     }
 
     /**
-     * Set or get default scale parameter for all bc math functions
+     * Set or get default scale parameter for all bc math functions.
      *
-     * @var int $scale
+     * @param int $scale
      */
-    function bcscale($scale = null)
+    function bcscale($scale = null): ?int
     {
         return BCMath::scale($scale);
     }
 
     /**
-     * Get the square root of an arbitrary precision number
+     * Get the square root of an arbitrary precision number.
      *
-     * @var string $operand
-     * @var int $scale optional
+     * @param string $operand
+     * @param int $scale optional
      */
-    function bcsqrt($operand, $scale = 0)
+    function bcsqrt($operand, $scale = 0): string
     {
         return BCMath::sqrt($operand, $scale);
     }
 
     /**
-     * Subtract one arbitrary precision number from another
+     * Subtract one arbitrary precision number from another.
      *
-     * @var string $left_operand
-     * @var string $right_operand
-     * @var int $scale optional
+     * @param string $left_operand
+     * @param string $right_operand
+     * @param int $scale optional
      */
-    function bcsub($left_operand, $right_operand, $scale = 0)
+    function bcsub($left_operand, $right_operand, $scale = 0): string
     {
         return BCMath::sub($left_operand, $right_operand, $scale);
     }
@@ -153,12 +154,12 @@ if (!function_exists('bcadd')) {
 
 if (!function_exists('bcfloor')) {
     /**
-     * Round down to the nearest integer (PHP 8.4+)
+     * Round down to the nearest integer (PHP 8.4+).
      *
-     * @var string $operand
-     * @var int $scale optional
+     * @param string $operand
+     * @param int $scale optional
      */
-    function bcfloor($operand, $scale = 0)
+    function bcfloor($operand, $scale = 0): string
     {
         return BCMath::floor($operand, $scale);
     }
@@ -166,12 +167,12 @@ if (!function_exists('bcfloor')) {
 
 if (!function_exists('bcceil')) {
     /**
-     * Round up to the nearest integer (PHP 8.4+)
+     * Round up to the nearest integer (PHP 8.4+).
      *
-     * @var string $operand
-     * @var int $scale optional
+     * @param string $operand
+     * @param int $scale optional
      */
-    function bcceil($operand, $scale = 0)
+    function bcceil($operand, $scale = 0): string
     {
         return BCMath::ceil($operand, $scale);
     }
@@ -179,13 +180,13 @@ if (!function_exists('bcceil')) {
 
 if (!function_exists('bcround')) {
     /**
-     * Round to a given decimal place (PHP 8.4+)
+     * Round to a given decimal place (PHP 8.4+).
      *
-     * @var string $operand
-     * @var int $precision optional
-     * @var int $mode optional
+     * @param string $operand
+     * @param int $precision optional
+     * @param int $mode optional
      */
-    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP)
+    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
         return BCMath::round($operand, $precision, $mode);
     }
@@ -193,33 +194,21 @@ if (!function_exists('bcround')) {
 
 // the following were introduced in PHP 7.0.0
 if (!class_exists('Error')) {
-    class Error extends Exception
-    {
-    }
+    class Error extends Exception {}
 
-    class ArithmeticError extends Error
-    {
-    }
+    class ArithmeticError extends Error {}
 
-    class DivisionByZeroError extends ArithmeticError
-    {
-    }
+    class DivisionByZeroError extends ArithmeticError {}
 
-    class TypeError extends Error
-    {
-    }
+    class TypeError extends Error {}
 }
 
 // the following was introduced in PHP 7.1.0
 if (!class_exists('ArgumentCountError')) {
-    class ArgumentCountError extends TypeError
-    {
-    }
+    class ArgumentCountError extends TypeError {}
 }
 
 // the following was introduced in PHP 8.0.0
 if (!class_exists('ValueError')) {
-    class ValueError extends Error
-    {
-    }
+    class ValueError extends Error {}
 }

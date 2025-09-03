@@ -1,29 +1,36 @@
-<?php //declare(strict_types=1);
+<?php
+
+// declare(strict_types=1);
 
 use bcmath_compat\BCMath;
-
-use PHPUnit\Framework\Attributes\RequiresPhpExtension;
-use PHPUnit\Framework\Attributes\RequiresPhp;
+use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresPhp;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 
 // use PHPUnit\Framework\Attributes\TestWith;
 
 /**
- * requires extension bcmath
+ * requires extension bcmath.
+ *
+ * @internal
  */
 #[RequiresPhpExtension('bcmath')]
+#[CoversNothing]
 class BCMathTest extends TestCase
 {
-    protected static $emsg = '';
+    protected static string $emsg = '';
+
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
-    public static function generateTwoParams()
+    /**
+     * @return array<int, array<int, int|string>>
+     */
+    public static function generateTwoParams(): iterable
     {
-        $r = [
+        return [
             ['9', '9'],
             ['9.99', '9.99'],
             ['9.99', '9.99', 2],
@@ -45,103 +52,81 @@ class BCMathTest extends TestCase
             ['9', '0'],
             ['0', '9'],
             // this became deprecated in PHP 8.1
-            //[null, '9'],
+            // [null, '9'],
             ['-0.0000005', '0', 3],
             ['-0.0000005', '0.0000001', 3],
             ['-0', '0'],
-            ['-0', '-0', 4]
+            ['-0', '-0', 4],
         ];
-        return $r;
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testAdd(...$params)
+    public function testAdd(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcadd(...$params);
-        $b = BCMath::add(...$params);
-
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
+        $a = $scale !== null ? bcadd($num1, $num2, $scale) : bcadd($num1, $num2);
+        $b = $scale !== null ? BCMath::add($num1, $num2, $scale) : BCMath::add($num1, $num2);
 
         $this->assertSame($a, $b);
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testSub(...$params)
+    public function testSub(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcsub(...$params);
-        $b = BCMath::sub(...$params);
-
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
+        $a = $scale !== null ? bcsub($num1, $num2, $scale) : bcsub($num1, $num2);
+        $b = $scale !== null ? BCMath::sub($num1, $num2, $scale) : BCMath::sub($num1, $num2);
 
         $this->assertSame($a, $b);
     }
 
     /**
-     * requires PHP 7.3
+     * requires PHP 7.3.
      */
-
     #[RequiresPhp('>7.3')]
     #[DataProvider('generateTwoParams')]
-    public function testMul(...$params)
+    public function testMul(string $num1, string $num2, ?int $scale = null): void
     {
-        $a = bcmul(...$params);
-        $b = BCMath::mul(...$params);
-
-        if (version_compare(PHP_VERSION, '8.0.10') < 0 && preg_match('#^-0\.?0*$#', $a)) {
-            $this->markTestSkipped('< PHP 8.0.10 made it so that you can\'t have -0 per http://bugs.php.net/78238');
-        }
+        $a = $scale !== null ? bcmul($num1, $num2, $scale) : bcmul($num1, $num2);
+        $b = $scale !== null ? BCMath::mul($num1, $num2, $scale) : BCMath::mul($num1, $num2);
 
         $this->assertSame($a, $b);
     }
 
     #[DataProvider('generateTwoParams')]
-    public function testDiv(...$params)
+    public function testDiv(string $num1, string $num2, ?int $scale = null): void
     {
-        if ($params[1] === '0' || $params[1] === '-0') {
-            if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->setExpectedException('DivisionByZeroError');
-            } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-            }
+        if ($num2 === '0' || $num2 === '-0') {
+            $this->expectException('DivisionByZeroError');
         }
 
-        $a = bcdiv(...$params);
-        $b = BCMath::div(...$params);
+        $a = $scale !== null ? bcdiv($num1, $num2, $scale) : bcdiv($num1, $num2);
+        $b = $scale !== null ? BCMath::div($num1, $num2, $scale) : BCMath::div($num1, $num2);
         $this->assertSame($a, $b);
     }
 
     /**
      * dataProvider generateTwoParams
-     * requires PHP 7.2
+     * requires PHP 7.2.
      */
-
     #[DataProvider('generateTwoParams')]
     #[RequiresPhp('>7.2')]
-    public function testMod(...$params)
+    public function testMod(string $num1, string $num2, ?int $scale = null): void
     {
-        if ($params[1] === '0' || $params[1] === '-0') {
-            if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-                $this->setExpectedException('DivisionByZeroError');
-            } else {
-                $this->markTestSkipped('< PHP 8.0.0 has different behavior than >= PHP 8.0.0');
-            }
+        if ($num2 === '0' || $num2 === '-0') {
+            $this->expectException('DivisionByZeroError');
         }
 
-        $a = bcmod(...$params);
-        $b = BCMath::mod(...$params);
+        $a = $scale !== null ? bcmod($num1, $num2, $scale) : bcmod($num1, $num2);
+        $b = $scale !== null ? BCMath::mod($num1, $num2, $scale) : BCMath::mod($num1, $num2);
         $this->assertSame($a, $b);
     }
 
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
-    public static function generatePowParams()
+    /**
+     * @return array<int, array<int, int|string>>
+     */
+    public static function generatePowParams(): iterable
     {
         return [
             ['9', '9'],
@@ -156,7 +141,7 @@ class BCMathTest extends TestCase
             ['-9.99', '-3', 10],
             ['0.15', '15', 10],
             ['0.15', '-1', 10],
-            ['5', '0', 4]
+            ['5', '0', 4],
         ];
     }
 
@@ -166,19 +151,20 @@ class BCMathTest extends TestCase
      */
     #[DataProvider('generatePowParams')]
     #[RequiresPhp('>7.3')]
-    public function testPow(...$params)
+    public function testPow(string $base, string $exponent, ?int $scale = null): void
     {
-        $a = bcpow(...$params);
-        $b = BCMath::pow(...$params);
+        $a = $scale !== null ? bcpow($base, $exponent, $scale) : bcpow($base, $exponent);
+        $b = $scale !== null ? BCMath::pow($base, $exponent, $scale) : BCMath::pow($base, $exponent);
         $this->assertSame($a, $b);
     }
 
     /**
      * Produces all combinations of test values.
-     *
-     * @return array
      */
-    public static function generatePowModParams()
+    /**
+     * @return array<int, array<int, int|string>>
+     */
+    public static function generatePowModParams(): iterable
     {
         return [
             ['9', '9', '17'],
@@ -189,37 +175,28 @@ class BCMathTest extends TestCase
             ['3', '0', '13'],
             ['-3', '0', '13', 4],
         ];
-
-        if (version_compare(PHP_VERSION, '8.0.0') >= 0) {
-            $a = array_merge($a, [['9', '-1024', '127', 5]]);
-        }
-
-        return $a;
     }
 
     /**
      * dataProvider generatePowModParams
-     * requires PHP 7.3
+     * requires PHP 7.3.
      */
-     #[DataProvider('generatePowModParams')]
-     #[RequiresPhp('>7.3')]
-
-    public function testPowMod(...$params)
+    #[DataProvider('generatePowModParams')]
+    #[RequiresPhp('>7.3')]
+    public function testPowMod(string $base, string $exponent, string $modulus, ?int $scale = null): void
     {
         // Skip the specific test case on 32-bit Windows due to architecture limitations
-        if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows' &&
-            $params[0] === '-9' && $params[1] === '1024' && $params[2] === '123') {
+        if (PHP_INT_SIZE === 4 && PHP_OS_FAMILY === 'Windows'
+            && $base === '-9' && $exponent === '1024' && $modulus === '123') {
             $this->markTestSkipped('Known limitation on 32-bit Windows');
         }
 
-        $a = bcpowmod(...$params);
-        var_dump('bcpowmod: a ', $a);
-        $b = BCMath::powmod(...$params);
-        var_dump('BCMath::powmod: b ', $b);
+        $a = $scale !== null ? bcpowmod($base, $exponent, $modulus, $scale) : bcpowmod($base, $exponent, $modulus);
+        $b = $scale !== null ? BCMath::powmod($base, $exponent, $modulus, $scale) : BCMath::powmod($base, $exponent, $modulus);
         $this->assertSame($a, $b);
     }
 
-    public function testSqrt()
+    public function testSqrt(): void
     {
         $a = bcsqrt('152.2756', 4);
         $b = BCMath::sqrt('152.2756', 4);
@@ -234,43 +211,33 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
-    public function testBoolScale()
+    public function testBoolScale(): void
     {
-        if (false) {
-            $exception_thrown = false;
-            try {
-                $a = bcadd('5', '2', false);
-            } catch (TypeError $e) {
-                $exception_thrown = true;
-            }
-            $this->assertSame(true, $exception_thrown);
-        } else {
-            $a = bcadd('5', '2', false);
-            $b = BCMath::add('5', '2', false);
-            $this->assertSame($a, $b);
-        }
+        // @phpstan-ignore-next-line
+        $a = bcadd('5', '2', false);
+        // @phpstan-ignore-next-line
+        $b = BCMath::add('5', '2', false);
+        $this->assertSame($a, $b);
     }
 
-    public function testIntParam()
+    public function testIntParam(): void
     {
+        // @phpstan-ignore-next-line
         $a = bccomp('9223372036854775807', 16);
+        // @phpstan-ignore-next-line
         $b = BCMath::comp('9223372036854775807', 16);
         $this->assertSame($a, $b);
     }
 
-    public function setExpectedException($name, $message = null, $code = null)
+    public function setExpectedException(string $name, ?string $message = null, mixed $code = null): void
     {
-        if (version_compare(PHP_VERSION, '7.0.0') < 0) {
-            parent::setExpectedException($name, $message, $code);
-            return;
-        }
         switch ($name) {
             case 'PHPUnit_Framework_Error_Notice':
             case 'PHPUnit_Framework_Error_Warning':
                 $name = str_replace('_', '\\', $name);
         }
         $this->expectException($name);
-        if (!empty($message)) {
+        if ($message !== null && $message !== '' && $message !== '0') {
             $this->expectExceptionMessage($message);
         }
         if (!empty($code)) {
@@ -278,25 +245,33 @@ class BCMathTest extends TestCase
         }
     }
 
-    public static function generateScaleCallstaticParams()
+    /**
+     * @return array<int, array<int, int>>
+     */
+    public static function generateScaleCallstaticParams(): iterable
     {
         return [
             [4],
-            [4,2],
-            [4,2,3],
-            [4,2,3,5],
+            [4, 2],
+            [4, 2, 3],
+            [4, 2, 3, 5],
         ];
     }
 
+    /**
+     * @param array<int, int> $params
+     */
     #[DataProvider('generateScaleCallstaticParams')]
-    public function testArgumentsScaleCallstatic(...$params)
+    public function testArgumentsScaleCallstatic(...$params): void
     {
         // Save original scale
         $originalScale = bcscale();
 
-        //scale with 1, 2, 3 parameters
+        // scale with 1, 2, 3 parameters
         if (func_num_args() == 1) {
+            // @phpstan-ignore-next-line
             bcscale(...$params);
+            // @phpstan-ignore-next-line
             BCMath::scale(...$params);
             $scale = bcscale();
             $orig = $params[0];
@@ -305,25 +280,29 @@ class BCMathTest extends TestCase
             $this->assertSame($orig, $scale);
         } else {
             $exception_thrown = false;
+
             try {
+                // @phpstan-ignore-next-line
                 BCMath::scale(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
             }
-            $this->assertSame(true, $exception_thrown);
-            if (true) {
-                // start the unit test with: (showing the wrong given values)
-                // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            $this->assertTrue($exception_thrown);
+            // start the unit test with: (showing the wrong given values)
+            // phpunit --testdox-test testdox.txt --display-skipped
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
 
         // Restore original scale
         bcscale($originalScale);
         BCMath::scale($originalScale);
     }
-    public static function generatePowModCallstaticParams()
+
+    /**
+     * @return array<int, array<int, int|string>>
+     */
+    public static function generatePowModCallstaticParams(): iterable
     {
         return [
             ['9'],
@@ -333,37 +312,44 @@ class BCMathTest extends TestCase
             ['9', '17', '-111', 5, 8],
         ];
     }
+
+    /**
+     * @param array<int, int|string> $params
+     */
     #[DataProvider('generatePowModCallstaticParams')]
-    public function testArgumentsPowModCallstatic(...$params)
+    public function testArgumentsPowModCallstatic(...$params): void
     {
-        //scale with 1, 2, 3 parameters
+        // scale with 1, 2, 3 parameters
         if (func_num_args() > 2 && func_num_args() < 5) {
+            // @phpstan-ignore-next-line
             $a = bcpowmod(...$params);
+            // @phpstan-ignore-next-line
             $b = BCMath::powmod(...$params);
+            // @phpstan-ignore-next-line
             $this->assertSame($a, $b);
         } else {
             $exception_thrown = false;
+
             try {
+                // @phpstan-ignore-next-line
                 BCMath::powmod(...$params);
             } catch (ArgumentCountError $e) {
                 $exception_thrown = true;
             }
-            $this->assertSame(true, $exception_thrown);
-            if (true) {
-                // start the unit test with: (showing the wrong given values)
-                // phpunit --testdox-test testdox.txt --display-skipped
-                $msg = 'ArgumentCountError in ' . $e->getFile() . ':' . $e->getLine() . ' : ' . $e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            $this->assertTrue($exception_thrown);
+            // start the unit test with: (showing the wrong given values)
+            // phpunit --testdox-test testdox.txt --display-skipped
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
     }
 
     /**
      * Test bcfloor function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
-    public function testFloor()
+    public function testFloor(): void
     {
         if (!function_exists('bcfloor')) {
             $this->markTestSkipped('bcfloor is not available in PHP < 8.4');
@@ -392,10 +378,10 @@ class BCMathTest extends TestCase
 
     /**
      * Test bcceil function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
-    public function testCeil()
+    public function testCeil(): void
     {
         if (!function_exists('bcceil')) {
             $this->markTestSkipped('bcceil is not available in PHP < 8.4');
@@ -424,10 +410,10 @@ class BCMathTest extends TestCase
 
     /**
      * Test bcround function
-     * requires PHP 8.4
+     * requires PHP 8.4.
      */
     #[RequiresPhp('>=8.4')]
-    public function testRound()
+    public function testRound(): void
     {
         if (!function_exists('bcround')) {
             $this->markTestSkipped('bcround is not available in PHP < 8.4');
@@ -479,9 +465,9 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcfloor function without PHP 8.4
+     * Test bcfloor function without PHP 8.4.
      */
-    public function testFloorPolyfill()
+    public function testFloorPolyfill(): void
     {
         if (function_exists('bcfloor')) {
             $this->markTestSkipped('bcfloor is available, testing with native function');
@@ -509,9 +495,9 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcceil function without PHP 8.4
+     * Test bcceil function without PHP 8.4.
      */
-    public function testCeilPolyfill()
+    public function testCeilPolyfill(): void
     {
         if (function_exists('bcceil')) {
             $this->markTestSkipped('bcceil is available, testing with native function');
@@ -539,9 +525,9 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcround function without PHP 8.4
+     * Test bcround function without PHP 8.4.
      */
-    public function testRoundPolyfill()
+    public function testRoundPolyfill(): void
     {
         if (function_exists('bcround')) {
             $this->markTestSkipped('bcround is available, testing with native function');
@@ -573,12 +559,12 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test boundary values with very large decimal places
+     * Test boundary values with very large decimal places.
      */
-    public function testBoundaryValuesLargeDecimals()
+    public function testBoundaryValuesLargeDecimals(): void
     {
         // Test with very large decimal places
-        $largeDecimal = '1.' . str_repeat('9', 100);
+        $largeDecimal = '1.'.str_repeat('9', 100);
         $result = BCMath::add($largeDecimal, '0.1', 50);
         // When adding 0.1 to 1.999... we get 2.099...
         $this->assertSame('2.09999999999999999999999999999999999999999999999999', $result);
@@ -597,64 +583,63 @@ class BCMathTest extends TestCase
 
         // Division with high precision
         $quotient = BCMath::div('1', '3', 100);
-        $expected = '0.' . str_repeat('3', 100);
+        $expected = '0.'.str_repeat('3', 100);
         $this->assertSame($expected, $quotient);
     }
 
     /**
-     * Test with scale value 2147483647 (maximum integer)
+     * Test with scale value 2147483647 (maximum integer).
      */
-    public function testMaximumScaleValue()
+    public function testMaximumScaleValue(): void
     {
         // Note: Due to memory limitations, we can't actually test with scale 2147483647
         // but we can test the function accepts it and behaves correctly
 
         // Test that the scale parameter accepts large values
         $result = BCMath::add('1.5', '2.5', 1000);
-        $this->assertSame('4.' . str_repeat('0', 1000), $result);
+        $this->assertSame('4.'.str_repeat('0', 1000), $result);
 
         // Test with a reasonably large scale
         $result = BCMath::div('1', '7', 500);
         // Should produce 0.142857142857... repeating (total length = 502 with "0.")
-        $expected = '0.' . str_repeat('142857', 83) . '14';
+        $expected = '0.'.str_repeat('142857', 83).'14';
         $this->assertSame($expected, $result);
     }
 
     /**
-     * Test with extremely small numbers
+     * Test with extremely small numbers.
      */
-    public function testExtremelySmallNumbers()
+    public function testExtremelySmallNumbers(): void
     {
         // Test with scientific notation converted to decimal
-        $small = '0.' . str_repeat('0', 99) . '1'; // 1e-100
+        $small = '0.'.str_repeat('0', 99).'1'; // 1e-100
 
         // Addition with extremely small numbers
         $result = BCMath::add($small, $small, 101);
-        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $expected = '0.'.str_repeat('0', 99).'20';
         $this->assertSame($expected, $result);
 
         // Multiplication of extremely small numbers
         $result = BCMath::mul($small, '2', 101);
-        $expected = '0.' . str_repeat('0', 99) . '2' . '0';
+        $expected = '0.'.str_repeat('0', 99).'20';
         $this->assertSame($expected, $result);
 
         // Division producing extremely small results
-        $result = BCMath::div('1', '1' . str_repeat('0', 50), 60);
-        $expected = '0.' . str_repeat('0', 49) . '10' . str_repeat('0', 9);
+        $result = BCMath::div('1', '1'.str_repeat('0', 50), 60);
+        $expected = '0.'.str_repeat('0', 49).'10'.str_repeat('0', 9);
         $this->assertSame($expected, $result);
 
         // Operations with mixed extremely small and normal numbers
         $result = BCMath::add('1000000', $small, 105);
-        $expected = '1000000.' . str_repeat('0', 99) . '1' . str_repeat('0', 5);
+        $expected = '1000000.'.str_repeat('0', 99).'1'.str_repeat('0', 5);
         $this->assertSame($expected, $result);
     }
 
     /**
-     * Test all bcround() rounding modes for PHP 8.4+
-     * @requires PHP >= 8.4
+     * Test all bcround() rounding modes for PHP 8.4+.
      */
     #[RequiresPhp('>=8.4')]
-    public function testRoundAllModes()
+    public function testRoundAllModes(): void
     {
         // Test data: number, scale, expected results for each mode
         $testCases = [
@@ -686,7 +671,7 @@ class BCMathTest extends TestCase
             PHP_ROUND_HALF_UP,
             PHP_ROUND_HALF_DOWN,
             PHP_ROUND_HALF_EVEN,
-            PHP_ROUND_HALF_ODD
+            PHP_ROUND_HALF_ODD,
         ];
 
         foreach ($testCases as [$number, $scale, $expectedResults]) {
@@ -695,7 +680,7 @@ class BCMathTest extends TestCase
                 $this->assertSame(
                     $expectedResults[$i],
                     $result,
-                    "Failed for number=$number, scale=$scale, mode=$mode"
+                    "Failed for number={$number}, scale={$scale}, mode={$mode}"
                 );
 
                 // Also test with native bcround if available with RoundingMode enum
@@ -710,7 +695,7 @@ class BCMathTest extends TestCase
                     $this->assertSame(
                         $nativeResult,
                         $result,
-                        "Native bcround differs from polyfill for number=$number, scale=$scale, mode=$mode"
+                        "Native bcround differs from polyfill for number={$number}, scale={$scale}, mode={$mode}"
                     );
                 }
             }
@@ -718,9 +703,9 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * Test bcround() with negative scale values
+     * Test bcround() with negative scale values.
      */
-    public function testRoundNegativeScale()
+    public function testRoundNegativeScale(): void
     {
         // Test rounding to tens, hundreds, thousands
         $testCases = [
@@ -769,7 +754,7 @@ class BCMathTest extends TestCase
             $this->assertSame(
                 $expected,
                 $result,
-                "Failed for number=$number, scale=$scale"
+                "Failed for number={$number}, scale={$scale}"
             );
 
             // Test with native bcround for PHP 8.4+
@@ -778,7 +763,7 @@ class BCMathTest extends TestCase
                 $this->assertSame(
                     $nativeResult,
                     $result,
-                    "Native bcround differs from polyfill for number=$number, scale=$scale"
+                    "Native bcround differs from polyfill for number={$number}, scale={$scale}"
                 );
             }
         }
