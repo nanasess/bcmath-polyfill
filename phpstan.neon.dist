@@ -1,0 +1,13 @@
+includes:
+	- phpstan-baseline.neon
+
+parameters:
+	level: 6
+	paths:
+		- src
+		- tests
+		- lib
+	ignoreErrors:
+		-
+			message: '#^Static method bcmath_compat\\BCMath::[a-zA-Z_]+\(\) is unused\.$#'
+			identifier: method.unused

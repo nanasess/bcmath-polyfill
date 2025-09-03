@@ -2,11 +2,41 @@ name: CI
 on: [push, pull_request]
 
 permissions:
-  contents: read #  to fetch code (actions/checkout)
+    contents: read #  to fetch code (actions/checkout)
 
 jobs:
+    php-cs-fixer:
+        name: PHP-CS-Fixer
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+            -   name: Install dependencies
+                uses: php-actions/composer@v6
+                with:
+                    php_version: '8.1'
+            -   name: Run PHP-CS-Fixer
+                run: vendor/bin/php-cs-fixer fix --dry-run --diff --allow-risky=yes
+
+    phpstan:
+        name: PHPStan
+        needs: php-cs-fixer
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+            -   name: Install dependencies
+                uses: php-actions/composer@v6
+                with:
+                    php_version: '8.1'
+            -   name: Run PHPStan
+                uses: php-actions/phpstan@v3
+                with:
+                    php_version: '8.1'
+
     tests:
         name: Tests
+        needs: phpstan
         timeout-minutes: 10
         runs-on: ${{ matrix.os }}
         steps:
