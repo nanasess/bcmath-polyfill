@@ -7,6 +7,7 @@ use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector;
 use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodRector;
 use Rector\DeadCode\Rector\If_\RemoveAlwaysTrueIfConditionRector;
 use Rector\DeadCode\Rector\If_\UnwrapFutureCompatibleIfPhpVersionRector;
+use Rector\TypeDeclaration\Rector\ClassMethod\AddMethodCallBasedStrictParamTypeRector;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -24,4 +25,5 @@ return RectorConfig::configure()
         UnwrapFutureCompatibleIfPhpVersionRector::class,
         RemoveUnusedPrivateMethodParameterRector::class,
         RemoveUnusedPrivateMethodRector::class,
+        AddMethodCallBasedStrictParamTypeRector::class, // FIXME BCMath::comp() で誤検出されるため暫定的に追加
     ]);
