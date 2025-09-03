@@ -19,18 +19,19 @@ use phpseclib3\Math\BigInteger;
  *
  * @author  Jim Wigginton <terrafrost@php.net>
  *
- * @method static string add(string $num1, string $num2, int $scale = 0)
- * @method static string sub(string $num1, string $num2, int $scale = 0)
- * @method static string mul(string $num1, string $num2, int $scale = 0)
- * @method static string div(string $num1, string $num2, int $scale = 0)
- * @method static string mod(string $num1, string $num2, int $scale = 0)
- * @method static int comp(string $num1, string $num2, int $scale = 0)
- * @method static string pow(string $num, string $exponent, int $scale = 0)
- * @method static string powmod(string $base, string $exponent, string $modulus, int $scale = 0)
- * @method static string sqrt(string $operand, int $scale = 0)
- * @method static string floor(string $num, int $scale = 0)
- * @method static string ceil(string $num, int $scale = 0)
+ * @method static string add(string $num1, string $num2, int|null $scale = null)
+ * @method static string sub(string $num1, string $num2, int|null $scale = null)
+ * @method static string mul(string $num1, string $num2, int|null $scale = null)
+ * @method static string div(string $num1, string $num2, int|null $scale = null)
+ * @method static string mod(string $num1, string $num2, int|null $scale = null)
+ * @method static int comp(string $num1, string $num2, int|null $scale = null)
+ * @method static string pow(string $num, string $exponent, int|null $scale = null)
+ * @method static string powmod(string $base, string $exponent, string $modulus, int|null $scale = null)
+ * @method static string sqrt(string $operand, int|null $scale = null)
+ * @method static string floor(string $num, int|null $scale = null)
+ * @method static string ceil(string $num, int|null $scale = null)
  * @method static string round(string $num, int $precision = 0, int $mode = 1) // $mode default is PHP_ROUND_HALF_UP (1)
+ * @method static int scale(int|null $scale = null)
  */
 abstract class BCMath
 {
@@ -44,7 +45,7 @@ abstract class BCMath
      *
      * Uses the PHP 7.3+ behavior
      *
-     * @param ?int $scale optional
+     * @param null|int $scale optional
      */
     private static function scale($scale = null): ?int
     {
@@ -60,7 +61,7 @@ abstract class BCMath
      *
      * Places the decimal place at the appropriate place, adds trailing 0's as appropriate, etc
      *
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function format(BigInteger $x, $scale, $pad = 0): string
@@ -99,7 +100,7 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers.
      *
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function add(BigInteger $x, BigInteger $y, $scale, $pad = 0): string
@@ -112,7 +113,7 @@ abstract class BCMath
     /**
      * Subtract one arbitrary precision number from another.
      *
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function sub(BigInteger $x, BigInteger $y, $scale, $pad = 0): string
@@ -127,7 +128,7 @@ abstract class BCMath
      *
      * @param BigInteger $x
      * @param BigInteger $y
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function mul($x, $y, $scale, $pad = 0): string
@@ -152,7 +153,7 @@ abstract class BCMath
      *
      * @param BigInteger $x
      * @param BigInteger $y
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function div($x, $y, $scale, $pad = 0): string
@@ -177,7 +178,7 @@ abstract class BCMath
      *
      * @param BigInteger $x
      * @param BigInteger $y
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function mod($x, $y, $scale, $pad = 0): string
@@ -200,7 +201,7 @@ abstract class BCMath
      *
      * @param string $x
      * @param string $y
-     * @param ?int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function comp($x, $y, $scale = 0, $pad = 0): int
@@ -218,7 +219,7 @@ abstract class BCMath
      *
      * @param BigInteger $x
      * @param string $y
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function pow($x, $y, $scale, $pad = 0): string
@@ -264,7 +265,7 @@ abstract class BCMath
      * @param string $x
      * @param string $e
      * @param string $n
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function powmod($x, $e, $n, $scale, $pad = 0): string
@@ -298,7 +299,7 @@ abstract class BCMath
      * Get the square root of an arbitrary precision number.
      *
      * @param string $n
-     * @param ?int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function sqrt($n, $scale = 0, $pad = 0): string
@@ -359,7 +360,7 @@ abstract class BCMath
      * Round down to the nearest integer.
      *
      * @param string $n
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function floor($n, $scale, $pad = 0): string
@@ -397,7 +398,7 @@ abstract class BCMath
      * Round up to the nearest integer.
      *
      * @param string $n
-     * @param int $scale
+     * @param null|int $scale
      * @param int $pad
      */
     private static function ceil($n, $scale, $pad = 0): string

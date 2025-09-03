@@ -1,5 +1,0 @@
-parameters:
-	ignoreErrors:
-		-
-			message: '#^Call to private static method .* of class bcmath_compat\\BCMath\.$#'
-			identifier: staticMethod.private

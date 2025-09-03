@@ -55,3 +55,25 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
                 php-version: ['8.1', '8.2', '8.3', '8.4']
+
+    tests-without-bcmath:
+        name: Tests (without BCMath extension)
+        needs: phpstan
+        timeout-minutes: 10
+        runs-on: ubuntu-latest
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@v4
+            -   name: Setup PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: ${{ matrix.php-version }}
+                    extensions: :bcmath # ubuntu only
+            -   name: Composer Install
+                run: composer install --no-interaction --no-cache
+            -   name: PHPUnit (without BCMath extension)
+                run: vendor/bin/phpunit --group without-bcmath
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['8.1', '8.2', '8.3', '8.4']
