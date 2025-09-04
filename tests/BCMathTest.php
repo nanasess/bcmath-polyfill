@@ -371,11 +371,6 @@ class BCMathTest extends TestCase
         $this->assertSame(bcfloor('5'), BCMath::floor('5'));
         $this->assertSame(bcfloor('-5'), BCMath::floor('-5'));
         $this->assertSame(bcfloor('0'), BCMath::floor('0'));
-
-        // Test with scale - only test BCMath class directly since native bcfloor doesn't support scale
-        $this->assertSame('1', BCMath::floor('1.95583', 0));
-        $this->assertSame('1.95', BCMath::floor('1.95583', 2));
-        $this->assertSame('-1.9558', BCMath::floor('-1.95583', 4));
     }
 
     /**
@@ -403,11 +398,6 @@ class BCMathTest extends TestCase
         $this->assertSame(bcceil('5'), BCMath::ceil('5'));
         $this->assertSame(bcceil('-5'), BCMath::ceil('-5'));
         $this->assertSame(bcceil('0'), BCMath::ceil('0'));
-
-        // Test with scale - only test BCMath class directly since native bcceil doesn't support scale
-        $this->assertSame('2', BCMath::ceil('1.95583', 0));
-        $this->assertSame('1.96', BCMath::ceil('1.95583', 2));
-        $this->assertSame('-1.9558', BCMath::ceil('-1.95583', 4));
     }
 
     /**

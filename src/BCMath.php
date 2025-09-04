@@ -18,20 +18,6 @@ use phpseclib3\Math\BigInteger;
  * BCMath Emulation Class.
  *
  * @author  Jim Wigginton <terrafrost@php.net>
- *
- * @method static string add(string $num1, string $num2, int|null $scale = null)
- * @method static string sub(string $num1, string $num2, int|null $scale = null)
- * @method static string mul(string $num1, string $num2, int|null $scale = null)
- * @method static string div(string $num1, string $num2, int|null $scale = null)
- * @method static string mod(string $num1, string $num2, int|null $scale = null)
- * @method static int comp(string $num1, string $num2, int|null $scale = null)
- * @method static string pow(string $num, string $exponent, int|null $scale = null)
- * @method static string powmod(string $base, string $exponent, string $modulus, int|null $scale = null)
- * @method static string sqrt(string $operand, int|null $scale = null)
- * @method static string floor(string $num, int|null $scale = null)
- * @method static string ceil(string $num, int|null $scale = null)
- * @method static string round(string $num, int $precision = 0, int $mode = 1) // $mode default is PHP_ROUND_HALF_UP (1)
- * @method static int scale(int|null $scale = null)
  */
 abstract class BCMath
 {

@@ -157,11 +157,10 @@ if (!function_exists('bcfloor')) {
      * Round down to the nearest integer (PHP 8.4+).
      *
      * @param string $operand
-     * @param null|int $scale optional
      */
-    function bcfloor($operand, $scale = null): string
+    function bcfloor($operand): string
     {
-        return BCMath::floor($operand, $scale);
+        return BCMath::floor($operand);
     }
 }
 
@@ -170,11 +169,10 @@ if (!function_exists('bcceil')) {
      * Round up to the nearest integer (PHP 8.4+).
      *
      * @param string $operand
-     * @param null|int $scale optional
      */
-    function bcceil($operand, $scale = null): string
+    function bcceil($operand): string
     {
-        return BCMath::ceil($operand, $scale);
+        return BCMath::ceil($operand);
     }
 }
 

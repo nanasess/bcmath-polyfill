@@ -159,9 +159,6 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('5', bcfloor('5'));
         $this->assertSame('-5', bcfloor('-5'));
         $this->assertSame('0', bcfloor('0'));
-        $this->assertSame('1', bcfloor('1.95583', 0));
-        $this->assertSame('1.95', bcfloor('1.95583', 2));
-        $this->assertSame('-1.9558', bcfloor('-1.95583', 4));
     }
 
     public function testBcceilWithoutExtension(): void
@@ -173,9 +170,6 @@ class BCMathWithoutExtensionTest extends TestCase
         $this->assertSame('5', bcceil('5'));
         $this->assertSame('-5', bcceil('-5'));
         $this->assertSame('0', bcceil('0'));
-        $this->assertSame('2', bcceil('1.95583', 0));
-        $this->assertSame('1.96', bcceil('1.95583', 2));
-        $this->assertSame('-1.9558', bcceil('-1.95583', 4));
     }
 
     public function testBcroundWithoutExtension(): void
