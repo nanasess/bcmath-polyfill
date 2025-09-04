@@ -47,14 +47,15 @@ abstract class BCMath
      *
      * @param null|int $scale optional
      */
-    private static function scale($scale = null, int $originalArgCount = -1): ?int
+    public static function scale(?int $scale = null): ?int
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('scale', $originalArgCount, 0, 1);
+        // Check argument count to match bcscale() behavior
+        $args = func_get_args();
+        if (func_num_args() > 1) {
+            throw new \ArgumentCountError('bcscale() expects at most 1 argument, ' . func_num_args() . ' given');
         }
 
-        if (isset($scale)) {
+        if ($scale !== null) {
             self::$scale = (int) $scale;
         }
 
@@ -69,7 +70,7 @@ abstract class BCMath
      * @param null|int $scale
      * @param int $pad
      */
-    private static function format(BigInteger $x, $scale, $pad = 0): string
+    public static function format(BigInteger $x, $scale, $pad = 0): string
     {
         $sign = self::isNegative($x) ? '-' : '';
         $x = str_replace('-', '', (string) $x);
@@ -97,7 +98,7 @@ abstract class BCMath
      *
      * @param BigInteger $x
      */
-    private static function isNegative($x): bool
+    public static function isNegative($x): bool
     {
         return $x->compare(new BigInteger()) < 0;
     }
@@ -105,197 +106,221 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers.
      */
-    private static function add(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function add(string $num1, string $num2, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('add', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
-        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
+        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
+        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
-        $z = $xBig->add($yBig);
+        $result = $num1Big->add($num2Big);
 
-        return self::format($z, $scale, $maxPad);
+        $formatted = self::format($result, $scale, $maxPad);
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
 
     /**
      * Subtract one arbitrary precision number from another.
      */
-    private static function sub(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('sub', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
-        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
+        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
+        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
-        $z = $xBig->subtract($yBig);
+        $result = $num1Big->subtract($num2Big);
 
-        return self::format($z, $scale, $maxPad);
+        $formatted = self::format($result, $scale, $maxPad);
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
 
     /**
      * Multiply two arbitrary precision numbers.
      */
-    private static function mul(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('mul', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
 
         // Early zero check
-        if ($x === '0' || $y === '0') {
-            $r = '0';
+        if ($num1 === '0' || $num2 === '0') {
+            $result = '0';
             if ($scale) {
-                $r .= '.'.str_repeat('0', $scale);
+                $result .= '.'.str_repeat('0', $scale);
             }
 
-            return $r;
+            return $result;
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
-        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
+        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
+        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
-        $z = $xBig->abs()->multiply($yBig->abs());
-        $sign = ((self::isNegative($xBig) ^ self::isNegative($yBig)) !== 0) ? '-' : '';
+        $result = $num1Big->abs()->multiply($num2Big->abs());
+        $sign = ((self::isNegative($num1Big) ^ self::isNegative($num2Big)) !== 0) ? '-' : '';
 
-        return $sign.self::format($z, $scale, 2 * $maxPad);
+        $formatted = $sign.self::format($result, $scale, 2 * $maxPad);
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
 
     /**
      * Divide two arbitrary precision numbers.
      */
-    private static function div(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function div(string $num1, string $num2, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('div', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
 
         // Division by zero check
-        if ($y === '0') {
+        if ($num2 === '0') {
             // < PHP 8.0 triggered a warning
             // >= PHP 8.0 throws an exception
             throw new \DivisionByZeroError('Division by zero');
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
-        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]), $pad);
+        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
+        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
         $temp = '1'.str_repeat('0', $scale);
         $temp = new BigInteger($temp);
-        [$q] = $xBig->multiply($temp)->divide($yBig);
+        [$quotient] = $num1Big->multiply($temp)->divide($num2Big);
 
-        return self::format($q, $scale, $scale);
+        $formatted = self::format($quotient, $scale, $scale);
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
 
     /**
@@ -303,95 +328,101 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      */
-    private static function mod(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('mod', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
 
         // Division by zero check
-        if ($y === '0') {
+        if ($num2 === '0') {
             // < PHP 8.0 triggered a warning
             // >= PHP 8.0 throws an exception
             throw new \DivisionByZeroError('Division by zero');
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
-        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
+        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
+        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
-        [$q] = $xBig->divide($yBig);
-        $z = $yBig->multiply($q);
-        $z = $xBig->subtract($z);
+        [$quotient] = $num1Big->divide($num2Big);
+        $remainder = $num2Big->multiply($quotient);
+        $result = $num1Big->subtract($remainder);
 
-        return self::format($z, $scale, $maxPad);
+        $formatted = self::format($result, $scale, $maxPad);
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
 
     /**
      * Compare two arbitrary precision numbers.
      */
-    private static function comp(string $x, string $y, ?int $scale = 0, int $pad = 0, int $originalArgCount = -1): int
+    public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('comp', $originalArgCount, 2, 3);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($num1)) {
+            $num1 = '0';
+        }
+        if (!is_numeric($num2)) {
+            $num2 = '0';
         }
 
-        // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
-        }
-        if (!is_numeric($y)) {
-            $y = '0';
+        // Use default scale if not provided
+        if ($scale === null) {
+            $scale = 0; // comp uses 0 as default scale
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        $yParts = explode('.', $y);
+        $num1Parts = explode('.', $num1);
+        $num2Parts = explode('.', $num2);
 
         // Ensure both have decimal parts
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        if (!isset($num1Parts[1])) {
+            $num1Parts[1] = '';
         }
-        if (!isset($yParts[1])) {
-            $yParts[1] = '';
+        if (!isset($num2Parts[1])) {
+            $num2Parts[1] = '';
         }
 
         // Apply scale truncation
-        $xParts[1] = substr($xParts[1], 0, $scale);
-        $yParts[1] = substr($yParts[1], 0, $scale);
+        $num1Parts[1] = substr($num1Parts[1], 0, $scale);
+        $num2Parts[1] = substr($num2Parts[1], 0, $scale);
 
         // Convert to BigInteger for comparison
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
-        $yBig = new BigInteger($yParts[0].$yParts[1]);
+        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
+        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
 
-        return $xBig->compare($yBig);
+        return $num1Big->compare($num2Big);
     }
 
     /**
@@ -399,60 +430,69 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      */
-    private static function pow(string $x, string $y, ?int $scale, int $pad = 0): string
+    public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
         // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
+        if (!is_numeric($base)) {
+            $base = '0';
         }
-        if (!is_numeric($y)) {
-            $y = '0';
+        if (!is_numeric($exponent)) {
+            $exponent = '0';
         }
 
-        if ($y === '0') {
-            $r = '1';
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
+        }
+
+        if ($exponent === '0') {
+            $result = '1';
             if ($scale) {
-                $r .= '.'.str_repeat('0', $scale);
+                $result .= '.'.str_repeat('0', $scale);
             }
 
-            return $r;
+            return $result;
         }
 
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (self::comp($y, (string) PHP_INT_MAX) > 0 || self::comp($y, (string) $min) < 0) {
+        if (self::comp($exponent, (string) PHP_INT_MAX) > 0 || self::comp($exponent, (string) $min) < 0) {
             throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
         // Convert to exploded form for decimal processing
-        $xParts = explode('.', $x);
-        if (!isset($xParts[1])) {
-            $xParts[1] = '';
+        $baseParts = explode('.', $base);
+        if (!isset($baseParts[1])) {
+            $baseParts[1] = '';
         }
 
         // Pad decimal parts
-        $maxPad = max(strlen($xParts[1]), $pad);
-        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
+        $maxPad = strlen($baseParts[1]);
+        $baseParts[1] = str_pad($baseParts[1], $maxPad, '0');
 
         // Convert to BigInteger for calculation
-        $xBig = new BigInteger($xParts[0].$xParts[1]);
+        $baseBig = new BigInteger($baseParts[0].$baseParts[1]);
 
-        $sign = self::isNegative($xBig) ? '-' : '';
-        $xBig = $xBig->abs();
+        $sign = self::isNegative($baseBig) ? '-' : '';
+        $baseBig = $baseBig->abs();
 
         $r = new BigInteger(1);
-        $yBig = new BigInteger($y);
-        $absY = self::isNegative($yBig) ? substr($y, 1) : $y;
-        for ($i = 0; $i < $absY; $i++) {
-            $r = $r->multiply($xBig);
+        $exponentBig = new BigInteger($exponent);
+        $absExponent = self::isNegative($exponentBig) ? substr($exponent, 1) : $exponent;
+        for ($i = 0; $i < $absExponent; $i++) {
+            $r = $r->multiply($baseBig);
         }
 
-        if ($y < 0) {
-            $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absY);
+        if ($exponent < 0) {
+            $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absExponent);
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $finalPad = $scale;
         } else {
-            $finalPad = $maxPad * (int) $absY;
+            $finalPad = $maxPad * (int) $absExponent;
         }
 
         return $sign.self::format($r, $scale, $finalPad);
@@ -461,46 +501,51 @@ abstract class BCMath
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
      */
-    private static function powmod(string $x, string $e, string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('powmod', $originalArgCount, 3, 4);
+        // Check argument count to match bcpowmod() behavior
+        if (func_num_args() > 4) {
+            throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, ' . func_num_args() . ' given');
         }
 
         // Handle input validation and type conversion internally
-        if (!is_numeric($x)) {
-            $x = '0';
+        if (!is_numeric($base)) {
+            $base = '0';
         }
-        if (!is_numeric($e)) {
-            $e = '0';
+        if (!is_numeric($exponent)) {
+            $exponent = '0';
         }
-        if (!is_numeric($n)) {
-            $n = '0';
+        if (!is_numeric($modulus)) {
+            $modulus = '0';
+        }
+
+        // For powmod, if scale is not provided, return integer result (no decimal places)
+        if ($scale === null) {
+            $scale = 0;
         }
 
         // Remove fractional parts for integer-only operations
-        $x = explode('.', $x)[0];
-        $e = explode('.', $e)[0];
-        $n = explode('.', $n)[0];
+        $baseInt = explode('.', $base)[0];
+        $exponentInt = explode('.', $exponent)[0];
+        $modulusInt = explode('.', $modulus)[0];
 
-        if ($e[0] == '-' || $n === '0') {
+        if ($exponentInt[0] == '-' || $modulusInt === '0') {
             // < PHP 8.0 returned false
             // >= PHP 8.0 throws an exception
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
-        if ($n[0] == '-') {
-            $n = substr($n, 1);
+        if ($modulusInt[0] == '-') {
+            $modulusInt = substr($modulusInt, 1);
         }
-        if ($e === '0') {
+        if ($exponentInt === '0') {
             return $scale
                 ? '1.'.str_repeat('0', $scale)
                 : '1';
         }
 
-        $x = new BigInteger($x);
-        $e = new BigInteger($e);
-        $n = new BigInteger($n);
+        $x = new BigInteger($baseInt);
+        $e = new BigInteger($exponentInt);
+        $n = new BigInteger($modulusInt);
 
         $z = $x->powMod($e, $n);
 
@@ -512,25 +557,30 @@ abstract class BCMath
     /**
      * Get the square root of an arbitrary precision number.
      */
-    private static function sqrt(string $n, ?int $scale = 0, int $pad = 0, int $originalArgCount = -1): string
+    public static function sqrt(string $num, ?int $scale = null): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('sqrt', $originalArgCount, 1, 2);
-        }
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
 
-        if (!is_numeric($n)) {
+        if (!is_numeric($num)) {
             return '0';
         }
-        $temp = explode('.', $n);
-        $decStart = ceil(strlen($temp[0]) / 2);
-        $n = implode('', $temp);
-        if (strlen($n) % 2 !== 0) {
-            $n = "0{$n}";
+
+        // Use default scale if not provided
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
         }
-        $parts = str_split($n, 2);
+        $temp = explode('.', $num);
+        $decStart = ceil(strlen($temp[0]) / 2);
+        $numStr = implode('', $temp);
+        if (strlen($numStr) % 2 !== 0) {
+            $numStr = "0{$numStr}";
+        }
+        $parts = str_split($numStr, 2);
         $parts = array_map('intval', $parts);
         $i = 0;
         $p = 0; // for the first step, p = 0
@@ -573,12 +623,8 @@ abstract class BCMath
     /**
      * Round down to the nearest integer.
      */
-    private static function floor(string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function floor(string $num): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('floor', $originalArgCount, 1, 2);
-        }
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
@@ -611,12 +657,8 @@ abstract class BCMath
     /**
      * Round up to the nearest integer.
      */
-    private static function ceil(string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
+    public static function ceil(string $num): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('ceil', $originalArgCount, 1, 2);
-        }
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
@@ -663,13 +705,9 @@ abstract class BCMath
     /**
      * Round to a given decimal place.
      */
-    private static function round(string $n, int $precision, int $mode = PHP_ROUND_HALF_UP, int $pad = 0, int $originalArgCount = -1): string
+    public static function round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP): string
     {
-        // Validate argument count when called from __callStatic
-        if ($originalArgCount !== -1) {
-            self::validateMethodArguments('round', $originalArgCount, 1, 3);
-        }
-        if (!is_numeric($n)) {
+        if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
             }
@@ -683,7 +721,7 @@ abstract class BCMath
             // When precision is negative, we round to the left of the decimal point
             $absPrecision = abs($precision);
             $factor = self::pow('10', (string) $absPrecision, max($absPrecision, 0));
-            $shifted = self::div($n, $factor, 10); // Use a high precision for intermediate calculation
+            $shifted = self::div($num, $factor, 10); // Use a high precision for intermediate calculation
 
             // Apply rounding
             $rounded = self::bcroundHelper($shifted, 0, $mode);
@@ -692,13 +730,13 @@ abstract class BCMath
             return self::mul($rounded, $factor, 0);
         }
 
-        return self::bcroundHelper($n, $precision, $mode);
+        return self::bcroundHelper($num, $precision, $mode);
     }
 
     /**
      * Helper function for bcround.
      */
-    private static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
+    public static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
     {
         if (!str_contains($number, '.')) {
             $number .= '.0';
@@ -752,182 +790,50 @@ abstract class BCMath
         return $sign.$number;
     }
 
-    /**
-     * Validate argument count for individual bcmath methods.
-     */
-    private static function validateMethodArguments(string $methodName, int $actualCount, int $minArgs, int $maxArgs): void
-    {
-        if ($actualCount < $minArgs) {
-            throw new \ArgumentCountError("bc{$methodName}() expects at least {$minArgs} parameters, {$actualCount} given");
-        }
-        if ($actualCount > $maxArgs) {
-            throw new \ArgumentCountError("bc{$methodName}() expects at most {$maxArgs} parameters, {$actualCount} given");
-        }
-    }
 
     /**
-     * __callStatic Magic Method.
+     * __callStatic Magic Method - Simple wrapper for public methods.
      *
      * @param array<int, null|BCMath|bool|int|string|string[]> $arguments
      */
     public static function __callStatic(string $name, array $arguments): int|string
     {
-        $cnt = count($arguments);
-
-        // Get number parameters based on function type
-        static $numberParams = [
-            'add' => 2, 'sub' => 2, 'mul' => 2, 'div' => 2, 'mod' => 2, 'comp' => 2,
-            'pow' => 2, 'sqrt' => 1, 'floor' => 1, 'ceil' => 1, 'round' => 1,
-            'powmod' => 3, 'scale' => 0,
-        ];
-
-        $numbers = array_slice($arguments, 0, $numberParams[$name]);
-
-        // Pad numbers array to match expected parameter count (for proper argument count validation)
-        while (count($numbers) < $numberParams[$name]) {
-            $numbers[] = '0'; // Default padding value
-        }
-
-        $ints = [];
-
+        // Simple delegation to corresponding public static methods
         switch ($name) {
+            case 'add':
+                return self::add($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+            case 'sub':
+                return self::sub($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+            case 'mul':
+                return self::mul($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+            case 'div':
+                return self::div($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+            case 'mod':
+                return self::mod($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+            case 'comp':
+                return self::comp($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
             case 'pow':
-                $ints = array_slice($numbers, count($numbers) - 1);
-                $numbers = array_slice($numbers, 0, count($numbers) - 1);
-                $names = ['exponent'];
-
-                break;
-
+                return self::pow($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
             case 'powmod':
-                // powmod handles strings directly, no exploded array processing needed
-                $names = ['base', 'exponent', 'modulus'];
-
-                break;
-
+                if (count($arguments) > 4) {
+                    throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, ' . count($arguments) . ' given');
+                }
+                return self::powmod($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? '1', $arguments[3] ?? null);
             case 'sqrt':
+                return self::sqrt($arguments[0] ?? '0', $arguments[1] ?? null);
             case 'floor':
+                return self::floor($arguments[0] ?? '0');
             case 'ceil':
-                $names = ['num'];
-
-                break;
-
+                return self::ceil($arguments[0] ?? '0');
             case 'round':
-                $names = ['num', 'precision', 'mode'];
-
-                break;
-
+                return self::round($arguments[0] ?? '0', $arguments[1] ?? 0, $arguments[2] ?? PHP_ROUND_HALF_UP);
+            case 'scale':
+                if (count($arguments) > 1) {
+                    throw new \ArgumentCountError('bcscale() expects at most 1 argument, ' . count($arguments) . ' given');
+                }
+                return self::scale($arguments[0] ?? null);
             default:
-                $names = ['num1', 'num2'];
+                throw new \BadMethodCallException("Unknown method: {$name}");
         }
-        foreach ($ints as $i => &$int) {
-            if (!is_numeric($int)) {
-                $int = '0';
-            }
-            $pos = strpos($int, '.');
-            if ($pos !== false) {
-                $int = substr($int, 0, $pos);
-
-                throw new \ValueError("bc{$name}(): Argument #2 (\${$names[$i]}) cannot have a fractional part");
-            }
-        }
-        foreach ($numbers as $i => $arg) {
-            $num = $i + 1;
-
-            switch (true) {
-                case is_bool($arg):
-                case is_numeric($arg):
-                case is_string($arg):
-                case is_object($arg) && method_exists($arg, '__toString'):
-                    if (!is_bool($arg) && !is_numeric("{$arg}")) {
-                        throw new \ValueError("bc{$name}: bcmath function argument is not well-formed");
-                    }
-
-                    break;
-
-                    // PHP >= 8.1 has deprecated the passing of nulls to string parameters
-                case is_null($arg):
-                    $error = "bc{$name}(): Passing null to parameter #{$num} (\${$names[$i]}) of type string is deprecated";
-                    @trigger_error($error, E_USER_DEPRECATED);
-
-                    break;
-
-                default:
-                    $type = get_debug_type($arg);
-                    $error = "bc{$name}(): Argument #{$num} (\${$names[$i]}) must be of type string, {$type} given";
-
-                    throw new \TypeError($error);
-            }
-        }
-        if (!isset(self::$scale)) {
-            $scale = ini_get('bcmath.scale');
-            self::$scale = $scale !== false ? max((int) $scale, 0) : 0;
-        }
-        // Get scale parameter index
-        static $scaleIndex = [
-            'add' => 2, 'sub' => 2, 'mul' => 2, 'div' => 2, 'mod' => 2, 'comp' => 2,
-            'pow' => 2, 'sqrt' => 1, 'floor' => 1, 'ceil' => 1, 'round' => 1,
-            'powmod' => 3, 'scale' => 0,
-        ];
-
-        // For round, scale is the second parameter (precision)
-        $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$scaleIndex[$name]] ?? self::$scale;
-
-        switch (true) {
-            case is_bool($scale):
-            case is_numeric($scale):
-            case is_string($scale) && preg_match('#[0-9\.]#', $scale[0]):
-                break;
-
-            default:
-                $type = get_debug_type($scale);
-                $paramNum = $scaleIndex[$name] + 1;
-
-                throw new \TypeError("bc{$name}(): Argument #{$paramNum} (\$scale) must be of type ?int, {$type} given");
-        }
-        $scale = (int) $scale;
-        // For bcround, negative precision is allowed
-        if ($scale < 0 && $name !== 'round') {
-            $paramNum = $scaleIndex[$name] + 1;
-
-            throw new \ValueError("bc{$name}(): Argument #{$paramNum} (\$scale) must be between 0 and 2147483647");
-        }
-
-        // Convert boolean values to string for string-based methods
-        foreach ($numbers as &$num) {
-            if (is_bool($num)) {
-                $num = $num ? '1' : '0';
-            } elseif (!is_numeric($num)) {
-                $num = '0';
-            } else {
-                $num = (string) $num;
-            }
-        }
-
-        // Special handling for specific functions
-        if ($name === 'round') {
-            // bcround can have 1, 2, or 3 parameters
-            // Get the mode from the original arguments if provided
-            $originalArgs = $arguments;
-            $originalCnt = count($originalArgs);
-            $precision = ($originalCnt >= 2) ? $originalArgs[1] : $scale;
-            $mode = ($originalCnt >= 3) ? $originalArgs[2] : PHP_ROUND_HALF_UP;
-            $arguments = array_merge($numbers, [$precision, $mode, 0, $cnt]); // pad + original count
-        } elseif ($name === 'scale') {
-            // scale takes 0 or 1 parameter, no numbers or ints processing
-            $scaleParam = $cnt > 0 ? $arguments[0] : null;
-            $arguments = [$scaleParam, $cnt]; // scale + original count
-        } else {
-            $arguments = array_merge($numbers, $ints, [$scale, 0, $cnt]); // pad + original count
-        }
-
-        /** @var int|string $result */
-        $result = call_user_func_array(self::class."::{$name}", $arguments);
-
-        // comp() and scale() should return int, not string
-        if ($name === 'comp' || $name === 'scale') {
-            return (int) $result;
-        }
-
-        return preg_match('#^-0\.?0*$#', (string) $result) ? substr((string) $result, 1) : $result;
     }
 }

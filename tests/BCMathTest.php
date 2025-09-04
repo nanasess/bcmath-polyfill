@@ -280,6 +280,7 @@ class BCMathTest extends TestCase
             $this->assertSame($orig, $scale);
         } else {
             $exception_thrown = false;
+            $e = null;
 
             try {
                 // @phpstan-ignore-next-line
@@ -290,8 +291,10 @@ class BCMathTest extends TestCase
             $this->assertTrue($exception_thrown);
             // start the unit test with: (showing the wrong given values)
             // phpunit --testdox-test testdox.txt --display-skipped
-            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-            $this->markTestSkipped($msg);
+            if ($e !== null) {
+                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+                $this->markTestSkipped($msg);
+            }
         }
 
         // Restore original scale
@@ -329,6 +332,7 @@ class BCMathTest extends TestCase
             $this->assertSame($a, $b);
         } else {
             $exception_thrown = false;
+            $e = null;
 
             try {
                 // @phpstan-ignore-next-line
@@ -339,8 +343,10 @@ class BCMathTest extends TestCase
             $this->assertTrue($exception_thrown);
             // start the unit test with: (showing the wrong given values)
             // phpunit --testdox-test testdox.txt --display-skipped
-            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-            $this->markTestSkipped($msg);
+            if ($e !== null) {
+                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+                $this->markTestSkipped($msg);
+            }
         }
     }
 
