@@ -35,9 +35,6 @@ abstract class BCMath
     /**
      * Validate and normalize two input numbers.
      *
-     * @param string $num1 First number
-     * @param string $num2 Second number
-     *
      * @return string[] Array containing normalized [$num1, $num2]
      */
     private static function validateAndNormalizeInputs(string $num1, string $num2): array
@@ -54,10 +51,6 @@ abstract class BCMath
 
     /**
      * Resolve the scale parameter, using default if null.
-     *
-     * @param null|int $scale Scale parameter
-     *
-     * @return int Resolved scale value
      */
     private static function resolveScale(?int $scale = null): int
     {
@@ -75,8 +68,6 @@ abstract class BCMath
     /**
      * Parse a decimal number into integer and fractional parts.
      *
-     * @param string $num Number to parse
-     *
      * @return string[] Array containing [integer_part, fractional_part]
      */
     private static function parseDecimalNumber(string $num): array
@@ -93,9 +84,6 @@ abstract class BCMath
 
     /**
      * Prepare two numbers for BigInteger operations by parsing and padding.
-     *
-     * @param string $num1 First number
-     * @param string $num2 Second number
      *
      * @return array{0: BigInteger, 1: BigInteger, 2: int} Array containing [num1Big, num2Big, maxPad]
      */
@@ -119,12 +107,6 @@ abstract class BCMath
 
     /**
      * Format the final result from BigInteger calculation.
-     *
-     * @param BigInteger $result Calculation result
-     * @param int $scale Desired scale
-     * @param int $pad Padding for decimal adjustment
-     *
-     * @return string Formatted result
      */
     private static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
     {
@@ -135,10 +117,6 @@ abstract class BCMath
 
     /**
      * Normalize negative zero results to positive zero.
-     *
-     * @param string $result Result to normalize
-     *
-     * @return string Normalized result
      */
     private static function normalizeZeroResult(string $result): string
     {
@@ -148,12 +126,6 @@ abstract class BCMath
 
     /**
      * Handle early zero check for multiplication.
-     *
-     * @param string $num1 First number
-     * @param string $num2 Second number
-     * @param int $scale Scale for result
-     *
-     * @return null|string Returns formatted zero result or null if not zero
      */
     private static function checkEarlyZero(string $num1, string $num2, int $scale): ?string
     {
@@ -172,8 +144,6 @@ abstract class BCMath
     /**
      * Check for division by zero and throw exception.
      *
-     * @param string $divisor Divisor to check
-     *
      * @throws \DivisionByZeroError If divisor is zero
      */
     private static function checkDivisionByZero(string $divisor): void
@@ -185,10 +155,6 @@ abstract class BCMath
 
     /**
      * Resolve scale for comparison operations (defaults to 0).
-     *
-     * @param null|int $scale Scale parameter
-     *
-     * @return int Resolved scale value
      */
     private static function resolveScaleForComparison(?int $scale = null): int
     {
@@ -201,10 +167,6 @@ abstract class BCMath
 
     /**
      * Prepare numbers for comparison with scale truncation.
-     *
-     * @param string $num1 First number
-     * @param string $num2 Second number
-     * @param int $scale Scale for truncation
      *
      * @return BigInteger[] Array containing [num1Big, num2Big]
      */
@@ -229,8 +191,6 @@ abstract class BCMath
      * Set or get default scale parameter for all bc math functions.
      *
      * Uses the PHP 7.3+ behavior
-     *
-     * @param null|int $scale optional
      */
     public static function scale(?int $scale = null): ?int
     {
@@ -275,10 +235,8 @@ abstract class BCMath
 
     /**
      * Negativity Test.
-     *
-     * @param BigInteger $x
      */
-    public static function isNegative($x): bool
+    public static function isNegative(BigInteger $x): bool
     {
         return $x->compare(new BigInteger()) < 0;
     }
