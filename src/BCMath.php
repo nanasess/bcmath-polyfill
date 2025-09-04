@@ -550,12 +550,8 @@ abstract class BCMath
 
     /**
      * Round up to the nearest integer.
-     *
-     * @param string $n
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function ceil($n, $scale, $pad = 0): string
+    private static function ceil(string $n, ?int $scale, int $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -568,13 +564,13 @@ abstract class BCMath
 
         if ($scale == 0) {
             // When scale is 0, just get the integer part
-            $result = bcdiv($n, '1', 0);
+            $result = self::div($n, '1', 0);
 
             // For positive numbers with fractional parts, we need to add 1
             if (str_contains($n, '.') && $n[0] !== '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
                 if (ltrim($fractionalPart, '0') !== '') {
-                    $result = bcadd($result, '1', 0);
+                    $result = self::add($result, '1', 0);
                 }
             }
 
@@ -582,22 +578,22 @@ abstract class BCMath
         }
         // When scale > 0, ceil to the specified decimal places
         // Multiply by 10^scale, ceil, then divide back
-        $factor = bcpow('10', (string) $scale);
-        $shifted = bcmul($n, $factor, 10); // Use high precision for intermediate calculation
+        $factor = self::pow('10', (string) $scale, max($scale, 0));
+        $shifted = self::mul($n, $factor, 10); // Use high precision for intermediate calculation
 
         // Get the ceiling of the shifted value
-        $ceiledShifted = bcdiv($shifted, '1', 0);
+        $ceiledShifted = self::div($shifted, '1', 0);
 
         // For positive numbers with fractional parts, we need to add 1
         if (str_contains($shifted, '.') && $shifted[0] !== '-') {
             $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
             if (ltrim($fractionalPart, '0') !== '') {
-                $ceiledShifted = bcadd($ceiledShifted, '1', 0);
+                $ceiledShifted = self::add($ceiledShifted, '1', 0);
             }
         }
 
         // Divide back to get the result with proper scale
-        return bcdiv($ceiledShifted, $factor, $scale);
+        return self::div($ceiledShifted, $factor, $scale);
     }
 
     /**
@@ -874,6 +870,11 @@ abstract class BCMath
                 break;
 
             case 'ceil':
+                // Keep as string for new string-based methods
+                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
+
+                break;
+
             case 'round':
                 $numbers = [$arguments[0]];
         }
