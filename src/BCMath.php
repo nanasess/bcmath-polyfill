@@ -47,8 +47,13 @@ abstract class BCMath
      *
      * @param null|int $scale optional
      */
-    private static function scale($scale = null): ?int
+    private static function scale($scale = null, int $originalArgCount = -1): ?int
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('scale', $originalArgCount, 0, 1);
+        }
+
         if (isset($scale)) {
             self::$scale = (int) $scale;
         }
@@ -100,8 +105,13 @@ abstract class BCMath
     /**
      * Add two arbitrary precision numbers.
      */
-    private static function add(string $x, string $y, ?int $scale, int $pad = 0): string
+    private static function add(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('add', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -139,8 +149,13 @@ abstract class BCMath
     /**
      * Subtract one arbitrary precision number from another.
      */
-    private static function sub(string $x, string $y, ?int $scale, int $pad = 0): string
+    private static function sub(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('sub', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -178,8 +193,13 @@ abstract class BCMath
     /**
      * Multiply two arbitrary precision numbers.
      */
-    private static function mul(string $x, string $y, ?int $scale, int $pad = 0): string
+    private static function mul(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('mul', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -228,8 +248,13 @@ abstract class BCMath
     /**
      * Divide two arbitrary precision numbers.
      */
-    private static function div(string $x, string $y, ?int $scale, int $pad = 0): string
+    private static function div(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('div', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -278,8 +303,13 @@ abstract class BCMath
      *
      * Uses the PHP 7.2+ behavior
      */
-    private static function mod(string $x, string $y, ?int $scale, int $pad = 0): string
+    private static function mod(string $x, string $y, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('mod', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -326,8 +356,13 @@ abstract class BCMath
     /**
      * Compare two arbitrary precision numbers.
      */
-    private static function comp(string $x, string $y, ?int $scale = 0, int $pad = 0): int
+    private static function comp(string $x, string $y, ?int $scale = 0, int $pad = 0, int $originalArgCount = -1): int
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('comp', $originalArgCount, 2, 3);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -426,8 +461,13 @@ abstract class BCMath
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
      */
-    private static function powmod(string $x, string $e, string $n, ?int $scale, int $pad = 0): string
+    private static function powmod(string $x, string $e, string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('powmod', $originalArgCount, 3, 4);
+        }
+
         // Handle input validation and type conversion internally
         if (!is_numeric($x)) {
             $x = '0';
@@ -472,8 +512,12 @@ abstract class BCMath
     /**
      * Get the square root of an arbitrary precision number.
      */
-    private static function sqrt(string $n, ?int $scale = 0, int $pad = 0): string
+    private static function sqrt(string $n, ?int $scale = 0, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('sqrt', $originalArgCount, 1, 2);
+        }
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
 
@@ -529,8 +573,12 @@ abstract class BCMath
     /**
      * Round down to the nearest integer.
      */
-    private static function floor(string $n, ?int $scale, int $pad = 0): string
+    private static function floor(string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('floor', $originalArgCount, 1, 2);
+        }
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
@@ -563,8 +611,12 @@ abstract class BCMath
     /**
      * Round up to the nearest integer.
      */
-    private static function ceil(string $n, ?int $scale, int $pad = 0): string
+    private static function ceil(string $n, ?int $scale, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('ceil', $originalArgCount, 1, 2);
+        }
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
@@ -611,8 +663,12 @@ abstract class BCMath
     /**
      * Round to a given decimal place.
      */
-    private static function round(string $n, int $precision, int $mode = PHP_ROUND_HALF_UP, int $pad = 0): string
+    private static function round(string $n, int $precision, int $mode = PHP_ROUND_HALF_UP, int $pad = 0, int $originalArgCount = -1): string
     {
+        // Validate argument count when called from __callStatic
+        if ($originalArgCount !== -1) {
+            self::validateMethodArguments('round', $originalArgCount, 1, 3);
+        }
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
@@ -697,37 +753,15 @@ abstract class BCMath
     }
 
     /**
-     * Validate argument count for bcmath functions.
+     * Validate argument count for individual bcmath methods.
      */
-    private static function validateArgumentCount(string $name, int $count): void
+    private static function validateMethodArguments(string $methodName, int $actualCount, int $minArgs, int $maxArgs): void
     {
-        static $params = [
-            'add' => [2, 3],     // min, max
-            'comp' => [2, 3],
-            'div' => [2, 3],
-            'mod' => [2, 3],
-            'mul' => [2, 3],
-            'pow' => [2, 3],
-            'powmod' => [3, 4],
-            'scale' => [0, 1],
-            'sqrt' => [1, 2],
-            'sub' => [2, 3],
-            'floor' => [1, 2],
-            'ceil' => [1, 2],
-            'round' => [1, 3],
-        ];
-
-        if (!isset($params[$name])) {
-            throw new \BadMethodCallException("Unknown method: {$name}");
+        if ($actualCount < $minArgs) {
+            throw new \ArgumentCountError("bc{$methodName}() expects at least {$minArgs} parameters, {$actualCount} given");
         }
-
-        [$min, $max] = $params[$name];
-
-        if ($count < $min) {
-            throw new \ArgumentCountError("bc{$name}() expects at least {$min} parameters, {$count} given");
-        }
-        if ($count > $max) {
-            throw new \ArgumentCountError("bc{$name}() expects at most {$max} parameters, {$count} given");
+        if ($actualCount > $maxArgs) {
+            throw new \ArgumentCountError("bc{$methodName}() expects at most {$maxArgs} parameters, {$actualCount} given");
         }
     }
 
@@ -740,9 +774,6 @@ abstract class BCMath
     {
         $cnt = count($arguments);
 
-        // Use the new validation method
-        self::validateArgumentCount($name, $cnt);
-
         // Get number parameters based on function type
         static $numberParams = [
             'add' => 2, 'sub' => 2, 'mul' => 2, 'div' => 2, 'mod' => 2, 'comp' => 2,
@@ -751,6 +782,11 @@ abstract class BCMath
         ];
 
         $numbers = array_slice($arguments, 0, $numberParams[$name]);
+
+        // Pad numbers array to match expected parameter count (for proper argument count validation)
+        while (count($numbers) < $numberParams[$name]) {
+            $numbers[] = '0'; // Default padding value
+        }
 
         $ints = [];
 
@@ -867,7 +903,7 @@ abstract class BCMath
             }
         }
 
-        // Special handling for round function which has a mode parameter
+        // Special handling for specific functions
         if ($name === 'round') {
             // bcround can have 1, 2, or 3 parameters
             // Get the mode from the original arguments if provided
@@ -875,9 +911,13 @@ abstract class BCMath
             $originalCnt = count($originalArgs);
             $precision = ($originalCnt >= 2) ? $originalArgs[1] : $scale;
             $mode = ($originalCnt >= 3) ? $originalArgs[2] : PHP_ROUND_HALF_UP;
-            $arguments = array_merge($numbers, [$precision, $mode, 0]); // pad is no longer needed
+            $arguments = array_merge($numbers, [$precision, $mode, 0, $cnt]); // pad + original count
+        } elseif ($name === 'scale') {
+            // scale takes 0 or 1 parameter, no numbers or ints processing
+            $scaleParam = $cnt > 0 ? $arguments[0] : null;
+            $arguments = [$scaleParam, $cnt]; // scale + original count
         } else {
-            $arguments = array_merge($numbers, $ints, [$scale, 0]); // pad is no longer needed
+            $arguments = array_merge($numbers, $ints, [$scale, 0, $cnt]); // pad + original count
         }
 
         /** @var int|string $result */
