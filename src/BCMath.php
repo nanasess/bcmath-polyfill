@@ -637,18 +637,20 @@ abstract class BCMath
             return '0';
         }
 
-        // floor() always returns integer (no scale parameter)
-        $result = self::div($num, '1', 0);
-
-        // For negative numbers with fractional parts, we need to subtract 1
-        if (str_contains($num, '.') && $num[0] === '-') {
+        // Remove any fractional part
+        if (str_contains($num, '.')) {
+            $integerPart = substr($num, 0, strpos($num, '.'));
             $fractionalPart = substr($num, strpos($num, '.') + 1);
-            if (ltrim($fractionalPart, '0') !== '') {
-                $result = self::sub($result, '1', 0);
+
+            // For negative numbers with fractional parts, we need to subtract 1
+            if ($num[0] === '-' && ltrim($fractionalPart, '0') !== '') {
+                return self::sub($integerPart, '1', 0);
             }
+
+            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
         }
 
-        return $result;
+        return $num;
     }
 
     /**
@@ -665,18 +667,22 @@ abstract class BCMath
             return '0';
         }
 
-        // ceil() always returns integer (no scale parameter)
-        $result = self::div($num, '1', 0);
-
-        // For positive numbers with fractional parts, we need to add 1
-        if (str_contains($num, '.') && $num[0] !== '-') {
+        // Remove any fractional part
+        if (str_contains($num, '.')) {
+            $integerPart = substr($num, 0, strpos($num, '.'));
             $fractionalPart = substr($num, strpos($num, '.') + 1);
-            if (ltrim($fractionalPart, '0') !== '') {
-                $result = self::add($result, '1', 0);
+
+            // For positive numbers with fractional parts, we need to add 1
+            if ($num[0] !== '-' && ltrim($fractionalPart, '0') !== '') {
+                $integerPart = $integerPart === '' ? '0' : $integerPart;
+
+                return self::add($integerPart, '1', 0);
             }
+
+            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
         }
 
-        return $result;
+        return $num;
     }
 
     /**
@@ -764,6 +770,16 @@ abstract class BCMath
             }
         }
 
-        return $sign.$number;
+        $result = $sign.$number;
+
+        // Handle negative zero case
+        if ($result === '-0' || $result === '-0.' || preg_match('/^-0\.0+$/', $result)) {
+            $result = ltrim($result, '-');
+            if ($result === '0' || $result === '0.' || preg_match('/^0\.0+$/', $result)) {
+                $result = $precision > 0 ? '0.'.str_repeat('0', $precision) : '0';
+            }
+        }
+
+        return $result;
     }
 }

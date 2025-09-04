@@ -478,22 +478,21 @@ class BCMathTest extends TestCase
         // Test positive numbers
         $this->assertSame('4', BCMath::floor('4.3'));
         $this->assertSame('9', BCMath::floor('9.999'));
-        $this->assertSame('3.00', BCMath::floor('3.14159', 2));
+        $this->assertSame('3', BCMath::floor('3.14159'));
 
         // Test negative numbers
         $this->assertSame('-5', BCMath::floor('-4.3'));
         $this->assertSame('-10', BCMath::floor('-9.999'));
-        $this->assertSame('-4.000', BCMath::floor('-3.14159', 3));
+        $this->assertSame('-4', BCMath::floor('-3.14159'));
 
         // Test integers
         $this->assertSame('5', BCMath::floor('5'));
         $this->assertSame('-5', BCMath::floor('-5'));
         $this->assertSame('0', BCMath::floor('0'));
 
-        // Test with scale
-        $this->assertSame('1', BCMath::floor('1.95583', 0));
-        $this->assertSame('1.00', BCMath::floor('1.95583', 2));
-        $this->assertSame('-2.0000', BCMath::floor('-1.95583', 4));
+        // Test edge cases
+        $this->assertSame('1', BCMath::floor('1.95583'));
+        $this->assertSame('-2', BCMath::floor('-1.95583'));
     }
 
     /**
@@ -508,22 +507,21 @@ class BCMathTest extends TestCase
         // Test positive numbers
         $this->assertSame('5', BCMath::ceil('4.3'));
         $this->assertSame('10', BCMath::ceil('9.999'));
-        $this->assertSame('4.00', BCMath::ceil('3.14159', 2));
+        $this->assertSame('4', BCMath::ceil('3.14159'));
 
         // Test negative numbers
         $this->assertSame('-4', BCMath::ceil('-4.3'));
         $this->assertSame('-9', BCMath::ceil('-9.999'));
-        $this->assertSame('-3.000', BCMath::ceil('-3.14159', 3));
+        $this->assertSame('-3', BCMath::ceil('-3.14159'));
 
         // Test integers
         $this->assertSame('5', BCMath::ceil('5'));
         $this->assertSame('-5', BCMath::ceil('-5'));
         $this->assertSame('0', BCMath::ceil('0'));
 
-        // Test with scale
-        $this->assertSame('2', BCMath::ceil('1.95583', 0));
-        $this->assertSame('2.00', BCMath::ceil('1.95583', 2));
-        $this->assertSame('-1.0000', BCMath::ceil('-1.95583', 4));
+        // Test edge cases
+        $this->assertSame('2', BCMath::ceil('1.95583'));
+        $this->assertSame('-1', BCMath::ceil('-1.95583'));
     }
 
     /**
