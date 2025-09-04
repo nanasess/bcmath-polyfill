@@ -728,7 +728,7 @@ abstract class BCMath
         switch ($name) {
             case 'add':
                 // Keep as string for new string-based add method
-                $numbers = array_map(static fn (null|array|\bcmath_compat\BCMath|bool|int|string $num): string => implode('.', $num), $numbers);
+                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
 
                 break;
 
