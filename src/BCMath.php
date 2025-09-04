@@ -430,8 +430,24 @@ abstract class BCMath
      * @param null|int $scale
      * @param int $pad
      */
-    private static function powmod($x, $e, $n, $scale, $pad = 0): string
+    private static function powmod(string $x, string $e, string $n, ?int $scale, int $pad = 0): string
     {
+        // Handle input validation and type conversion internally
+        if (!is_numeric($x)) {
+            $x = '0';
+        }
+        if (!is_numeric($e)) {
+            $e = '0';
+        }
+        if (!is_numeric($n)) {
+            $n = '0';
+        }
+
+        // Remove fractional parts for integer-only operations
+        $x = explode('.', $x)[0];
+        $e = explode('.', $e)[0];
+        $n = explode('.', $n)[0];
+
         if ($e[0] == '-' || $n == '0') {
             // < PHP 8.0 returned false
             // >= PHP 8.0 throws an exception
@@ -598,13 +614,8 @@ abstract class BCMath
 
     /**
      * Round to a given decimal place.
-     *
-     * @param string $n
-     * @param int $precision
-     * @param int $mode
-     * @param int $pad
      */
-    private static function round($n, $precision, $mode = PHP_ROUND_HALF_UP, $pad = 0): string
+    private static function round(string $n, int $precision, int $mode = PHP_ROUND_HALF_UP, int $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -619,14 +630,14 @@ abstract class BCMath
         if ($precision < 0) {
             // When precision is negative, we round to the left of the decimal point
             $absPrecision = abs($precision);
-            $factor = bcpow('10', (string) $absPrecision);
-            $shifted = bcdiv($n, $factor, 10); // Use a high precision for intermediate calculation
+            $factor = self::pow('10', (string) $absPrecision, max($absPrecision, 0));
+            $shifted = self::div($n, $factor, 10); // Use a high precision for intermediate calculation
 
             // Apply rounding
             $rounded = self::bcroundHelper($shifted, 0, $mode);
 
             // Shift back
-            return bcmul($rounded, $factor, 0);
+            return self::mul($rounded, $factor, 0);
         }
 
         return self::bcroundHelper($n, $precision, $mode);
@@ -634,12 +645,8 @@ abstract class BCMath
 
     /**
      * Helper function for bcround.
-     *
-     * @param string $number
-     * @param int $precision
-     * @param int $mode
      */
-    private static function bcroundHelper($number, $precision, $mode = PHP_ROUND_HALF_UP): string
+    private static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
     {
         if (!str_contains($number, '.')) {
             $number .= '.0';
@@ -655,7 +662,7 @@ abstract class BCMath
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
         if ($mode === PHP_ROUND_HALF_UP) {
             $addition = '0.'.str_repeat('0', $precision).'5';
-            $number = bcadd($number, $addition, $precision + 1);
+            $number = self::add($number, $addition, $precision + 1);
         } elseif ($mode === PHP_ROUND_HALF_DOWN) {
             // For HALF_DOWN, we need to check the digit at precision+1
             [$int, $dec] = explode('.', $number);
@@ -665,7 +672,7 @@ abstract class BCMath
                     // Exactly 0.5, don't round up
                 } elseif ($digit > 5 || ($digit == 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
                     $addition = '0.'.str_repeat('0', $precision).'1';
-                    $number = bcadd($number, $addition, $precision + 1);
+                    $number = self::add($number, $addition, $precision + 1);
                 }
             }
         } else {
@@ -751,8 +758,7 @@ abstract class BCMath
                 break;
 
             case 'powmod':
-                $ints = $numbers;
-                $numbers = [];
+                // powmod handles strings directly, no exploded array processing needed
                 $names = ['base', 'exponent', 'modulus'];
 
                 break;
@@ -858,6 +864,7 @@ abstract class BCMath
             case 'pow':
             case 'comp':
             case 'sqrt':
+            case 'powmod':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
 
@@ -876,7 +883,8 @@ abstract class BCMath
                 break;
 
             case 'round':
-                $numbers = [$arguments[0]];
+                // Keep as string for new string-based methods
+                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
         }
 
         // Special handling for round function which has a mode parameter
