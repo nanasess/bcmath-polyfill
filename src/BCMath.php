@@ -177,27 +177,51 @@ abstract class BCMath
 
     /**
      * Multiply two arbitrary precision numbers.
-     *
-     * @param BigInteger $x
-     * @param BigInteger $y
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function mul($x, $y, $scale, $pad = 0): string
+    private static function mul(string $x, string $y, ?int $scale, int $pad = 0): string
     {
-        if ($x == '0' || $y == '0') {
+        // Handle input validation and type conversion internally
+        if (!is_numeric($x)) {
+            $x = '0';
+        }
+        if (!is_numeric($y)) {
+            $y = '0';
+        }
+
+        // Early zero check
+        if ($x === '0' || $y === '0') {
             $r = '0';
             if ($scale) {
                 $r .= '.'.str_repeat('0', $scale);
             }
-
             return $r;
         }
 
-        $z = $x->abs()->multiply($y->abs());
-        $sign = ((self::isNegative($x) ^ self::isNegative($y)) !== 0) ? '-' : '';
+        // Convert to exploded form for decimal processing
+        $xParts = explode('.', $x);
+        $yParts = explode('.', $y);
 
-        return $sign.self::format($z, $scale, 2 * $pad);
+        // Ensure both have decimal parts
+        if (!isset($xParts[1])) {
+            $xParts[1] = '';
+        }
+        if (!isset($yParts[1])) {
+            $yParts[1] = '';
+        }
+
+        // Pad decimal parts to same length
+        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
+        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
+        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+
+        // Convert to BigInteger for calculation
+        $xBig = new BigInteger($xParts[0].$xParts[1]);
+        $yBig = new BigInteger($yParts[0].$yParts[1]);
+
+        $z = $xBig->abs()->multiply($yBig->abs());
+        $sign = ((self::isNegative($xBig) ^ self::isNegative($yBig)) !== 0) ? '-' : '';
+
+        return $sign.self::format($z, $scale, 2 * $maxPad);
     }
 
     /**
@@ -754,11 +778,11 @@ abstract class BCMath
         switch ($name) {
             case 'add':
             case 'sub':
+            case 'mul':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
 
                 break;
-            case 'mul':
             case 'div':
             case 'mod':
             case 'pow':
