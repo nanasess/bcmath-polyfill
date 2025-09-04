@@ -342,20 +342,22 @@ abstract class BCMath
      * Raise an arbitrary precision number to another.
      *
      * Uses the PHP 7.2+ behavior
-     *
-     * @param BigInteger $x
-     * @param string $y
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function pow($x, $y, $scale, $pad = 0): string
+    private static function pow(string $x, string $y, ?int $scale, int $pad = 0): string
     {
-        if ($y == '0') {
+        // Handle input validation and type conversion internally
+        if (!is_numeric($x)) {
+            $x = '0';
+        }
+        if (!is_numeric($y)) {
+            $y = '0';
+        }
+
+        if ($y === '0') {
             $r = '1';
             if ($scale) {
                 $r .= '.'.str_repeat('0', $scale);
             }
-
             return $r;
         }
 
@@ -364,25 +366,39 @@ abstract class BCMath
             throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
-        $sign = self::isNegative($x) ? '-' : '';
-        $x = $x->abs();
+        // Convert to exploded form for decimal processing
+        $xParts = explode('.', $x);
+        if (!isset($xParts[1])) {
+            $xParts[1] = '';
+        }
+
+        // Pad decimal parts
+        $maxPad = max(strlen($xParts[1]), $pad);
+        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
+
+        // Convert to BigInteger for calculation
+        $xBig = new BigInteger($xParts[0].$xParts[1]);
+
+        $sign = self::isNegative($xBig) ? '-' : '';
+        $xBig = $xBig->abs();
 
         $r = new BigInteger(1);
-        $absY = self::isNegative(new BigInteger($y)) ? substr($y, 1) : $y;
+        $yBig = new BigInteger($y);
+        $absY = self::isNegative($yBig) ? substr($y, 1) : $y;
         for ($i = 0; $i < $absY; $i++) {
-            $r = $r->multiply($x);
+            $r = $r->multiply($xBig);
         }
 
         if ($y < 0) {
-            $temp = '1'.str_repeat('0', $scale + $pad * (int) $absY);
+            $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absY);
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
-            $pad = $scale;
+            $finalPad = $scale;
         } else {
-            $pad *= (int) $absY;
+            $finalPad = $maxPad * (int) $absY;
         }
 
-        return $sign.self::format($r, $scale, $pad);
+        return $sign.self::format($r, $scale, $finalPad);
     }
 
     /**
@@ -831,11 +847,11 @@ abstract class BCMath
             case 'mul':
             case 'div':
             case 'mod':
+            case 'pow':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
 
                 break;
-            case 'pow':
                 foreach ($numbers as &$num) {
                     if (!isset($num[1])) {
                         $num[1] = '';
