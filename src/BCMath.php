@@ -194,6 +194,7 @@ abstract class BCMath
             if ($scale) {
                 $r .= '.'.str_repeat('0', $scale);
             }
+
             return $r;
         }
 
@@ -378,6 +379,7 @@ abstract class BCMath
             if ($scale) {
                 $r .= '.'.str_repeat('0', $scale);
             }
+
             return $r;
         }
 
@@ -423,12 +425,6 @@ abstract class BCMath
 
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
-     *
-     * @param string $x
-     * @param string $e
-     * @param string $n
-     * @param null|int $scale
-     * @param int $pad
      */
     private static function powmod(string $x, string $e, string $n, ?int $scale, int $pad = 0): string
     {
@@ -448,7 +444,7 @@ abstract class BCMath
         $e = explode('.', $e)[0];
         $n = explode('.', $n)[0];
 
-        if ($e[0] == '-' || $n == '0') {
+        if ($e[0] == '-' || $n === '0') {
             // < PHP 8.0 returned false
             // >= PHP 8.0 throws an exception
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
@@ -456,7 +452,7 @@ abstract class BCMath
         if ($n[0] == '-') {
             $n = substr($n, 1);
         }
-        if ($e == '0') {
+        if ($e === '0') {
             return $scale
                 ? '1.'.str_repeat('0', $scale)
                 : '1';
@@ -865,26 +861,13 @@ abstract class BCMath
             case 'comp':
             case 'sqrt':
             case 'powmod':
-                // Keep as string for new string-based methods
-                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
-
-                break;
-
             case 'floor':
-                // Keep as string for new string-based methods
-                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
-
-                break;
-
             case 'ceil':
-                // Keep as string for new string-based methods
-                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
-
-                break;
-
             case 'round':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
+
+                break;
         }
 
         // Special handling for round function which has a mode parameter
