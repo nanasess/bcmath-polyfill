@@ -3,11 +3,7 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector;
-use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodRector;
-use Rector\DeadCode\Rector\If_\RemoveAlwaysTrueIfConditionRector;
 use Rector\DeadCode\Rector\If_\UnwrapFutureCompatibleIfPhpVersionRector;
-use Rector\TypeDeclaration\Rector\ClassMethod\AddMethodCallBasedStrictParamTypeRector;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -19,11 +15,5 @@ return RectorConfig::configure()
     ->withComposerBased(phpunit: true)
     ->withPreparedSets(typeDeclarations: true, deadCode: true, codeQuality: true)
     ->withSkip([
-        RemoveAlwaysTrueIfConditionRector::class => [
-            __DIR__ . '/tests/BCMathTest.php',
-        ],
         UnwrapFutureCompatibleIfPhpVersionRector::class,
-        RemoveUnusedPrivateMethodParameterRector::class,
-        RemoveUnusedPrivateMethodRector::class,
-        AddMethodCallBasedStrictParamTypeRector::class, // FIXME BCMath::comp() で誤検出されるため暫定的に追加
     ]);
