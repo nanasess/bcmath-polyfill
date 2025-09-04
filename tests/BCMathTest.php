@@ -795,7 +795,7 @@ final class BCMathTest extends TestCase
     }
 
     /**
-     * Test sqrt bug reproduction cases
+     * Test sqrt bug reproduction cases.
      *
      * This test reproduces the bug that was exposed by strict_comparison setting.
      * The bug occurred when calculating decimal start position in sqrt algorithm.
@@ -819,19 +819,23 @@ final class BCMathTest extends TestCase
             $result = BCMath::sqrt($number, $scale);
 
             // Verify it's numeric
-            $this->assertTrue(is_numeric($result),
-                "sqrt($number, $scale) should return numeric string");
+            $this->assertIsNumeric($result,
+                "sqrt({$number}, {$scale}) should return numeric string"
+            );
 
             if (function_exists('bcsqrt')) {
                 $native = bcsqrt($number, $scale);
-                $this->assertSame($native, $result,
-                    "sqrt($number, $scale) should match native bcsqrt");
+                $this->assertSame(
+                    $native,
+                    $result,
+                    "sqrt({$number}, {$scale}) should match native bcsqrt"
+                );
             }
         }
     }
 
     /**
-     * Test the logic that caused the bug
+     * Test the logic that caused the bug.
      *
      * BUG ANALYSIS:
      * Root Cause: ceil() calculation created decStart values that exceeded array bounds
@@ -862,8 +866,11 @@ final class BCMathTest extends TestCase
         // because loop condition ($i - $decStart === $scale) is never satisfied
         $this->assertSame(1.0, $buggyDecStart);
         $this->assertCount(1, $parts);
-        $this->assertGreaterThanOrEqual(count($parts), $buggyDecStart,
-            'This inequality demonstrates the bug condition that caused infinite loop and memory exhaustion');
+        $this->assertGreaterThanOrEqual(
+            count($parts),
+            $buggyDecStart,
+            'This inequality demonstrates the bug condition that caused infinite loop and memory exhaustion'
+        );
 
         // Correct calculation after fix
         $wasPadded = strlen($numStr) % 2 !== 0;  // false for '56'
@@ -871,7 +878,10 @@ final class BCMathTest extends TestCase
         $correctDecStart = $integerLength / 2;  // 1/2 = 0.5
 
         $this->assertSame(0.5, $correctDecStart);
-        $this->assertLessThan(count($parts), $correctDecStart,
-            'Fixed calculation avoids the bug condition');
+        $this->assertLessThan(
+            count($parts),
+            $correctDecStart,
+            'Fixed calculation avoids the bug condition'
+        );
     }
 }
