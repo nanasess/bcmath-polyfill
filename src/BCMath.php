@@ -516,12 +516,8 @@ abstract class BCMath
 
     /**
      * Round down to the nearest integer.
-     *
-     * @param string $n
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function floor($n, $scale, $pad = 0): string
+    private static function floor(string $n, ?int $scale, int $pad = 0): string
     {
         if (!is_numeric($n)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
@@ -534,13 +530,13 @@ abstract class BCMath
 
         if ($scale == 0) {
             // When scale is 0, just get the integer part
-            $result = bcdiv($n, '1', 0);
+            $result = self::div($n, '1', 0);
 
             // For negative numbers with fractional parts, we need to subtract 1
             if (str_contains($n, '.') && $n[0] === '-') {
                 $fractionalPart = substr($n, strpos($n, '.') + 1);
                 if (ltrim($fractionalPart, '0') !== '') {
-                    $result = bcsub($result, '1', 0);
+                    $result = self::sub($result, '1', 0);
                 }
             }
 
@@ -548,8 +544,8 @@ abstract class BCMath
         }
 
         // When scale > 0, truncate to the specified decimal places
-        // Simply use bcdiv with the desired scale, which truncates
-        return bcdiv($n, '1', $scale);
+        // Simply use div with the desired scale, which truncates
+        return self::div($n, '1', $scale);
     }
 
     /**
@@ -872,6 +868,11 @@ abstract class BCMath
                 break;
 
             case 'floor':
+                // Keep as string for new string-based methods
+                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
+
+                break;
+
             case 'ceil':
             case 'round':
                 $numbers = [$arguments[0]];
