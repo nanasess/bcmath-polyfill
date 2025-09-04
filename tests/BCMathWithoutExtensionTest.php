@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[Group('without-bcmath')]
 #[CoversNothing]
-class BCMathWithoutExtensionTest extends TestCase
+final class BCMathWithoutExtensionTest extends TestCase
 {
     protected function setUp(): void
     {

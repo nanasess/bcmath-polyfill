@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  */
 #[RequiresPhpExtension('bcmath')]
 #[CoversNothing]
-class BCMathTest extends TestCase
+final class BCMathTest extends TestCase
 {
     protected static string $emsg = '';
 
@@ -137,7 +137,7 @@ class BCMathTest extends TestCase
     /**
      * @return array<int, array<int, int|string>>
      */
-    public static function generatePowParams(): iterable
+    public static function providePowCases(): iterable
     {
         return [
             ['9', '9'],
@@ -157,13 +157,13 @@ class BCMathTest extends TestCase
     }
 
     /**
-     * @dataProvider generatePowParams
+     * @dataProvider providePowCases
      * requires PHP 7.3
      *
      * @param numeric-string $base
      * @param numeric-string $exponent
      */
-    #[DataProvider('generatePowParams')]
+    #[DataProvider('providePowCases')]
     #[RequiresPhp('>7.3')]
     public function testPow(string $base, string $exponent, ?int $scale = null): void
     {
@@ -178,7 +178,7 @@ class BCMathTest extends TestCase
     /**
      * @return array<int, array<int, int|string>>
      */
-    public static function generatePowModParams(): iterable
+    public static function providePowModCases(): iterable
     {
         return [
             ['9', '9', '17'],
@@ -195,7 +195,7 @@ class BCMathTest extends TestCase
      * dataProvider generatePowModParams
      * requires PHP 7.3.
      */
-    #[DataProvider('generatePowModParams')]
+    #[DataProvider('providePowModCases')]
     #[RequiresPhp('>7.3')]
     public function testPowMod(string $base, string $exponent, string $modulus, ?int $scale = null): void
     {
@@ -265,7 +265,7 @@ class BCMathTest extends TestCase
     /**
      * @return array<int, array<int, int>>
      */
-    public static function generateScaleCallstaticParams(): iterable
+    public static function provideArgumentsScaleCallstaticCases(): iterable
     {
         return [
             [4],
@@ -278,7 +278,7 @@ class BCMathTest extends TestCase
     /**
      * @param array<int, int> $params
      */
-    #[DataProvider('generateScaleCallstaticParams')]
+    #[DataProvider('provideArgumentsScaleCallstaticCases')]
     public function testArgumentsScaleCallstatic(...$params): void
     {
         // Save original scale
@@ -320,7 +320,7 @@ class BCMathTest extends TestCase
     /**
      * @return array<int, array<int, int|string>>
      */
-    public static function generatePowModCallstaticParams(): iterable
+    public static function provideArgumentsPowModCallstaticCases(): iterable
     {
         return [
             ['9'],
@@ -334,7 +334,7 @@ class BCMathTest extends TestCase
     /**
      * @param array<int, int|string> $params
      */
-    #[DataProvider('generatePowModCallstaticParams')]
+    #[DataProvider('provideArgumentsPowModCallstaticCases')]
     public function testArgumentsPowModCallstatic(...$params): void
     {
         // scale with 1, 2, 3 parameters
