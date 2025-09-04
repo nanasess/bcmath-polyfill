@@ -819,7 +819,8 @@ final class BCMathTest extends TestCase
             $result = BCMath::sqrt($number, $scale);
 
             // Verify it's numeric
-            $this->assertIsNumeric($result,
+            $this->assertIsNumeric(
+                $result,
                 "sqrt({$number}, {$scale}) should return numeric string"
             );
 
