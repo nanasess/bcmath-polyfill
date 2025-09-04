@@ -291,10 +291,8 @@ class BCMathTest extends TestCase
             $this->assertTrue($exception_thrown);
             // start the unit test with: (showing the wrong given values)
             // phpunit --testdox-test testdox.txt --display-skipped
-            if ($e !== null) {
-                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
 
         // Restore original scale
@@ -343,10 +341,8 @@ class BCMathTest extends TestCase
             $this->assertTrue($exception_thrown);
             // start the unit test with: (showing the wrong given values)
             // phpunit --testdox-test testdox.txt --display-skipped
-            if ($e !== null) {
-                $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
-                $this->markTestSkipped($msg);
-            }
+            $msg = 'ArgumentCountError in '.$e->getFile().':'.$e->getLine().' : '.$e->getMessage();
+            $this->markTestSkipped($msg);
         }
     }
 

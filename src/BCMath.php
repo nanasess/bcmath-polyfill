@@ -49,14 +49,12 @@ abstract class BCMath
      */
     public static function scale(?int $scale = null): ?int
     {
-        // Check argument count to match bcscale() behavior
-        $args = func_get_args();
         if (func_num_args() > 1) {
-            throw new \ArgumentCountError('bcscale() expects at most 1 argument, ' . func_num_args() . ' given');
+            throw new \ArgumentCountError('bcscale() expects at most 1 argument, '.func_num_args().' given');
         }
 
         if ($scale !== null) {
-            self::$scale = (int) $scale;
+            self::$scale = $scale;
         }
 
         return self::$scale;
@@ -149,6 +147,7 @@ abstract class BCMath
         $result = $num1Big->add($num2Big);
 
         $formatted = self::format($result, $scale, $maxPad);
+
         // Normalize -0.000 to 0.000
         return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
@@ -199,6 +198,7 @@ abstract class BCMath
         $result = $num1Big->subtract($num2Big);
 
         $formatted = self::format($result, $scale, $maxPad);
+
         // Normalize -0.000 to 0.000
         return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
@@ -260,6 +260,7 @@ abstract class BCMath
         $sign = ((self::isNegative($num1Big) ^ self::isNegative($num2Big)) !== 0) ? '-' : '';
 
         $formatted = $sign.self::format($result, $scale, 2 * $maxPad);
+
         // Normalize -0.000 to 0.000
         return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
@@ -306,7 +307,7 @@ abstract class BCMath
         }
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]), $pad);
+        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
         $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
         $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
 
@@ -319,6 +320,7 @@ abstract class BCMath
         [$quotient] = $num1Big->multiply($temp)->divide($num2Big);
 
         $formatted = self::format($quotient, $scale, $scale);
+
         // Normalize -0.000 to 0.000
         return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
@@ -380,6 +382,7 @@ abstract class BCMath
         $result = $num1Big->subtract($remainder);
 
         $formatted = self::format($result, $scale, $maxPad);
+
         // Normalize -0.000 to 0.000
         return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
     }
@@ -505,7 +508,7 @@ abstract class BCMath
     {
         // Check argument count to match bcpowmod() behavior
         if (func_num_args() > 4) {
-            throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, ' . func_num_args() . ' given');
+            throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
         // Handle input validation and type conversion internally
@@ -538,7 +541,7 @@ abstract class BCMath
             $modulusInt = substr($modulusInt, 1);
         }
         if ($exponentInt === '0') {
-            return $scale
+            return $scale !== 0
                 ? '1.'.str_repeat('0', $scale)
                 : '1';
         }
@@ -549,7 +552,7 @@ abstract class BCMath
 
         $z = $x->powMod($e, $n);
 
-        return $scale
+        return $scale !== 0
             ? "{$z}.".str_repeat('0', $scale)
             : "{$z}";
     }
@@ -625,7 +628,7 @@ abstract class BCMath
      */
     public static function floor(string $num): string
     {
-        if (!is_numeric($n)) {
+        if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
             }
@@ -634,24 +637,18 @@ abstract class BCMath
             return '0';
         }
 
-        if ($scale == 0) {
-            // When scale is 0, just get the integer part
-            $result = self::div($n, '1', 0);
+        // floor() always returns integer (no scale parameter)
+        $result = self::div($num, '1', 0);
 
-            // For negative numbers with fractional parts, we need to subtract 1
-            if (str_contains($n, '.') && $n[0] === '-') {
-                $fractionalPart = substr($n, strpos($n, '.') + 1);
-                if (ltrim($fractionalPart, '0') !== '') {
-                    $result = self::sub($result, '1', 0);
-                }
+        // For negative numbers with fractional parts, we need to subtract 1
+        if (str_contains($num, '.') && $num[0] === '-') {
+            $fractionalPart = substr($num, strpos($num, '.') + 1);
+            if (ltrim($fractionalPart, '0') !== '') {
+                $result = self::sub($result, '1', 0);
             }
-
-            return $result;
         }
 
-        // When scale > 0, truncate to the specified decimal places
-        // Simply use div with the desired scale, which truncates
-        return self::div($n, '1', $scale);
+        return $result;
     }
 
     /**
@@ -659,7 +656,7 @@ abstract class BCMath
      */
     public static function ceil(string $num): string
     {
-        if (!is_numeric($n)) {
+        if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
             }
@@ -668,38 +665,18 @@ abstract class BCMath
             return '0';
         }
 
-        if ($scale == 0) {
-            // When scale is 0, just get the integer part
-            $result = self::div($n, '1', 0);
-
-            // For positive numbers with fractional parts, we need to add 1
-            if (str_contains($n, '.') && $n[0] !== '-') {
-                $fractionalPart = substr($n, strpos($n, '.') + 1);
-                if (ltrim($fractionalPart, '0') !== '') {
-                    $result = self::add($result, '1', 0);
-                }
-            }
-
-            return $result;
-        }
-        // When scale > 0, ceil to the specified decimal places
-        // Multiply by 10^scale, ceil, then divide back
-        $factor = self::pow('10', (string) $scale, max($scale, 0));
-        $shifted = self::mul($n, $factor, 10); // Use high precision for intermediate calculation
-
-        // Get the ceiling of the shifted value
-        $ceiledShifted = self::div($shifted, '1', 0);
+        // ceil() always returns integer (no scale parameter)
+        $result = self::div($num, '1', 0);
 
         // For positive numbers with fractional parts, we need to add 1
-        if (str_contains($shifted, '.') && $shifted[0] !== '-') {
-            $fractionalPart = substr($shifted, strpos($shifted, '.') + 1);
+        if (str_contains($num, '.') && $num[0] !== '-') {
+            $fractionalPart = substr($num, strpos($num, '.') + 1);
             if (ltrim($fractionalPart, '0') !== '') {
-                $ceiledShifted = self::add($ceiledShifted, '1', 0);
+                $result = self::add($result, '1', 0);
             }
         }
 
-        // Divide back to get the result with proper scale
-        return self::div($ceiledShifted, $factor, $scale);
+        return $result;
     }
 
     /**
@@ -790,7 +767,6 @@ abstract class BCMath
         return $sign.$number;
     }
 
-
     /**
      * __callStatic Magic Method - Simple wrapper for public methods.
      *
@@ -802,36 +778,51 @@ abstract class BCMath
         switch ($name) {
             case 'add':
                 return self::add($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'sub':
                 return self::sub($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'mul':
                 return self::mul($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'div':
                 return self::div($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'mod':
                 return self::mod($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'comp':
                 return self::comp($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'pow':
                 return self::pow($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? null);
+
             case 'powmod':
                 if (count($arguments) > 4) {
-                    throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, ' . count($arguments) . ' given');
+                    throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.count($arguments).' given');
                 }
+
                 return self::powmod($arguments[0] ?? '0', $arguments[1] ?? '0', $arguments[2] ?? '1', $arguments[3] ?? null);
+
             case 'sqrt':
                 return self::sqrt($arguments[0] ?? '0', $arguments[1] ?? null);
+
             case 'floor':
                 return self::floor($arguments[0] ?? '0');
+
             case 'ceil':
                 return self::ceil($arguments[0] ?? '0');
+
             case 'round':
                 return self::round($arguments[0] ?? '0', $arguments[1] ?? 0, $arguments[2] ?? PHP_ROUND_HALF_UP);
+
             case 'scale':
                 if (count($arguments) > 1) {
-                    throw new \ArgumentCountError('bcscale() expects at most 1 argument, ' . count($arguments) . ' given');
+                    throw new \ArgumentCountError('bcscale() expects at most 1 argument, '.count($arguments).' given');
                 }
+
                 return self::scale($arguments[0] ?? null);
+
             default:
                 throw new \BadMethodCallException("Unknown method: {$name}");
         }
