@@ -838,36 +838,15 @@ abstract class BCMath
             throw new \ValueError("bc{$name}(): Argument #{$params[$name]} (\$scale) must be between 0 and 2147483647");
         }
 
-        $pad = 0;
+        // Convert boolean values to string for string-based methods
         foreach ($numbers as &$num) {
             if (is_bool($num)) {
                 $num = $num ? '1' : '0';
             } elseif (!is_numeric($num)) {
                 $num = '0';
+            } else {
+                $num = (string) $num;
             }
-            $num = explode('.', $num);
-            if (isset($num[1])) {
-                $pad = max($pad, strlen($num[1]));
-            }
-        }
-
-        switch ($name) {
-            case 'add':
-            case 'sub':
-            case 'mul':
-            case 'div':
-            case 'mod':
-            case 'pow':
-            case 'comp':
-            case 'sqrt':
-            case 'powmod':
-            case 'floor':
-            case 'ceil':
-            case 'round':
-                // Keep as string for new string-based methods
-                $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
-
-                break;
         }
 
         // Special handling for round function which has a mode parameter
@@ -878,9 +857,9 @@ abstract class BCMath
             $originalCnt = count($originalArgs);
             $precision = ($originalCnt >= 2) ? $originalArgs[1] : $scale;
             $mode = ($originalCnt >= 3) ? $originalArgs[2] : PHP_ROUND_HALF_UP;
-            $arguments = array_merge($numbers, [$precision, $mode, $pad]);
+            $arguments = array_merge($numbers, [$precision, $mode, 0]); // pad is no longer needed
         } else {
-            $arguments = array_merge($numbers, $ints, [$scale, $pad]);
+            $arguments = array_merge($numbers, $ints, [$scale, 0]); // pad is no longer needed
         }
 
         /** @var int|string $result */
