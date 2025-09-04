@@ -99,15 +99,41 @@ abstract class BCMath
 
     /**
      * Add two arbitrary precision numbers.
-     *
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function add(BigInteger $x, BigInteger $y, $scale, $pad = 0): string
+    private static function add(string $x, string $y, ?int $scale, int $pad = 0): string
     {
-        $z = $x->add($y);
+        // Handle input validation and type conversion internally
+        if (!is_numeric($x)) {
+            $x = '0';
+        }
+        if (!is_numeric($y)) {
+            $y = '0';
+        }
 
-        return self::format($z, $scale, $pad);
+        // Convert to exploded form for decimal processing
+        $xParts = explode('.', $x);
+        $yParts = explode('.', $y);
+
+        // Ensure both have decimal parts
+        if (!isset($xParts[1])) {
+            $xParts[1] = '';
+        }
+        if (!isset($yParts[1])) {
+            $yParts[1] = '';
+        }
+
+        // Pad decimal parts to same length
+        $maxPad = max(strlen($xParts[1]), strlen($yParts[1]), $pad);
+        $xParts[1] = str_pad($xParts[1], $maxPad, '0');
+        $yParts[1] = str_pad($yParts[1], $maxPad, '0');
+
+        // Convert to BigInteger for calculation
+        $xBig = new BigInteger($xParts[0].$xParts[1]);
+        $yBig = new BigInteger($yParts[0].$yParts[1]);
+
+        $z = $xBig->add($yBig);
+
+        return self::format($z, $scale, $maxPad);
     }
 
     /**
@@ -546,7 +572,7 @@ abstract class BCMath
     /**
      * __callStatic Magic Method.
      *
-     * @param array<int, null|BCMath|bool|int|string> $arguments
+     * @param array<int, null|BCMath|bool|int|string|string[]> $arguments
      */
     public static function __callStatic(string $name, array $arguments): int|string
     {
@@ -701,6 +727,11 @@ abstract class BCMath
 
         switch ($name) {
             case 'add':
+                // Keep as string for new string-based add method
+                $numbers = array_map(static fn (null|array|\bcmath_compat\BCMath|bool|int|string $num): string => implode('.', $num), $numbers);
+
+                break;
+
             case 'sub':
             case 'mul':
             case 'div':
