@@ -697,51 +697,60 @@ abstract class BCMath
     }
 
     /**
+     * Validate argument count for bcmath functions.
+     */
+    private static function validateArgumentCount(string $name, int $count): void
+    {
+        static $params = [
+            'add' => [2, 3],     // min, max
+            'comp' => [2, 3],
+            'div' => [2, 3],
+            'mod' => [2, 3],
+            'mul' => [2, 3],
+            'pow' => [2, 3],
+            'powmod' => [3, 4],
+            'scale' => [0, 1],
+            'sqrt' => [1, 2],
+            'sub' => [2, 3],
+            'floor' => [1, 2],
+            'ceil' => [1, 2],
+            'round' => [1, 3],
+        ];
+
+        if (!isset($params[$name])) {
+            throw new \BadMethodCallException("Unknown method: {$name}");
+        }
+
+        [$min, $max] = $params[$name];
+
+        if ($count < $min) {
+            throw new \ArgumentCountError("bc{$name}() expects at least {$min} parameters, {$count} given");
+        }
+        if ($count > $max) {
+            throw new \ArgumentCountError("bc{$name}() expects at most {$max} parameters, {$count} given");
+        }
+    }
+
+    /**
      * __callStatic Magic Method.
      *
      * @param array<int, null|BCMath|bool|int|string|string[]> $arguments
      */
     public static function __callStatic(string $name, array $arguments): int|string
     {
-        static $params = [
-            'add' => 3,
-            'comp' => 3,
-            'div' => 3,
-            'mod' => 3,
-            'mul' => 3,
-            'pow' => 3,
-            'powmod' => 4,
-            'scale' => 1,
-            'sqrt' => 2,
-            'sub' => 3,
-            'floor' => 2,
-            'ceil' => 2,
-            'round' => 4,
-        ];
         $cnt = count($arguments);
 
-        // Special handling for round which can have 1-3 parameters
-        if ($name === 'round') {
-            if ($cnt < 1) {
-                throw new \ArgumentCountError('bcround() expects at least 1 parameter, '.$cnt.' given');
-            }
-            if ($cnt > 3) {
-                throw new \ArgumentCountError('bcround() expects at most 3 parameters, '.$cnt.' given');
-            }
-        } else {
-            if ($cnt < $params[$name] - 1) {
-                $min = $params[$name] - 1;
+        // Use the new validation method
+        self::validateArgumentCount($name, $cnt);
 
-                throw new \ArgumentCountError("bc{$name}() expects at least {$min} parameters, ".$cnt.' given');
-            }
-            if ($cnt > $params[$name]) {
-                $str = "bc{$name}() expects at most {$params[$name]} parameters, ".$cnt.' given';
+        // Get number parameters based on function type
+        static $numberParams = [
+            'add' => 2, 'sub' => 2, 'mul' => 2, 'div' => 2, 'mod' => 2, 'comp' => 2,
+            'pow' => 2, 'sqrt' => 1, 'floor' => 1, 'ceil' => 1, 'round' => 1,
+            'powmod' => 3, 'scale' => 0,
+        ];
 
-                throw new \ArgumentCountError($str);
-            }
-        }
-        // For round, we only need the first parameter as a number
-        $numbers = $name === 'round' ? array_slice($arguments, 0, 1) : array_slice($arguments, 0, $params[$name] - 1);
+        $numbers = array_slice($arguments, 0, $numberParams[$name]);
 
         $ints = [];
 
@@ -817,25 +826,34 @@ abstract class BCMath
             $scale = ini_get('bcmath.scale');
             self::$scale = $scale !== false ? max((int) $scale, 0) : 0;
         }
+        // Get scale parameter index
+        static $scaleIndex = [
+            'add' => 2, 'sub' => 2, 'mul' => 2, 'div' => 2, 'mod' => 2, 'comp' => 2,
+            'pow' => 2, 'sqrt' => 1, 'floor' => 1, 'ceil' => 1, 'round' => 1,
+            'powmod' => 3, 'scale' => 0,
+        ];
+
         // For round, scale is the second parameter (precision)
-        $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$params[$name] - 1] ?? self::$scale;
+        $scale = $name === 'round' ? $arguments[1] ?? self::$scale : $arguments[$scaleIndex[$name]] ?? self::$scale;
 
         switch (true) {
             case is_bool($scale):
             case is_numeric($scale):
-            case is_string($scale) && preg_match('#0-9\.#', $scale[0]):
+            case is_string($scale) && preg_match('#[0-9\.]#', $scale[0]):
                 break;
 
             default:
                 $type = get_debug_type($scale);
-                $str = "bc{$name}(): Argument #{$params[$name]} (\$scale) must be of type ?int, string given";
+                $paramNum = $scaleIndex[$name] + 1;
 
-                throw new \TypeError($str);
+                throw new \TypeError("bc{$name}(): Argument #{$paramNum} (\$scale) must be of type ?int, {$type} given");
         }
         $scale = (int) $scale;
         // For bcround, negative precision is allowed
         if ($scale < 0 && $name !== 'round') {
-            throw new \ValueError("bc{$name}(): Argument #{$params[$name]} (\$scale) must be between 0 and 2147483647");
+            $paramNum = $scaleIndex[$name] + 1;
+
+            throw new \ValueError("bc{$name}(): Argument #{$paramNum} (\$scale) must be between 0 and 2147483647");
         }
 
         // Convert boolean values to string for string-based methods
