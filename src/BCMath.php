@@ -324,18 +324,38 @@ abstract class BCMath
 
     /**
      * Compare two arbitrary precision numbers.
-     *
-     * @param string $x
-     * @param string $y
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function comp($x, $y, $scale = 0, $pad = 0): int
+    private static function comp(string $x, string $y, ?int $scale = 0, int $pad = 0): int
     {
-        $x = new BigInteger($x[0].substr($x[1], 0, $scale));
-        $y = new BigInteger($y[0].substr($y[1], 0, $scale));
+        // Handle input validation and type conversion internally
+        if (!is_numeric($x)) {
+            $x = '0';
+        }
+        if (!is_numeric($y)) {
+            $y = '0';
+        }
 
-        return $x->compare($y);
+        // Convert to exploded form for decimal processing
+        $xParts = explode('.', $x);
+        $yParts = explode('.', $y);
+
+        // Ensure both have decimal parts
+        if (!isset($xParts[1])) {
+            $xParts[1] = '';
+        }
+        if (!isset($yParts[1])) {
+            $yParts[1] = '';
+        }
+
+        // Apply scale truncation
+        $xParts[1] = substr($xParts[1], 0, $scale);
+        $yParts[1] = substr($yParts[1], 0, $scale);
+
+        // Convert to BigInteger for comparison
+        $xBig = new BigInteger($xParts[0].$xParts[1]);
+        $yBig = new BigInteger($yParts[0].$yParts[1]);
+
+        return $xBig->compare($yBig);
     }
 
     /**
@@ -848,27 +868,9 @@ abstract class BCMath
             case 'div':
             case 'mod':
             case 'pow':
+            case 'comp':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
-
-                break;
-                foreach ($numbers as &$num) {
-                    if (!isset($num[1])) {
-                        $num[1] = '';
-                    }
-                    $num[1] = str_pad($num[1], $pad, '0');
-                    $num = new BigInteger($num[0].$num[1]);
-                }
-
-                break;
-
-            case 'comp':
-                foreach ($numbers as &$num) {
-                    if (!isset($num[1])) {
-                        $num[1] = '';
-                    }
-                    $num[1] = str_pad($num[1], $pad, '0');
-                }
 
                 break;
 
