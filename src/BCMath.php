@@ -3,7 +3,7 @@
 /**
  * BCMath Emulation Class.
  *
- * PHP version 5 and 7
+ * PHP version 8.1+
  *
  * @author    Jim Wigginton <terrafrost@php.net>
  * @copyright 2019 Jim Wigginton
@@ -25,6 +25,233 @@ abstract class BCMath
      * Default scale parameter for all bc math functions.
      */
     private static ?int $scale = null;
+
+    /**
+     * Common constants used throughout the class.
+     */
+    private const DEFAULT_NUMBER = '0';
+    private const DIVISION_BY_ZERO_MESSAGE = 'Division by zero';
+
+    /**
+     * Validate and normalize two input numbers.
+     *
+     * @param string $num1 First number
+     * @param string $num2 Second number
+     *
+     * @return array Array containing normalized [$num1, $num2]
+     */
+    private static function validateAndNormalizeInputs(string $num1, string $num2): array
+    {
+        if (!is_numeric($num1)) {
+            $num1 = self::DEFAULT_NUMBER;
+        }
+        if (!is_numeric($num2)) {
+            $num2 = self::DEFAULT_NUMBER;
+        }
+
+        return [$num1, $num2];
+    }
+
+    /**
+     * Validate and normalize a single input number.
+     *
+     * @param string $num Number to validate
+     *
+     * @return string Normalized number
+     */
+    private static function validateSingleInput(string $num): string
+    {
+        if (!is_numeric($num)) {
+            return self::DEFAULT_NUMBER;
+        }
+
+        return $num;
+    }
+
+    /**
+     * Resolve the scale parameter, using default if null.
+     *
+     * @param null|int $scale Scale parameter
+     *
+     * @return int Resolved scale value
+     */
+    private static function resolveScale(?int $scale = null): int
+    {
+        if ($scale === null) {
+            if (!isset(self::$scale)) {
+                $defaultScale = ini_get('bcmath.scale');
+                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+            }
+            $scale = self::$scale;
+        }
+
+        return $scale;
+    }
+
+    /**
+     * Get the default scale from ini settings.
+     *
+     * @return int Default scale value
+     */
+    private static function getDefaultScale(): int
+    {
+        $defaultScale = ini_get('bcmath.scale');
+
+        return $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+    }
+
+    /**
+     * Parse a decimal number into integer and fractional parts.
+     *
+     * @param string $num Number to parse
+     *
+     * @return array Array containing [integer_part, fractional_part]
+     */
+    private static function parseDecimalNumber(string $num): array
+    {
+        $parts = explode('.', $num);
+
+        // Ensure both parts exist
+        if (!isset($parts[1])) {
+            $parts[1] = '';
+        }
+
+        return [$parts[0], $parts[1]];
+    }
+
+    /**
+     * Prepare two numbers for BigInteger operations by parsing and padding.
+     *
+     * @param string $num1 First number
+     * @param string $num2 Second number
+     *
+     * @return array Array containing [num1Big, num2Big, maxPad]
+     */
+    private static function prepareBigIntegerInputs(string $num1, string $num2): array
+    {
+        // Parse decimal numbers
+        [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
+        [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
+
+        // Pad decimal parts to same length
+        $maxPad = max(strlen((string) $num1Dec), strlen((string) $num2Dec));
+        $num1Dec = str_pad((string) $num1Dec, $maxPad, '0');
+        $num2Dec = str_pad((string) $num2Dec, $maxPad, '0');
+
+        // Convert to BigInteger for calculation
+        $num1Big = new BigInteger($num1Int.$num1Dec);
+        $num2Big = new BigInteger($num2Int.$num2Dec);
+
+        return [$num1Big, $num2Big, $maxPad];
+    }
+
+    /**
+     * Format the final result from BigInteger calculation.
+     *
+     * @param BigInteger $result Calculation result
+     * @param int $scale Desired scale
+     * @param int $pad Padding for decimal adjustment
+     *
+     * @return string Formatted result
+     */
+    private static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
+    {
+        $formatted = self::format($result, $scale, $pad);
+
+        return self::normalizeZeroResult($formatted);
+    }
+
+    /**
+     * Normalize negative zero results to positive zero.
+     *
+     * @param string $result Result to normalize
+     *
+     * @return string Normalized result
+     */
+    private static function normalizeZeroResult(string $result): string
+    {
+        // Normalize -0.000 to 0.000
+        return preg_match('#^-0\.?0*$#', $result) ? substr($result, 1) : $result;
+    }
+
+    /**
+     * Handle early zero check for multiplication.
+     *
+     * @param string $num1 First number
+     * @param string $num2 Second number
+     * @param int $scale Scale for result
+     *
+     * @return null|string Returns formatted zero result or null if not zero
+     */
+    private static function checkEarlyZero(string $num1, string $num2, int $scale): ?string
+    {
+        if ($num1 === self::DEFAULT_NUMBER || $num2 === self::DEFAULT_NUMBER) {
+            $result = self::DEFAULT_NUMBER;
+            if ($scale !== 0) {
+                $result .= '.'.str_repeat(self::DEFAULT_NUMBER, $scale);
+            }
+
+            return $result;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check for division by zero and throw exception.
+     *
+     * @param string $divisor Divisor to check
+     *
+     * @throws \DivisionByZeroError If divisor is zero
+     */
+    private static function checkDivisionByZero(string $divisor): void
+    {
+        if ($divisor === self::DEFAULT_NUMBER) {
+            throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
+        }
+    }
+
+    /**
+     * Resolve scale for comparison operations (defaults to 0).
+     *
+     * @param null|int $scale Scale parameter
+     *
+     * @return int Resolved scale value
+     */
+    private static function resolveScaleForComparison(?int $scale = null): int
+    {
+        if ($scale === null) {
+            $scale = 0; // comp uses 0 as default scale
+        }
+
+        return $scale;
+    }
+
+    /**
+     * Prepare numbers for comparison with scale truncation.
+     *
+     * @param string $num1 First number
+     * @param string $num2 Second number
+     * @param int $scale Scale for truncation
+     *
+     * @return array Array containing [num1Big, num2Big]
+     */
+    private static function prepareForComparison(string $num1, string $num2, int $scale): array
+    {
+        // Parse decimal numbers
+        [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
+        [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
+
+        // Apply scale truncation
+        $num1Dec = substr((string) $num1Dec, 0, $scale);
+        $num2Dec = substr((string) $num2Dec, 0, $scale);
+
+        // Convert to BigInteger for comparison
+        $num1Big = new BigInteger($num1Int.$num1Dec);
+        $num2Big = new BigInteger($num2Int.$num2Dec);
+
+        return [$num1Big, $num2Big];
+    }
 
     /**
      * Set or get default scale parameter for all bc math functions.
@@ -92,50 +319,20 @@ abstract class BCMath
      */
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
 
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
+        // Phase 3: Number processing
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
-        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
-        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
-
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution
         $result = $num1Big->add($num2Big);
 
-        $formatted = self::format($result, $scale, $maxPad);
-
-        // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
+        // Phase 5: Result formatting
+        return self::formatFinalResult($result, $scale, $maxPad);
     }
 
     /**
@@ -143,50 +340,20 @@ abstract class BCMath
      */
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
 
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
+        // Phase 3: Number processing
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
-        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
-        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
-
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution
         $result = $num1Big->subtract($num2Big);
 
-        $formatted = self::format($result, $scale, $maxPad);
-
-        // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
+        // Phase 5: Result formatting
+        return self::formatFinalResult($result, $scale, $maxPad);
     }
 
     /**
@@ -194,61 +361,29 @@ abstract class BCMath
      */
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
+
+        // Phase 2.5: Early zero check
+        $earlyZero = self::checkEarlyZero($num1, $num2, $scale);
+        if ($earlyZero !== null) {
+            return $earlyZero;
         }
 
-        // Early zero check
-        if ($num1 === '0' || $num2 === '0') {
-            $result = '0';
-            if ($scale) {
-                $result .= '.'.str_repeat('0', $scale);
-            }
+        // Phase 3: Number processing
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-            return $result;
-        }
-
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
-
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
-        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
-        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
-
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution with sign handling
         $result = $num1Big->abs()->multiply($num2Big->abs());
         $sign = ((self::isNegative($num1Big) ^ self::isNegative($num2Big)) !== 0) ? '-' : '';
 
+        // Phase 5: Result formatting with sign
         $formatted = $sign.self::format($result, $scale, 2 * $maxPad);
 
-        // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
+        return self::normalizeZeroResult($formatted);
     }
 
     /**
@@ -256,59 +391,27 @@ abstract class BCMath
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
 
-        // Division by zero check
-        if ($num2 === '0') {
-            // < PHP 8.0 triggered a warning
-            // >= PHP 8.0 throws an exception
-            throw new \DivisionByZeroError('Division by zero');
-        }
+        // Phase 2.5: Division by zero check
+        self::checkDivisionByZero($num2);
 
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
+        // Phase 3: Number processing
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
-        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
-        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
-
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution with scale adjustment
         $temp = '1'.str_repeat('0', $scale);
         $temp = new BigInteger($temp);
         [$quotient] = $num1Big->multiply($temp)->divide($num2Big);
 
+        // Phase 5: Result formatting with division-specific scale
         $formatted = self::format($quotient, $scale, $scale);
 
-        // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
+        return self::normalizeZeroResult($formatted);
     }
 
     /**
@@ -318,59 +421,25 @@ abstract class BCMath
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
 
-        // Division by zero check
-        if ($num2 === '0') {
-            // < PHP 8.0 triggered a warning
-            // >= PHP 8.0 throws an exception
-            throw new \DivisionByZeroError('Division by zero');
-        }
+        // Phase 2.5: Division by zero check
+        self::checkDivisionByZero($num2);
 
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
+        // Phase 3: Number processing
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Pad decimal parts to same length
-        $maxPad = max(strlen($num1Parts[1]), strlen($num2Parts[1]));
-        $num1Parts[1] = str_pad($num1Parts[1], $maxPad, '0');
-        $num2Parts[1] = str_pad($num2Parts[1], $maxPad, '0');
-
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution with modulus logic
         [$quotient] = $num1Big->divide($num2Big);
         $remainder = $num2Big->multiply($quotient);
         $result = $num1Big->subtract($remainder);
 
-        $formatted = self::format($result, $scale, $maxPad);
-
-        // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $formatted) ? substr($formatted, 1) : $formatted;
+        // Phase 5: Result formatting
+        return self::formatFinalResult($result, $scale, $maxPad);
     }
 
     /**
@@ -378,39 +447,16 @@ abstract class BCMath
      */
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
-        // Handle input validation and type conversion internally
-        if (!is_numeric($num1)) {
-            $num1 = '0';
-        }
-        if (!is_numeric($num2)) {
-            $num2 = '0';
-        }
+        // Phase 1: Argument validation
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            $scale = 0; // comp uses 0 as default scale
-        }
+        // Phase 2: Scale resolution (special for comparison)
+        $scale = self::resolveScaleForComparison($scale);
 
-        // Convert to exploded form for decimal processing
-        $num1Parts = explode('.', $num1);
-        $num2Parts = explode('.', $num2);
+        // Phase 3: Number processing (special for comparison)
+        [$num1Big, $num2Big] = self::prepareForComparison($num1, $num2, $scale);
 
-        // Ensure both have decimal parts
-        if (!isset($num1Parts[1])) {
-            $num1Parts[1] = '';
-        }
-        if (!isset($num2Parts[1])) {
-            $num2Parts[1] = '';
-        }
-
-        // Apply scale truncation
-        $num1Parts[1] = substr($num1Parts[1], 0, $scale);
-        $num2Parts[1] = substr($num2Parts[1], 0, $scale);
-
-        // Convert to BigInteger for comparison
-        $num1Big = new BigInteger($num1Parts[0].$num1Parts[1]);
-        $num2Big = new BigInteger($num2Parts[0].$num2Parts[1]);
-
+        // Phase 4: Calculation execution
         return $num1Big->compare($num2Big);
     }
 
