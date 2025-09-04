@@ -250,7 +250,7 @@ class BCMathTest extends TestCase
             case 'PHPUnit_Framework_Error_Warning':
                 $name = str_replace('_', '\\', $name);
         }
-        /** @var class-string<\Throwable> $name */
+        // @var class-string<\Throwable> $name
         $this->expectException($name);
         if ($message !== null && $message !== '' && $message !== '0') {
             $this->expectExceptionMessage($message);

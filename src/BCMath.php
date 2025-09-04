@@ -249,11 +249,8 @@ abstract class BCMath
      * Formats numbers.
      *
      * Places the decimal place at the appropriate place, adds trailing 0's as appropriate, etc
-     *
-     * @param null|int $scale
-     * @param int $pad
      */
-    public static function format(BigInteger $x, $scale, $pad = 0): string
+    public static function format(BigInteger $x, ?int $scale = null, int $pad = 0): string
     {
         $sign = self::isNegative($x) ? '-' : '';
         $x = str_replace('-', '', (string) $x);
@@ -261,14 +258,14 @@ abstract class BCMath
         if (strlen($x) != $pad) {
             $x = str_pad($x, $pad, '0', STR_PAD_LEFT);
         }
-        $temp = $pad ? substr_replace($x, '.', -$pad, 0) : $x;
+        $temp = $pad !== 0 ? substr_replace($x, '.', -$pad, 0) : $x;
         $temp = explode('.', $temp);
         if ($temp[0] == '') {
             $temp[0] = '0';
         }
         if (isset($temp[1])) {
             $temp[1] = substr($temp[1], 0, $scale);
-            $temp[1] = str_pad($temp[1], $scale, '0');
+            $temp[1] = str_pad($temp[1], (int) $scale, '0');
         } elseif ($scale) {
             $temp[1] = str_repeat('0', $scale);
         }
