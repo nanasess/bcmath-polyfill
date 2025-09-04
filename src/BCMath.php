@@ -38,7 +38,7 @@ abstract class BCMath
      * @param string $num1 First number
      * @param string $num2 Second number
      *
-     * @return array Array containing normalized [$num1, $num2]
+     * @return string[] Array containing normalized [$num1, $num2]
      */
     private static function validateAndNormalizeInputs(string $num1, string $num2): array
     {
@@ -50,22 +50,6 @@ abstract class BCMath
         }
 
         return [$num1, $num2];
-    }
-
-    /**
-     * Validate and normalize a single input number.
-     *
-     * @param string $num Number to validate
-     *
-     * @return string Normalized number
-     */
-    private static function validateSingleInput(string $num): string
-    {
-        if (!is_numeric($num)) {
-            return self::DEFAULT_NUMBER;
-        }
-
-        return $num;
     }
 
     /**
@@ -89,23 +73,11 @@ abstract class BCMath
     }
 
     /**
-     * Get the default scale from ini settings.
-     *
-     * @return int Default scale value
-     */
-    private static function getDefaultScale(): int
-    {
-        $defaultScale = ini_get('bcmath.scale');
-
-        return $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-    }
-
-    /**
      * Parse a decimal number into integer and fractional parts.
      *
      * @param string $num Number to parse
      *
-     * @return array Array containing [integer_part, fractional_part]
+     * @return string[] Array containing [integer_part, fractional_part]
      */
     private static function parseDecimalNumber(string $num): array
     {
@@ -125,7 +97,7 @@ abstract class BCMath
      * @param string $num1 First number
      * @param string $num2 Second number
      *
-     * @return array Array containing [num1Big, num2Big, maxPad]
+     * @return array{0: BigInteger, 1: BigInteger, 2: int} Array containing [num1Big, num2Big, maxPad]
      */
     private static function prepareBigIntegerInputs(string $num1, string $num2): array
     {
@@ -234,7 +206,7 @@ abstract class BCMath
      * @param string $num2 Second number
      * @param int $scale Scale for truncation
      *
-     * @return array Array containing [num1Big, num2Big]
+     * @return BigInteger[] Array containing [num1Big, num2Big]
      */
     private static function prepareForComparison(string $num1, string $num2, int $scale): array
     {
@@ -671,8 +643,9 @@ abstract class BCMath
 
         // Remove any fractional part
         if (str_contains($num, '.')) {
-            $integerPart = substr($num, 0, strpos($num, '.'));
-            $fractionalPart = substr($num, strpos($num, '.') + 1);
+            $dotPos = (int) strpos($num, '.');
+            $integerPart = substr($num, 0, $dotPos);
+            $fractionalPart = substr($num, $dotPos + 1);
 
             // For negative numbers with fractional parts, we need to subtract 1
             if ($num[0] === '-' && ltrim($fractionalPart, '0') !== '') {
@@ -701,8 +674,9 @@ abstract class BCMath
 
         // Remove any fractional part
         if (str_contains($num, '.')) {
-            $integerPart = substr($num, 0, strpos($num, '.'));
-            $fractionalPart = substr($num, strpos($num, '.') + 1);
+            $dotPos = (int) strpos($num, '.');
+            $integerPart = substr($num, 0, $dotPos);
+            $fractionalPart = substr($num, $dotPos + 1);
 
             // For positive numbers with fractional parts, we need to add 1
             if ($num[0] !== '-' && ltrim($fractionalPart, '0') !== '') {
@@ -782,7 +756,9 @@ abstract class BCMath
             }
         } else {
             // For other modes, use PHP's round and convert back
-            $rounded = round((float) ($sign.$number), $precision, $mode);
+            // Ensure mode is within valid range (PHP_ROUND_HALF_UP to PHP_ROUND_HALF_ODD)
+            $validMode = max(PHP_ROUND_HALF_UP, min(PHP_ROUND_HALF_ODD, $mode));
+            $rounded = round((float) ($sign.$number), $precision, $validMode);
 
             return number_format($rounded, $precision, '.', '');
         }

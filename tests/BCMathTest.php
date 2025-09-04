@@ -60,6 +60,10 @@ class BCMathTest extends TestCase
         ];
     }
 
+    /**
+     * @param numeric-string $num1
+     * @param numeric-string $num2
+     */
     #[DataProvider('generateTwoParams')]
     public function testAdd(string $num1, string $num2, ?int $scale = null): void
     {
@@ -69,6 +73,10 @@ class BCMathTest extends TestCase
         $this->assertSame($a, $b);
     }
 
+    /**
+     * @param numeric-string $num1
+     * @param numeric-string $num2
+     */
     #[DataProvider('generateTwoParams')]
     public function testSub(string $num1, string $num2, ?int $scale = null): void
     {
@@ -80,6 +88,9 @@ class BCMathTest extends TestCase
 
     /**
      * requires PHP 7.3.
+     *
+     * @param numeric-string $num1
+     * @param numeric-string $num2
      */
     #[RequiresPhp('>7.3')]
     #[DataProvider('generateTwoParams')]
@@ -148,6 +159,9 @@ class BCMathTest extends TestCase
     /**
      * @dataProvider generatePowParams
      * requires PHP 7.3
+     *
+     * @param numeric-string $base
+     * @param numeric-string $exponent
      */
     #[DataProvider('generatePowParams')]
     #[RequiresPhp('>7.3')]
@@ -236,6 +250,7 @@ class BCMathTest extends TestCase
             case 'PHPUnit_Framework_Error_Warning':
                 $name = str_replace('_', '\\', $name);
         }
+        /** @var class-string<\Throwable> $name */
         $this->expectException($name);
         if ($message !== null && $message !== '' && $message !== '0') {
             $this->expectExceptionMessage($message);
