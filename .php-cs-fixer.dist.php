@@ -19,7 +19,6 @@ return (new PhpCsFixer\Config())
         'ordered_class_elements' => false,
         'increment_style' => false,
         '@PhpCsFixer:risky' => true,
-        'strict_comparison' => false,
         'native_function_invocation' => false,
         'php_unit_test_case_static_method_calls' => false,
     ])

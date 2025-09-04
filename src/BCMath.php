@@ -215,12 +215,12 @@ abstract class BCMath
         $sign = self::isNegative($x) ? '-' : '';
         $x = str_replace('-', '', (string) $x);
 
-        if (strlen($x) != $pad) {
+        if (strlen($x) !== $pad) {
             $x = str_pad($x, $pad, '0', STR_PAD_LEFT);
         }
         $temp = $pad !== 0 ? substr_replace($x, '.', -$pad, 0) : $x;
         $temp = explode('.', $temp);
-        if ($temp[0] == '') {
+        if ($temp[0] === '') {
             $temp[0] = '0';
         }
         if (isset($temp[1])) {
@@ -491,12 +491,12 @@ abstract class BCMath
         $exponentInt = explode('.', $exponent)[0];
         $modulusInt = explode('.', $modulus)[0];
 
-        if ($exponentInt[0] == '-' || $modulusInt === '0') {
+        if ($exponentInt[0] === '-' || $modulusInt === '0') {
             // < PHP 8.0 returned false
             // >= PHP 8.0 throws an exception
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
-        if ($modulusInt[0] == '-') {
+        if ($modulusInt[0] === '-') {
             $modulusInt = substr($modulusInt, 1);
         }
         if ($exponentInt === '0') {
@@ -537,11 +537,14 @@ abstract class BCMath
             $scale = self::$scale;
         }
         $temp = explode('.', $num);
-        $decStart = ceil(strlen($temp[0]) / 2);
         $numStr = implode('', $temp);
-        if (strlen($numStr) % 2 !== 0) {
+        $wasPadded = strlen($numStr) % 2 !== 0;
+        if ($wasPadded) {
             $numStr = "0{$numStr}";
         }
+        // Calculate decimal start position: original integer length + padding, divided by 2
+        $integerLength = strlen($temp[0]) + ($wasPadded ? 1 : 0);
+        $decStart = $integerLength / 2;
         $parts = str_split($numStr, 2);
         $parts = array_map('intval', $parts);
         $i = 0;
@@ -564,10 +567,10 @@ abstract class BCMath
             if (isset($parts[++$i])) {
                 $c += $parts[$i];
             }
-            if ((!$c && $i >= $decStart) || $i - $decStart == $scale) {
+            if ((!$c && $i >= $decStart) || $i - $decStart === $scale) {
                 break;
             }
-            if ($decStart == $i) {
+            if ($decStart === $i) {
                 $result .= '.';
             }
         }
@@ -702,9 +705,9 @@ abstract class BCMath
             [$int, $dec] = explode('.', $number);
             if (isset($dec[$precision])) {
                 $digit = (int) $dec[$precision];
-                if ($digit == 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
+                if ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
                     // Exactly 0.5, don't round up
-                } elseif ($digit > 5 || ($digit == 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
+                } elseif ($digit > 5 || ($digit === 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
                     $addition = '0.'.str_repeat('0', $precision).'1';
                     $number = self::add($number, $addition, $precision + 1);
                 }
