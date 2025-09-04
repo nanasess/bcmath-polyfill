@@ -250,12 +250,14 @@ class BCMathTest extends TestCase
             case 'PHPUnit_Framework_Error_Warning':
                 $name = str_replace('_', '\\', $name);
         }
-        // @var class-string<\Throwable> $name
+        if (!is_subclass_of($name, \Throwable::class)) {
+            throw new \InvalidArgumentException('Invalid exception class name');
+        }
         $this->expectException($name);
         if ($message !== null && $message !== '' && $message !== '0') {
             $this->expectExceptionMessage($message);
         }
-        if (!empty($code)) {
+        if (!empty($code) && (is_int($code) || is_string($code))) {
             $this->expectExceptionCode($code);
         }
     }
@@ -442,18 +444,22 @@ class BCMathTest extends TestCase
         // Test different rounding modes with RoundingMode enum for PHP 8.4
         if (enum_exists('RoundingMode', false)) {
             $this->assertSame(
+                // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfAwayFromZero),
                 BCMath::round('1.55', 1, PHP_ROUND_HALF_UP)
             );
             $this->assertSame(
+                // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfTowardsZero),
                 BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN)
             );
             $this->assertSame(
+                // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfEven),
                 BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN)
             );
             $this->assertSame(
+                // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfOdd),
                 BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD)
             );
@@ -696,6 +702,7 @@ class BCMathTest extends TestCase
                         PHP_ROUND_HALF_EVEN => \RoundingMode::HalfEven,
                         PHP_ROUND_HALF_ODD => \RoundingMode::HalfOdd,
                     };
+                    // @phpstan-ignore-next-line
                     $nativeResult = bcround($number, $scale, $enumMode);
                     $this->assertSame(
                         $nativeResult,
