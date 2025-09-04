@@ -10,7 +10,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
             -   name: Install dependencies
                 uses: php-actions/composer@v6
                 with:
@@ -24,7 +24,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
             -   name: Install dependencies
                 uses: php-actions/composer@v6
                 with:
@@ -41,7 +41,7 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
             -   name: Setup PHP
                 uses: shivammathur/setup-php@v2
                 with:
@@ -63,7 +63,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v4
+                uses: actions/checkout@v5
             -   name: Setup PHP
                 uses: shivammathur/setup-php@v2
                 with:
