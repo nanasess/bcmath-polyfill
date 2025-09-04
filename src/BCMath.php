@@ -459,12 +459,8 @@ abstract class BCMath
 
     /**
      * Get the square root of an arbitrary precision number.
-     *
-     * @param string $n
-     * @param null|int $scale
-     * @param int $pad
      */
-    private static function sqrt($n, $scale = 0, $pad = 0): string
+    private static function sqrt(string $n, ?int $scale = 0, int $pad = 0): string
     {
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
@@ -869,12 +865,12 @@ abstract class BCMath
             case 'mod':
             case 'pow':
             case 'comp':
+            case 'sqrt':
                 // Keep as string for new string-based methods
                 $numbers = array_map(static fn (array|\bcmath_compat\BCMath|bool|int|string|null $num): string => implode('.', $num), $numbers);
 
                 break;
 
-            case 'sqrt':
             case 'floor':
             case 'ceil':
             case 'round':
