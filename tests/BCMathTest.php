@@ -162,7 +162,6 @@ final class BCMathTest extends TestCase
      */
     #[DataProvider('providePowCases')]
     #[RequiresPhp('>7.3')]
-    #[\PHPUnit\Framework\Attributes\DataProvider('providePowCases')]
     public function testPow(string $base, string $exponent, ?int $scale = null): void
     {
         $a = $scale !== null ? bcpow($base, $exponent, $scale) : bcpow($base, $exponent);
