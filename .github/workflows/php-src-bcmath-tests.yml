@@ -43,7 +43,25 @@ jobs:
         require_once __DIR__ . '/../../lib/bcmath.php';
 
         if (!function_exists('run_bcmath_tests')) {
-            require_once __DIR__ . '/run_bcmath_tests_function.inc';
+            const STRING_PADDING = 30;
+
+            function run_bcmath_tests(array $firstTerms, array $secondTerms, string $symbol, string $bcmath_function): void
+            {
+                foreach ([0, 10] as $scale) {
+                    echo "Scale: {$scale}\n";
+                    foreach ($firstTerms as $firstTerm) {
+                        foreach ($secondTerms as $secondTerm) {
+                            try {
+                                $result = $bcmath_function($firstTerm, $secondTerm, $scale);
+                                echo $firstTerm . ' ' . $symbol . ' ' . str_pad($secondTerm, STRING_PADDING, ' ', STR_PAD_LEFT) . ' = ' . $result . "\n";
+                            } catch (Exception $e) {
+                                echo $firstTerm . ' ' . $symbol . ' ' . str_pad($secondTerm, STRING_PADDING, ' ', STR_PAD_LEFT) . ' Exception: ' . $e->getMessage() . "\n";
+                            }
+                        }
+                    }
+                    echo "\n";
+                }
+            }
         }
         EOF
 
