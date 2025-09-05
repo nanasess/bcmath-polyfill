@@ -129,7 +129,7 @@ foreach (\$files as \$file) {
         // Remove any require/include statements for run_bcmath_tests_function.inc
         \$phpCode = preg_replace('/^\s*require(?:_once)?\s*.*run_bcmath_tests_function\.inc.*$/m', '', \$phpCode);
         \$phpCode = preg_replace('/^\s*include(?:_once)?\s*.*run_bcmath_tests_function\.inc.*$/m', '', \$phpCode);
-        
+
         // Check if this test uses run_bcmath_tests function
         \$needsTestFunction = strpos(\$phpCode, 'run_bcmath_tests(') !== false;
 
@@ -161,7 +161,7 @@ IFS=',' read -ra SKIP_ARRAY <<< "$SKIP_TESTS"
 should_skip_test() {
     local test_name="$1"
     local base_name="${test_name%.php}"
-    
+
     for skip_pattern in "${SKIP_ARRAY[@]}"; do
         skip_pattern=$(echo "$skip_pattern" | xargs) # trim whitespace
         if [[ "$base_name" == *"$skip_pattern"* ]]; then
