@@ -36,4 +36,4 @@ jobs:
         cp php-src/ext/bcmath/tests/*.inc tests/php-src/
 
     - name: Run php-src BCMath tests
-      run: ./scripts/run-php-src-tests.sh --skip gh17398,gh16262,gh15968,bcround_toward_zero,bcround_half_up,bcround_half_odd,bcround_half_even,bcround_half_down,bcround_all,bcround_floor,bcround_early_return,bcround_ceiling,bcround_away_from_zero,bcdivmod,bcpow,bcpow_error2,bcpow_error2,bcpowmod_zero_modulus,bcsqrt,bug60377,bug78878,bcdiv_error2,bcmod_error3
+      run: ./scripts/run-php-src-tests.sh --skip gh17398,gh16262,gh15968,bcround_toward_zero,bcround_half_up,bcround_half_odd,bcround_half_even,bcround_half_down,bcround_all,bcround_floor,bcround_early_return,bcround_ceiling,bcround_away_from_zero,bcdivmod,bcpow,bcpow_error2,bcpowmod_zero_modulus,bcsqrt,bug60377,bug78878,bcdiv_error2,bcmod_error3
