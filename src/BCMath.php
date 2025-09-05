@@ -58,7 +58,7 @@ abstract class BCMath
      *
      * @throws \ValueError if inputs are not well-formed
      */
-    protected static function validateAndNormalizeInputs(string $num1, string $num2): array
+    protected static function validateAndNormalizeInputs(string $num1, string $num2, string $function): array
     {
         self::validateNumberString($num1, $function, 1, 'num1');
         self::validateNumberString($num2, $function, 2, 'num2');
@@ -398,7 +398,7 @@ abstract class BCMath
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcadd');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
@@ -420,7 +420,7 @@ abstract class BCMath
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcsub');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
@@ -442,7 +442,7 @@ abstract class BCMath
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmul');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
@@ -473,7 +473,7 @@ abstract class BCMath
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdiv');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
@@ -504,7 +504,7 @@ abstract class BCMath
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmod');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
@@ -529,7 +529,7 @@ abstract class BCMath
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bccomp');
 
         // Phase 2: Scale resolution and validation
         $scale = self::resolveScaleForComparison($scale);
