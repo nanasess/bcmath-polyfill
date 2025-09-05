@@ -157,7 +157,6 @@ final class BCMathTest extends TestCase
     }
 
     /**
-     *
      * @param numeric-string $base
      * @param numeric-string $exponent
      */
