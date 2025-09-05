@@ -569,6 +569,19 @@ abstract class BCMath
             return $result;
         }
 
+
+        // Normalize inputs
+        [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
+
+        // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
+        if ($base === '0' || $base === '0.0' || $base === '-0' || $base === '-0.0') {
+            $result = '0';
+            if ($scale !== 0) {
+                $result .= '.'.str_repeat('0', $scale);
+            }
+            return $result;
+        }
+
         // Validate exponent range
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
         if (self::comp($exponent, (string) PHP_INT_MAX) > 0 || self::comp($exponent, (string) $min) < 0) {
@@ -591,22 +604,34 @@ abstract class BCMath
         $sign = self::isNegative($baseBig) ? '-' : '';
         $baseBig = $baseBig->abs();
 
-        // Phase 5: Calculation execution
-        $r = new BigInteger(1);
+        // Phase 5: Calculation execution using fast exponentiation
         $exponentBig = new BigInteger($exponent);
-        $absExponent = self::isNegative($exponentBig) ? substr($exponent, 1) : $exponent;
-        for ($i = 0; $i < $absExponent; $i++) {
-            $r = $r->multiply($baseBig);
+        $absExponentBig = self::isNegative($exponentBig) ? $exponentBig->multiply(new BigInteger(-1)) : $exponentBig;
+
+        // Fast exponentiation algorithm (binary exponentiation)
+        $r = new BigInteger(1);
+        $base = $baseBig;
+        $exp = $absExponentBig;
+
+        while (!$exp->equals(new BigInteger(0))) {
+            if ($exp->testBit(0)) { // if exp is odd
+                $r = $r->multiply($base);
+            }
+            $base = $base->multiply($base);
+            $exp = $exp->bitwise_rightShift(1);
         }
 
-        // Phase 5: Result formatting
-        if ($exponent < 0) {
-            $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absExponent);
+        // Phase 6: Result formatting
+        if (self::isNegative($exponentBig)) {
+            // For negative exponents, calculate 1 / r
+            $absExponentInt = (int) $absExponentBig->toString();
+            $temp = '1'.str_repeat('0', $scale + $maxPad * $absExponentInt);
             $temp = new BigInteger($temp);
             [$r] = $temp->divide($r);
             $finalPad = $scale;
         } else {
-            $finalPad = $maxPad * (int) $absExponent;
+            $absExponentInt = (int) $absExponentBig->toString();
+            $finalPad = $maxPad * $absExponentInt;
         }
 
         return $sign.self::format($r, $scale, $finalPad);
