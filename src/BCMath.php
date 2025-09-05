@@ -210,7 +210,8 @@ abstract class BCMath
 
         foreach ($numbers as $index => $number) {
             // Extract integer part
-            $intPart = explode('.', $number)[0];
+            $parts = explode('.', $number, 2);
+            $intPart = $parts[0];
 
             // Handle empty or zero cases
             if ($intPart === '' || $intPart === '0') {
@@ -225,7 +226,7 @@ abstract class BCMath
             }
 
             // Check non-negative constraint
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && $intPart[0] === '-') {
+            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && isset($intPart[0]) && $intPart[0] === '-') {
                 throw new \ValueError("{$paramName} must be greater than or equal to 0");
             }
 
