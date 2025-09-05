@@ -3,3 +3,6 @@ composer.lock
 vendor
 phpcs.xml
 phpunit.xml
+tests/php-src/*.phpt
+tests/php-src/*.php
+tests/php-src/*.inc
