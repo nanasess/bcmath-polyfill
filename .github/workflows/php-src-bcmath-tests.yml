@@ -35,6 +35,18 @@ jobs:
         cp php-src/ext/bcmath/tests/*.phpt tests/php-src/
         cp php-src/ext/bcmath/tests/*.inc tests/php-src/
 
+    - name: Create common test helper
+      run: |
+        cat > tests/php-src/test_helper.php << 'EOF'
+        <?php
+        require_once __DIR__ . '/../../vendor/autoload.php';
+        require_once __DIR__ . '/../../lib/bcmath.php';
+
+        if (!function_exists('run_bcmath_tests')) {
+            require_once __DIR__ . '/run_bcmath_tests_function.inc';
+        }
+        EOF
+
     - name: Convert phpt tests to standalone PHP scripts
       run: |
         php -r "
@@ -68,15 +80,16 @@ jobs:
                 // Check if this test uses run_bcmath_tests function
                 \$needsTestFunction = strpos(\$phpCode, 'run_bcmath_tests(') !== false;
 
-                \$wrappedCode = '<?php' . PHP_EOL .
-                    'require_once __DIR__ . \'/../../vendor/autoload.php\';' . PHP_EOL .
-                    'require_once __DIR__ . \'/../../lib/bcmath.php\';' . PHP_EOL;
-
                 if (\$needsTestFunction) {
-                    \$wrappedCode .= 'if (!function_exists(\'run_bcmath_tests\')) { require_once __DIR__ . \'/run_bcmath_tests_function.inc\'; }' . PHP_EOL;
+                    \$wrappedCode = '<?php' . PHP_EOL .
+                        'require_once __DIR__ . \'/test_helper.php\';' . PHP_EOL . PHP_EOL .
+                        trim(str_replace('<?php', '', \$phpCode));
+                } else {
+                    \$wrappedCode = '<?php' . PHP_EOL .
+                        'require_once __DIR__ . \'/../../vendor/autoload.php\';' . PHP_EOL .
+                        'require_once __DIR__ . \'/../../lib/bcmath.php\';' . PHP_EOL . PHP_EOL .
+                        trim(str_replace('<?php', '', \$phpCode));
                 }
-
-                \$wrappedCode .= PHP_EOL . trim(str_replace('<?php', '', \$phpCode));
 
                 file_put_contents(\$outputFile, \$wrappedCode);
                 echo 'Created: ' . \$outputFile . PHP_EOL;
