@@ -294,20 +294,18 @@ abstract class BCMath
         // Phase 2: Scale resolution
         $scale = self::resolveScale($scale);
 
-        // Phase 2.5: Early zero check
+        // Phase 3: Early zero check and number processing
         $earlyZero = self::checkEarlyZero($num1, $num2, $scale);
         if ($earlyZero !== null) {
             return $earlyZero;
         }
-
-        // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Phase 4: Calculation execution with sign handling
+        // Phase 4: Calculation execution
         $result = $num1Big->abs()->multiply($num2Big->abs());
         $sign = ((self::isNegative($num1Big) ^ self::isNegative($num2Big)) !== 0) ? '-' : '';
 
-        // Phase 5: Result formatting with sign
+        // Phase 5: Result formatting
         $formatted = $sign.self::format($result, $scale, 2 * $maxPad);
 
         return self::normalizeZeroResult($formatted);
@@ -324,18 +322,16 @@ abstract class BCMath
         // Phase 2: Scale resolution
         $scale = self::resolveScale($scale);
 
-        // Phase 2.5: Division by zero check
+        // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
-
-        // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Phase 4: Calculation execution with scale adjustment
+        // Phase 4: Calculation execution
         $temp = '1'.str_repeat('0', $scale);
         $temp = new BigInteger($temp);
         [$quotient] = $num1Big->multiply($temp)->divide($num2Big);
 
-        // Phase 5: Result formatting with division-specific scale
+        // Phase 5: Result formatting
         $formatted = self::format($quotient, $scale, $scale);
 
         return self::normalizeZeroResult($formatted);
@@ -354,13 +350,11 @@ abstract class BCMath
         // Phase 2: Scale resolution
         $scale = self::resolveScale($scale);
 
-        // Phase 2.5: Division by zero check
+        // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
-
-        // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
-        // Phase 4: Calculation execution with modulus logic
+        // Phase 4: Calculation execution
         [$quotient] = $num1Big->divide($num2Big);
         $remainder = $num2Big->multiply($quotient);
         $result = $num1Big->subtract($remainder);
@@ -377,10 +371,10 @@ abstract class BCMath
         // Phase 1: Argument validation
         [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
 
-        // Phase 2: Scale resolution (special for comparison)
+        // Phase 2: Scale resolution
         $scale = self::resolveScaleForComparison($scale);
 
-        // Phase 3: Number processing (special for comparison)
+        // Phase 3: Number processing
         [$num1Big, $num2Big] = self::prepareForComparison($num1, $num2, $scale);
 
         // Phase 4: Calculation execution
@@ -394,7 +388,7 @@ abstract class BCMath
      */
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
-        // Handle input validation and type conversion internally
+        // Phase 1: Argument validation
         if (!is_numeric($base)) {
             $base = '0';
         }
@@ -402,30 +396,25 @@ abstract class BCMath
             $exponent = '0';
         }
 
-        // Use default scale if not provided
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // Phase 2: Scale resolution
+        $scale = self::resolveScale($scale);
 
+        // Phase 3: Early special case handling
         if ($exponent === '0') {
             $result = '1';
             if ($scale) {
                 $result .= '.'.str_repeat('0', $scale);
             }
-
             return $result;
         }
 
+        // Validate exponent range
         $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
         if (self::comp($exponent, (string) PHP_INT_MAX) > 0 || self::comp($exponent, (string) $min) < 0) {
             throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
-        // Convert to exploded form for decimal processing
+        // Phase 4: Number processing
         $baseParts = explode('.', $base);
         if (!isset($baseParts[1])) {
             $baseParts[1] = '';
@@ -441,6 +430,7 @@ abstract class BCMath
         $sign = self::isNegative($baseBig) ? '-' : '';
         $baseBig = $baseBig->abs();
 
+        // Phase 5: Calculation execution
         $r = new BigInteger(1);
         $exponentBig = new BigInteger($exponent);
         $absExponent = self::isNegative($exponentBig) ? substr($exponent, 1) : $exponent;
@@ -448,6 +438,7 @@ abstract class BCMath
             $r = $r->multiply($baseBig);
         }
 
+        // Phase 5: Result formatting
         if ($exponent < 0) {
             $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absExponent);
             $temp = new BigInteger($temp);
@@ -465,12 +456,11 @@ abstract class BCMath
      */
     public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
-        // Check argument count to match bcpowmod() behavior
+        // Phase 1: Argument validation
         if (func_num_args() > 4) {
             throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
-        // Handle input validation and type conversion internally
         if (!is_numeric($base)) {
             $base = '0';
         }
@@ -481,19 +471,17 @@ abstract class BCMath
             $modulus = '0';
         }
 
-        // For powmod, if scale is not provided, return integer result (no decimal places)
+        // Phase 2: Scale resolution
         if ($scale === null) {
             $scale = 0;
         }
 
-        // Remove fractional parts for integer-only operations
+        // Phase 3: Number processing and validation
         $baseInt = explode('.', $base)[0];
         $exponentInt = explode('.', $exponent)[0];
         $modulusInt = explode('.', $modulus)[0];
 
         if ($exponentInt[0] === '-' || $modulusInt === '0') {
-            // < PHP 8.0 returned false
-            // >= PHP 8.0 throws an exception
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
         if ($modulusInt[0] === '-') {
@@ -505,12 +493,14 @@ abstract class BCMath
                 : '1';
         }
 
+        // Phase 4: Calculation execution
         $x = new BigInteger($baseInt);
         $e = new BigInteger($exponentInt);
         $n = new BigInteger($modulusInt);
 
         $z = $x->powMod($e, $n);
 
+        // Phase 5: Result formatting
         return $scale !== 0
             ? "{$z}.".str_repeat('0', $scale)
             : "{$z}";
