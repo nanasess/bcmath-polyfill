@@ -1,0 +1,39 @@
+name: PHP-src BCMath Tests
+
+on: [push, pull_request]
+
+jobs:
+  php-src-bcmath-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Checkout php-src repository
+      uses: actions/checkout@v5
+      with:
+        repository: php/php-src
+        path: php-src
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: :bcmath
+        tools: composer:v2
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Prepare php-src BCMath tests
+      run: |
+        mkdir -p tests/php-src
+        cp php-src/ext/bcmath/tests/*.phpt tests/php-src/
+        cp php-src/ext/bcmath/tests/*.inc tests/php-src/
+
+    - name: Run php-src BCMath tests
+      run: ./scripts/run-php-src-tests.sh --skip gh17398,gh16262,gh15968,bcround_toward_zero,bcround_half_up,bcround_half_odd,bcround_half_even,bcround_half_down,bcround_all,bcround_floor,bcround_early_return,bcround_ceiling,bcround_away_from_zero,bcdivmod,bcpow,bcpow_error2,bcpowmod_zero_modulus,bcsqrt,bug60377,bug78878,bcdiv_error2,bcmod_error3

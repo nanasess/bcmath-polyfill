@@ -4,6 +4,7 @@ $finder = (new PhpCsFixer\Finder())
               ->in(__DIR__.'/src')
               ->in(__DIR__.'/lib')
               ->in(__DIR__.'/tests')
+              ->exclude(['php-src'])
 ;
 
 return (new PhpCsFixer\Config())

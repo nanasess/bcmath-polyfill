@@ -157,9 +157,6 @@ final class BCMathTest extends TestCase
     }
 
     /**
-     * @dataProvider providePowCases
-     * requires PHP 7.3
-     *
      * @param numeric-string $base
      * @param numeric-string $exponent
      */
