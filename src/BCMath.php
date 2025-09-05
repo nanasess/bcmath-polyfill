@@ -17,7 +17,23 @@ use phpseclib3\Math\BigInteger;
 /**
  * BCMath Emulation Class.
  *
- * @author  Jim Wigginton <terrafrost@php.net>
+ * Provides arbitrary precision arithmetic operations using phpseclib3's BigInteger.
+ * All arithmetic methods follow a standardized 5-phase processing pattern:
+ *
+ * **Standard 5-Phase Processing Pattern:**
+ * - **Phase 1:** Argument validation and normalization
+ * - **Phase 2:** Scale resolution (using INI defaults if needed)
+ * - **Phase 3:** Number processing and BigInteger preparation
+ * - **Phase 4:** Calculation execution using BigInteger operations
+ * - **Phase 5:** Result formatting and normalization
+ *
+ * **Architecture Guidelines:**
+ * - Helper methods are `protected` to enable extensibility
+ * - Consistent error handling with appropriate exception types
+ * - Optimized early returns for common cases (zero multiplication)
+ * - Type-safe validation with comprehensive constraint checking
+ *
+ * @author Jim Wigginton <terrafrost@php.net>
  */
 abstract class BCMath
 {
@@ -35,11 +51,14 @@ abstract class BCMath
     /**
      * Validate and normalize two input numbers.
      *
+     * Converts non-numeric inputs to '0' to match bcmath behavior.
+     * This method implements Phase 1 of the standard 5-phase processing pattern.
+     *
      * @return string[] Array containing normalized [$num1, $num2]
      *
      * @throws \ValueError if inputs are not well-formed
      */
-    private static function validateAndNormalizeInputs(string $num1, string $num2, string $function): array
+    protected static function validateAndNormalizeInputs(string $num1, string $num2): array
     {
         self::validateNumberString($num1, $function, 1, 'num1');
         self::validateNumberString($num2, $function, 2, 'num2');
@@ -49,8 +68,11 @@ abstract class BCMath
 
     /**
      * Resolve the scale parameter, using default if null.
+     *
+     * Implements Phase 2 of the standard 5-phase processing pattern.
+     * Uses bcmath.scale INI setting as fallback when no scale is provided.
      */
-    private static function resolveScale(?int $scale = null): int
+    protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
             if (!isset(self::$scale)) {
@@ -129,9 +151,12 @@ abstract class BCMath
     /**
      * Parse a decimal number into integer and fractional parts.
      *
+     * Handles numbers without decimal points by adding empty fractional part.
+     * Used in Phase 3 of the standard processing pattern.
+     *
      * @return string[] Array containing [integer_part, fractional_part]
      */
-    private static function parseDecimalNumber(string $num): array
+    protected static function parseDecimalNumber(string $num): array
     {
         $parts = explode('.', $num);
 
@@ -146,9 +171,12 @@ abstract class BCMath
     /**
      * Prepare two numbers for BigInteger operations by parsing and padding.
      *
+     * Parses decimal numbers, pads fractional parts to equal length, and converts
+     * to BigInteger for precise arithmetic. Implements Phase 3 processing.
+     *
      * @return array{0: BigInteger, 1: BigInteger, 2: int} Array containing [num1Big, num2Big, maxPad]
      */
-    private static function prepareBigIntegerInputs(string $num1, string $num2): array
+    protected static function prepareBigIntegerInputs(string $num1, string $num2): array
     {
         // Parse decimal numbers
         [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
@@ -168,8 +196,11 @@ abstract class BCMath
 
     /**
      * Format the final result from BigInteger calculation.
+     *
+     * Applies scale formatting and zero normalization. Implements Phase 5
+     * of the standard processing pattern for most arithmetic operations.
      */
-    private static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
+    protected static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
     {
         $formatted = self::format($result, $scale, $pad);
 
@@ -178,6 +209,9 @@ abstract class BCMath
 
     /**
      * Normalize negative zero results to positive zero.
+     *
+     * Converts "-0.000" to "0.000" to match bcmath behavior.
+     * Used in result formatting phase to ensure consistent output.
      */
     private static function normalizeZeroResult(string $result): string
     {
@@ -187,6 +221,11 @@ abstract class BCMath
 
     /**
      * Handle early zero check for multiplication.
+     *
+     * Returns formatted zero result when either operand is zero, providing
+     * significant performance optimization for multiplication operations.
+     *
+     * @return null|string Formatted zero result or null if no early return needed
      */
     private static function checkEarlyZero(string $num1, string $num2, int $scale): ?string
     {
@@ -208,6 +247,60 @@ abstract class BCMath
         if ($divisor === self::DEFAULT_NUMBER) {
             throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
         }
+    }
+
+    /**
+     * Validate and extract integer parts from numeric strings for integer-only operations.
+     *
+     * This method extracts the integer portion from decimal numbers and validates
+     * that they meet the requirements for integer-only operations like powmod().
+     *
+     * @param string[] $numbers Array of numeric strings to validate
+     * @param string[] $names Array of parameter names for error messages
+     * @param array<string, int[]> $constraints Array of validation constraints:
+     *   - 'non_negative' => [indices] for parameters that must be >= 0
+     *   - 'non_zero' => [indices] for parameters that cannot be zero
+     *
+     * @return string[] Array of validated integer strings
+     *
+     * @throws \ValueError If validation constraints are violated
+     */
+    protected static function validateIntegerInputs(array $numbers, array $names = [], array $constraints = []): array
+    {
+        $results = [];
+
+        foreach ($numbers as $index => $number) {
+            // Extract integer part
+            $parts = explode('.', $number, 2);
+            $intPart = $parts[0];
+
+            // Handle empty or zero cases
+            if ($intPart === '' || $intPart === '0') {
+                $intPart = '0';
+            }
+
+            $paramName = $names[$index] ?? 'Argument #'.($index + 1);
+
+            // Check non-zero constraint
+            if (isset($constraints['non_zero']) && in_array($index, $constraints['non_zero'], true) && $intPart === self::DEFAULT_NUMBER) {
+                throw new \ValueError("{$paramName} cannot be zero");
+            }
+
+            // Check non-negative constraint
+            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && isset($intPart[0]) && $intPart[0] === '-') {
+                throw new \ValueError("{$paramName} must be greater than or equal to 0");
+            }
+
+            // Handle negative numbers by removing the sign if allowed
+            if ($intPart[0] === '-'
+                && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
+                $intPart = substr($intPart, 1);
+            }
+
+            $results[] = $intPart;
+        }
+
+        return $results;
     }
 
     /**
@@ -374,6 +467,8 @@ abstract class BCMath
 
     /**
      * Divide two arbitrary precision numbers.
+     *
+     * @throws \DivisionByZeroError When divisor is zero
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
@@ -403,6 +498,8 @@ abstract class BCMath
      * Get modulus of an arbitrary precision number.
      *
      * Uses the PHP 7.2+ behavior
+     *
+     * @throws \DivisionByZeroError When divisor is zero
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
@@ -449,6 +546,8 @@ abstract class BCMath
      * Raise an arbitrary precision number to another.
      *
      * Uses the PHP 7.2+ behavior
+     *
+     * @throws \ValueError When exponent is too large for integer range
      */
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
@@ -515,6 +614,9 @@ abstract class BCMath
 
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
+     *
+     * @throws \ArgumentCountError When more than 4 arguments provided
+     * @throws \ValueError When exponent is negative or modulus is zero
      */
     public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
@@ -534,33 +636,14 @@ abstract class BCMath
         self::validateScale($scale, 'bcpowmod', 4);
 
         // Phase 3: Number processing and validation
-        $baseInt = explode('.', $base)[0];
-        $exponentInt = explode('.', $exponent)[0];
-        $modulusInt = explode('.', $modulus)[0];
-
-        // Enhanced input validation for edge cases
-        if ($exponentInt === '0') {
-            $exponentInt = '0';
-        }
-        if ($modulusInt === '' || $modulusInt === '0') {
-            $modulusInt = '0';
-        }
-        if ($baseInt === '' || $baseInt === '0') {
-            $baseInt = '0';
-        }
-
-        // Check for invalid exponent or zero modulus
-        if ($modulusInt === self::DEFAULT_NUMBER) {
-            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
-        }
-        if ($exponentInt !== '' && $exponentInt !== '0' && $exponentInt[0] === '-') {
-            throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
-        }
-
-        // Handle negative modulus
-        if ($modulusInt[0] === '-') {
-            $modulusInt = substr($modulusInt, 1);
-        }
+        [$baseInt, $exponentInt, $modulusInt] = self::validateIntegerInputs(
+            [$base, $exponent, $modulus],
+            ['bcpowmod(): Argument #1 ($base)', 'bcpowmod(): Argument #2 ($exponent)', 'bcpowmod(): Argument #3 ($modulus)'],
+            [
+                'non_negative' => [1], // exponent must be non-negative
+                'non_zero' => [2],      // modulus cannot be zero
+            ]
+        );
         if ($exponentInt === self::DEFAULT_NUMBER) {
             return $scale !== 0
                 ? '1.'.str_repeat('0', $scale)
