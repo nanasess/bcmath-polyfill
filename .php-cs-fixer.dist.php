@@ -19,13 +19,8 @@ return (new PhpCsFixer\Config())
         'ordered_class_elements' => false,
         'increment_style' => false,
         '@PhpCsFixer:risky' => true,
-        'strict_comparison' => false,
-        'is_null' => false,
         'native_function_invocation' => false,
-        'error_suppression' => true,
         'php_unit_test_case_static_method_calls' => false,
-        'final_internal_class' => false,
-        'php_unit_data_provider_name' => false,
     ])
     ->setFinder($finder)
 ;
