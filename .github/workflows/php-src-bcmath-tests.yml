@@ -1,0 +1,87 @@
+name: PHP-src BCMath Tests
+
+on: [push, pull_request]
+
+jobs:
+  php-src-bcmath-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Checkout php-src repository
+      uses: actions/checkout@v5
+      with:
+        repository: php/php-src
+        path: php-src
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-version }}
+        extensions: :bcmath
+        tools: composer:v2
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Prepare php-src BCMath tests
+      run: |
+        mkdir -p tests/php-src
+        cp php-src/ext/bcmath/tests/*.phpt tests/php-src/
+        cp php-src/ext/bcmath/tests/*.inc tests/php-src/
+
+    - name: Convert phpt tests to standalone PHP scripts
+      run: |
+        php -r "
+        \$testDir = 'tests/php-src';
+        \$files = glob(\$testDir . '/*.phpt');
+
+        foreach (\$files as \$file) {
+            if (basename(\$file) === 'run_bcmath_tests_function.inc') continue;
+
+            echo 'Processing ' . basename(\$file) . PHP_EOL;
+
+            \$content = file_get_contents(\$file);
+            \$sections = [];
+            \$currentSection = null;
+
+            foreach (explode(PHP_EOL, \$content) as \$line) {
+                if (preg_match('/^--([A-Z]+)--$/', \$line, \$matches)) {
+                    \$currentSection = \$matches[1];
+                    \$sections[\$currentSection] = '';
+                } elseif (\$currentSection) {
+                    \$sections[\$currentSection] .= \$line . PHP_EOL;
+                }
+            }
+
+            if (isset(\$sections['FILE'])) {
+                \$phpCode = trim(\$sections['FILE']);
+                \$testName = basename(\$file, '.phpt');
+                \$outputFile = \$testDir . '/' . \$testName . '.php';
+
+                \$wrappedCode = '<?php' . PHP_EOL .
+                    'require_once __DIR__ . \'/../../lib/bcmath.php\';' . PHP_EOL .
+                    'require_once __DIR__ . \'/run_bcmath_tests_function.inc\';' . PHP_EOL . PHP_EOL .
+                    trim(str_replace('<?php', '', \$phpCode));
+
+                file_put_contents(\$outputFile, \$wrappedCode);
+                echo 'Created: ' . \$outputFile . PHP_EOL;
+            }
+        }
+        "
+
+    - name: Run php-src BCMath tests
+      run: |
+        echo "Running php-src BCMath compatibility tests..."
+        cd tests/php-src
+
+        for test_file in *.php; do
+          echo "Running: $test_file"
+          php "$test_file" || echo "Test $test_file failed"
+          echo "----------------------------------------"
+        done
