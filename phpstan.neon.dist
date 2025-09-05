@@ -4,4 +4,6 @@ parameters:
 		- src
 		- tests
 		- lib
+	excludePaths:
+		- tests/php-src
 	ignoreErrors:

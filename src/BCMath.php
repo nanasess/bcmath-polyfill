@@ -129,13 +129,9 @@ abstract class BCMath
      */
     private static function checkEarlyZero(string $num1, string $num2, int $scale): ?string
     {
+        // Optimized early return with consistent constant usage
         if ($num1 === self::DEFAULT_NUMBER || $num2 === self::DEFAULT_NUMBER) {
-            $result = self::DEFAULT_NUMBER;
-            if ($scale !== 0) {
-                $result .= '.'.str_repeat(self::DEFAULT_NUMBER, $scale);
-            }
-
-            return $result;
+            return $scale !== 0 ? self::DEFAULT_NUMBER.'.'.str_repeat(self::DEFAULT_NUMBER, $scale) : self::DEFAULT_NUMBER;
         }
 
         return null;
@@ -400,11 +396,12 @@ abstract class BCMath
         $scale = self::resolveScale($scale);
 
         // Phase 3: Early special case handling
-        if ($exponent === '0') {
+        if ($exponent === self::DEFAULT_NUMBER) {
             $result = '1';
-            if ($scale) {
+            if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
             }
+
             return $result;
         }
 
@@ -481,13 +478,30 @@ abstract class BCMath
         $exponentInt = explode('.', $exponent)[0];
         $modulusInt = explode('.', $modulus)[0];
 
-        if ($exponentInt[0] === '-' || $modulusInt === '0') {
+        // Enhanced input validation for edge cases
+        if ($exponentInt === '' || $exponentInt === '0') {
+            $exponentInt = '0';
+        }
+        if ($modulusInt === '' || $modulusInt === '0') {
+            $modulusInt = '0';
+        }
+        if ($baseInt === '' || $baseInt === '0') {
+            $baseInt = '0';
+        }
+
+        // Check for invalid exponent or zero modulus
+        if ($modulusInt === self::DEFAULT_NUMBER) {
+            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
+        }
+        if ($exponentInt !== '' && $exponentInt !== '0' && $exponentInt[0] === '-') {
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
+
+        // Handle negative modulus
         if ($modulusInt[0] === '-') {
             $modulusInt = substr($modulusInt, 1);
         }
-        if ($exponentInt === '0') {
+        if ($exponentInt === self::DEFAULT_NUMBER) {
             return $scale !== 0
                 ? '1.'.str_repeat('0', $scale)
                 : '1';
@@ -731,7 +745,7 @@ abstract class BCMath
         // Handle negative zero case
         if ($result === '-0' || $result === '-0.' || preg_match('/^-0\.0+$/', $result)) {
             $result = ltrim($result, '-');
-            if ($result === '0' || $result === '0.' || preg_match('/^0\.0+$/', $result)) {
+            if ($result === self::DEFAULT_NUMBER || $result === self::DEFAULT_NUMBER.'.' || preg_match('/^0\.0+$/', $result)) {
                 $result = $precision > 0 ? '0.'.str_repeat('0', $precision) : '0';
             }
         }
