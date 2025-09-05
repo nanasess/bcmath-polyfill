@@ -36,15 +36,13 @@ abstract class BCMath
      * Validate and normalize two input numbers.
      *
      * @return string[] Array containing normalized [$num1, $num2]
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
-    private static function validateAndNormalizeInputs(string $num1, string $num2): array
+    private static function validateAndNormalizeInputs(string $num1, string $num2, string $function): array
     {
-        if (!is_numeric($num1)) {
-            $num1 = self::DEFAULT_NUMBER;
-        }
-        if (!is_numeric($num2)) {
-            $num2 = self::DEFAULT_NUMBER;
-        }
+        self::validateNumberString($num1, $function, 1, 'num1');
+        self::validateNumberString($num2, $function, 2, 'num2');
 
         return [$num1, $num2];
     }
@@ -63,6 +61,69 @@ abstract class BCMath
         }
 
         return $scale;
+    }
+
+    /**
+     * Validate scale parameter for bcmath functions.
+     *
+     * @param int $scale Scale to validate
+     * @param string $function Function name for error message
+     * @param int $argNumber Argument number for error message
+     *
+     * @throws \ValueError if scale is invalid
+     */
+    private static function validateScale(int $scale, string $function, int $argNumber): void
+    {
+        if ($scale < 0 || $scale > 2147483647) {
+            throw new \ValueError("{$function}(): Argument #{$argNumber} (\$scale) must be between 0 and 2147483647");
+        }
+    }
+
+    /**
+     * Validate number string according to bcmath str2num rules.
+     *
+     * @param string $num Number string to validate
+     * @param string $function Function name for error message
+     * @param int $argNumber Argument number for error message
+     * @param string $argName Argument name for error message
+     *
+     * @throws \ValueError if number is not well-formed
+     */
+    private static function validateNumberString(string $num, string $function, int $argNumber, string $argName): void
+    {
+        // Empty string is valid (treated as '0')
+        if ($num === '') {
+            return;
+        }
+
+        // Check for common malformed patterns that should throw ValueError
+        $malformedPatterns = [
+            '/\s/',            // Any whitespace
+            '/[eE]/',          // Scientific notation
+            '/,/',             // Comma instead of decimal point
+            '/[^\d\-\+\.]/',   // Invalid characters
+            '/\..*\./',        // Multiple decimal points
+            '/[+-].*[+-]/',    // Multiple signs
+            '/[+-]$/',         // Sign at end without digits
+            '/^[+-]\./',       // Sign followed immediately by decimal (like "+.")
+        ];
+
+        foreach ($malformedPatterns as $pattern) {
+            if (preg_match($pattern, $num)) {
+                throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
+            }
+        }
+
+        // Check for special float values
+        $upperNum = strtoupper($num);
+        if (in_array($upperNum, ['INF', '-INF', 'INFINITY', '-INFINITY', 'NAN'], true)) {
+            throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
+        }
+
+        // Additional validation: must be numeric after basic pattern checks
+        if (!is_numeric($num)) {
+            throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
+        }
     }
 
     /**
@@ -195,6 +256,7 @@ abstract class BCMath
         }
 
         if ($scale !== null) {
+            self::validateScale($scale, 'bcscale', 1);
             self::$scale = $scale;
         }
 
@@ -243,10 +305,11 @@ abstract class BCMath
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcadd');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcadd', 3);
 
         // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
@@ -264,10 +327,11 @@ abstract class BCMath
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcsub');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcsub', 3);
 
         // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
@@ -285,10 +349,11 @@ abstract class BCMath
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmul');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcmul', 3);
 
         // Phase 3: Early zero check and number processing
         $earlyZero = self::checkEarlyZero($num1, $num2, $scale);
@@ -313,10 +378,11 @@ abstract class BCMath
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdiv');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcdiv', 3);
 
         // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
@@ -341,10 +407,11 @@ abstract class BCMath
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmod');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcmod', 3);
 
         // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
@@ -365,10 +432,11 @@ abstract class BCMath
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
         // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bccomp');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScaleForComparison($scale);
+        self::validateScale($scale, 'bccomp', 3);
 
         // Phase 3: Number processing
         [$num1Big, $num2Big] = self::prepareForComparison($num1, $num2, $scale);
@@ -385,15 +453,12 @@ abstract class BCMath
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        if (!is_numeric($base)) {
-            $base = '0';
-        }
-        if (!is_numeric($exponent)) {
-            $exponent = '0';
-        }
+        self::validateNumberString($base, 'bcpow', 1, 'base');
+        self::validateNumberString($exponent, 'bcpow', 2, 'exponent');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcpow', 3);
 
         // Phase 3: Early special case handling
         if ($exponent === self::DEFAULT_NUMBER) {
@@ -458,20 +523,15 @@ abstract class BCMath
             throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
-        if (!is_numeric($base)) {
-            $base = '0';
-        }
-        if (!is_numeric($exponent)) {
-            $exponent = '0';
-        }
-        if (!is_numeric($modulus)) {
-            $modulus = '0';
-        }
+        self::validateNumberString($base, 'bcpowmod', 1, 'base');
+        self::validateNumberString($exponent, 'bcpowmod', 2, 'exponent');
+        self::validateNumberString($modulus, 'bcpowmod', 3, 'modulus');
 
-        // Phase 2: Scale resolution
+        // Phase 2: Scale resolution and validation
         if ($scale === null) {
             $scale = 0;
         }
+        self::validateScale($scale, 'bcpowmod', 4);
 
         // Phase 3: Number processing and validation
         $baseInt = explode('.', $base)[0];
@@ -479,7 +539,7 @@ abstract class BCMath
         $modulusInt = explode('.', $modulus)[0];
 
         // Enhanced input validation for edge cases
-        if ($exponentInt === '' || $exponentInt === '0') {
+        if ($exponentInt === '0') {
             $exponentInt = '0';
         }
         if ($modulusInt === '' || $modulusInt === '0') {
@@ -528,9 +588,8 @@ abstract class BCMath
         // the following is based off of the following URL:
         // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
 
-        if (!is_numeric($num)) {
-            return '0';
-        }
+        // Argument validation
+        self::validateNumberString($num, 'bcsqrt', 1, 'num');
 
         // Use default scale if not provided
         if ($scale === null) {
@@ -540,6 +599,8 @@ abstract class BCMath
             }
             $scale = self::$scale;
         }
+        self::validateScale($scale, 'bcsqrt', 2);
+
         $temp = explode('.', $num);
         $numStr = implode('', $temp);
         $wasPadded = strlen($numStr) % 2 !== 0;
