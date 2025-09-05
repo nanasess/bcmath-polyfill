@@ -17,7 +17,23 @@ use phpseclib3\Math\BigInteger;
 /**
  * BCMath Emulation Class.
  *
- * @author  Jim Wigginton <terrafrost@php.net>
+ * Provides arbitrary precision arithmetic operations using phpseclib3's BigInteger.
+ * All arithmetic methods follow a standardized 5-phase processing pattern:
+ *
+ * **Standard 5-Phase Processing Pattern:**
+ * - **Phase 1:** Argument validation and normalization
+ * - **Phase 2:** Scale resolution (using INI defaults if needed)
+ * - **Phase 3:** Number processing and BigInteger preparation
+ * - **Phase 4:** Calculation execution using BigInteger operations
+ * - **Phase 5:** Result formatting and normalization
+ *
+ * **Architecture Guidelines:**
+ * - Helper methods are `protected` to enable extensibility
+ * - Consistent error handling with appropriate exception types
+ * - Optimized early returns for common cases (zero multiplication)
+ * - Type-safe validation with comprehensive constraint checking
+ *
+ * @author Jim Wigginton <terrafrost@php.net>
  */
 abstract class BCMath
 {
@@ -35,6 +51,9 @@ abstract class BCMath
     /**
      * Validate and normalize two input numbers.
      *
+     * Converts non-numeric inputs to '0' to match bcmath behavior.
+     * This method implements Phase 1 of the standard 5-phase processing pattern.
+     *
      * @return string[] Array containing normalized [$num1, $num2]
      */
     protected static function validateAndNormalizeInputs(string $num1, string $num2): array
@@ -51,6 +70,9 @@ abstract class BCMath
 
     /**
      * Resolve the scale parameter, using default if null.
+     *
+     * Implements Phase 2 of the standard 5-phase processing pattern.
+     * Uses bcmath.scale INI setting as fallback when no scale is provided.
      */
     protected static function resolveScale(?int $scale = null): int
     {
@@ -68,6 +90,9 @@ abstract class BCMath
     /**
      * Parse a decimal number into integer and fractional parts.
      *
+     * Handles numbers without decimal points by adding empty fractional part.
+     * Used in Phase 3 of the standard processing pattern.
+     *
      * @return string[] Array containing [integer_part, fractional_part]
      */
     protected static function parseDecimalNumber(string $num): array
@@ -84,6 +109,9 @@ abstract class BCMath
 
     /**
      * Prepare two numbers for BigInteger operations by parsing and padding.
+     *
+     * Parses decimal numbers, pads fractional parts to equal length, and converts
+     * to BigInteger for precise arithmetic. Implements Phase 3 processing.
      *
      * @return array{0: BigInteger, 1: BigInteger, 2: int} Array containing [num1Big, num2Big, maxPad]
      */
@@ -107,6 +135,9 @@ abstract class BCMath
 
     /**
      * Format the final result from BigInteger calculation.
+     *
+     * Applies scale formatting and zero normalization. Implements Phase 5
+     * of the standard processing pattern for most arithmetic operations.
      */
     protected static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
     {
@@ -117,6 +148,9 @@ abstract class BCMath
 
     /**
      * Normalize negative zero results to positive zero.
+     *
+     * Converts "-0.000" to "0.000" to match bcmath behavior.
+     * Used in result formatting phase to ensure consistent output.
      */
     private static function normalizeZeroResult(string $result): string
     {
@@ -126,6 +160,11 @@ abstract class BCMath
 
     /**
      * Handle early zero check for multiplication.
+     *
+     * Returns formatted zero result when either operand is zero, providing
+     * significant performance optimization for multiplication operations.
+     *
+     * @return null|string Formatted zero result or null if no early return needed
      */
     private static function checkEarlyZero(string $num1, string $num2, int $scale): ?string
     {
@@ -362,6 +401,8 @@ abstract class BCMath
 
     /**
      * Divide two arbitrary precision numbers.
+     *
+     * @throws \DivisionByZeroError When divisor is zero
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
@@ -390,6 +431,8 @@ abstract class BCMath
      * Get modulus of an arbitrary precision number.
      *
      * Uses the PHP 7.2+ behavior
+     *
+     * @throws \DivisionByZeroError When divisor is zero
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
@@ -434,6 +477,8 @@ abstract class BCMath
      * Raise an arbitrary precision number to another.
      *
      * Uses the PHP 7.2+ behavior
+     *
+     * @throws \ValueError When exponent is too large for integer range
      */
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
@@ -503,6 +548,9 @@ abstract class BCMath
 
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
+     *
+     * @throws \ArgumentCountError When more than 4 arguments provided
+     * @throws \ValueError When exponent is negative or modulus is zero
      */
     public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
