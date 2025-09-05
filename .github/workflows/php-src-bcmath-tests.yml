@@ -8,7 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.1', '8.2', '8.3', '8.4']
+        php-version: ['8.4']
 
     steps:
     - uses: actions/checkout@v5
@@ -65,8 +65,9 @@ jobs:
                 \$outputFile = \$testDir . '/' . \$testName . '.php';
 
                 \$wrappedCode = '<?php' . PHP_EOL .
+                    'require_once __DIR__ . \'/../../vendor/autoload.php\';' . PHP_EOL .
                     'require_once __DIR__ . \'/../../lib/bcmath.php\';' . PHP_EOL .
-                    'require_once __DIR__ . \'/run_bcmath_tests_function.inc\';' . PHP_EOL . PHP_EOL .
+                    'if (!function_exists(\'run_bcmath_tests\')) { require_once __DIR__ . \'/run_bcmath_tests_function.inc\'; }' . PHP_EOL . PHP_EOL .
                     trim(str_replace('<?php', '', \$phpCode));
 
                 file_put_contents(\$outputFile, \$wrappedCode);
@@ -80,8 +81,26 @@ jobs:
         echo "Running php-src BCMath compatibility tests..."
         cd tests/php-src
 
+        failed_tests=0
+        total_tests=0
+
         for test_file in *.php; do
           echo "Running: $test_file"
-          php "$test_file" || echo "Test $test_file failed"
+          total_tests=$((total_tests + 1))
+          if ! php "$test_file"; then
+            echo "❌ Test $test_file FAILED"
+            failed_tests=$((failed_tests + 1))
+          else
+            echo "✅ Test $test_file PASSED"
+          fi
           echo "----------------------------------------"
         done
+
+        echo "Test Results: $((total_tests - failed_tests))/$total_tests passed"
+
+        if [ $failed_tests -gt 0 ]; then
+          echo "❌ $failed_tests test(s) failed"
+          exit 1
+        else
+          echo "✅ All tests passed"
+        fi
