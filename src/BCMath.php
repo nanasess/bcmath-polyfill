@@ -243,6 +243,16 @@ abstract class BCMath
      * Handles various zero formats: '0', '0.00', '-0.00', '+0.000', etc.
      * Uses consistent normalization logic for reliable zero detection.
      *
+     * Examples of inputs that return true:
+     * - '0', '0.0', '0.00', '0.000'
+     * - '-0', '-0.0', '-0.00', '-0.000'
+     * - '+0', '+0.0', '+0.00', '+0.000'
+     * - '00', '00.00', '000.000'
+     *
+     * Examples of inputs that return false:
+     * - '1', '0.1', '0.001', '-0.001'
+     * - 'abc', '', '.'
+     *
      * @param string $number The numeric string to check
      *
      * @return bool True if the number is zero, false otherwise
