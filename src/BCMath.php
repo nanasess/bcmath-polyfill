@@ -724,7 +724,7 @@ abstract class BCMath
 
         // Handle zero case early (including negative zero)
         if (self::isZero($num)) {
-            return $scale !== 0 ? '0.' . str_repeat('0', $scale) : '0';
+            return $scale !== 0 ? '0.'.str_repeat('0', $scale) : '0';
         }
 
         $temp = explode('.', $num);
@@ -762,7 +762,7 @@ abstract class BCMath
             // For numbers >= 1, process normally
             // Pad integer part on the left if odd length
             if (strlen($integerPart) % 2 !== 0) {
-                $integerPart = '0' . $integerPart;
+                $integerPart = '0'.$integerPart;
             }
 
             // Pad decimal part on the right if odd length
@@ -771,7 +771,7 @@ abstract class BCMath
             }
 
             // Create combined string
-            $numStr = $integerPart . $decimalPart;
+            $numStr = $integerPart.$decimalPart;
         }
 
         // Calculate how many digits the integer part of the result should have
@@ -802,7 +802,7 @@ abstract class BCMath
             $digitCount++;
 
             // Add decimal point after we've generated all integer digits
-            if ($digitCount == $integerResultDigits && $scale > 0) {
+            if ($digitCount === $integerResultDigits && $scale > 0) {
                 $result .= '.';
             }
 
@@ -829,10 +829,10 @@ abstract class BCMath
 
             if ($leadingZeroPairs > 0) {
                 // Result should be 0.{leadingZeroPairs zeros}{result}
-                $result = '0.' . str_repeat('0', $leadingZeroPairs) . $result;
+                $result = '0.'.str_repeat('0', $leadingZeroPairs).$result;
             } else {
                 // No leading zeros, but still < 1, so add '0.' prefix
-                $result = '0.' . $result;
+                $result = '0.'.$result;
             }
         }
 

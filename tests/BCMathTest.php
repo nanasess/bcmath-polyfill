@@ -1288,7 +1288,7 @@ final class BCMathTest extends TestCase
      *
      * @return array<int, array{string, int, string}>
      */
-    public static function provideBcsqrtTestCases(): array
+    public static function provideBcsqrtComprehensiveCases(): iterable
     {
         return [
             // Scale 0 test cases
@@ -1323,11 +1323,11 @@ final class BCMathTest extends TestCase
      * Test comprehensive bcsqrt cases from php-src test suite.
      * These test cases ensure compatibility with native bcmath behavior.
      */
-    #[DataProvider('provideBcsqrtTestCases')]
+    #[DataProvider('provideBcsqrtComprehensiveCases')]
     public function testBcsqrtComprehensive(string $radicant, int $scale, string $expected): void
     {
         $result = BCMath::sqrt($radicant, $scale);
-        $this->assertSame($expected, $result, "bcsqrt('$radicant', $scale) should return '$expected'");
+        $this->assertSame($expected, $result, "bcsqrt('{$radicant}', {$scale}) should return '{$expected}'");
     }
 
     /**
@@ -1342,7 +1342,7 @@ final class BCMathTest extends TestCase
         foreach ($negativeTestCases as $testCase) {
             try {
                 BCMath::sqrt($testCase);
-                $this->fail("BCMath::sqrt('$testCase') should throw ValueError but didn't");
+                $this->fail("BCMath::sqrt('{$testCase}') should throw ValueError but didn't");
             } catch (ValueError $e) {
                 $this->assertStringContainsString('must be greater than or equal to 0', $e->getMessage());
             }
@@ -1352,7 +1352,7 @@ final class BCMathTest extends TestCase
         $negativeZeroCases = ['-0', '-0.00', '-0.000'];
         foreach ($negativeZeroCases as $testCase) {
             $result = BCMath::sqrt($testCase);
-            $this->assertSame('0', $result, "BCMath::sqrt('$testCase') should return '0'");
+            $this->assertSame('0', $result, "BCMath::sqrt('{$testCase}') should return '0'");
         }
     }
 }
