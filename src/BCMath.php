@@ -244,7 +244,12 @@ abstract class BCMath
      */
     private static function checkDivisionByZero(string $divisor): void
     {
-        if ($divisor === self::DEFAULT_NUMBER) {
+        // Normalize and check for zero - handle '0', '0.00', '-0.00', etc.
+        $normalized = ltrim($divisor, '+-');
+        $normalized = ltrim($normalized, '0');
+        $normalized = ltrim($normalized, '.');
+        $normalized = rtrim($normalized, '0');
+        if ($normalized === '' || $normalized === '.') {
             throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
         }
     }
@@ -562,6 +567,24 @@ abstract class BCMath
         // Phase 3: Early special case handling
         if ($exponent === self::DEFAULT_NUMBER) {
             $result = '1';
+            if ($scale !== 0) {
+                $result .= '.'.str_repeat('0', $scale);
+            }
+
+            return $result;
+        }
+
+        // Normalize inputs
+        [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
+
+        // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
+        // Check for zero using same logic as division by zero check
+        $normalized = ltrim($base, '+-');
+        $normalized = ltrim($normalized, '0');
+        $normalized = ltrim($normalized, '.');
+        $normalized = rtrim($normalized, '0');
+        if ($normalized === '' || $normalized === '.') {
+            $result = '0';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
             }
