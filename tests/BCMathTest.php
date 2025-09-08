@@ -1204,4 +1204,87 @@ final class BCMathTest extends TestCase
             $this->assertTrue($caught, 'Expected ValueError, TypeError, or Error but none was thrown');
         }
     }
+
+    /**
+     * Test bcdiv division by zero error cases.
+     * Based on php-src bcdiv_error1.php test.
+     */
+    public function testBcdivDivisionByZeroError(): void
+    {
+        // Test case 1: Division by '0'
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Division by zero');
+        BCMath::div('10.99', '0');
+    }
+
+    /**
+     * Test bcdiv division by zero with '0.00'.
+     */
+    public function testBcdivDivisionByZeroDecimal(): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Division by zero');
+        BCMath::div('10.99', '0.00');
+    }
+
+    /**
+     * Test bcdiv division by zero with '-0.00'.
+     */
+    public function testBcdivDivisionByNegativeZeroDecimal(): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Division by zero');
+        BCMath::div('10.99', '-0.00');
+    }
+
+    /**
+     * Data provider for bcpow zero base test cases.
+     *
+     * @return array<int, array<int, string>>
+     */
+    public static function bcpowZeroBaseProvider(): array
+    {
+        return [
+            // [base, exponent, scale, expected_result]
+            ['0', '1', 2, '0.00'],
+            ['0', '2', 2, '0.00'],
+            ['0', '-1', 2, '0.00'],
+            ['0', '-2', 2, '0.00'],
+            ['0.0', '1', 2, '0.00'],
+            ['0.00', '-1', 2, '0.00'],
+            ['-0', '2', 2, '0.00'],
+            ['-0.00', '-1', 2, '0.00'],
+            ['+0.000', '3', 2, '0.00'],
+            ['0', '1', 0, '0'],
+            ['0.00', '-2', 4, '0.0000'],
+        ];
+    }
+
+    /**
+     * Test bcpow zero base handling with various formats.
+     * Based on issue where zero base with negative exponents caused infinite loops.
+     *
+     * @param string $base
+     * @param string $exponent
+     * @param int $scale
+     * @param string $expected
+     */
+    #[DataProvider('bcpowZeroBaseProvider')]
+    public function testBcpowZeroBase(string $base, string $exponent, int $scale, string $expected): void
+    {
+        $result = BCMath::pow($base, $exponent, $scale);
+        $this->assertSame($expected, $result);
+    }
+
+    /**
+     * Test bcpow zero base special case: 0^0 = 1.
+     */
+    public function testBcpowZeroToZeroPower(): void
+    {
+        $result = BCMath::pow('0', '0', 2);
+        $this->assertSame('1.00', $result);
+
+        $result = BCMath::pow('0.00', '0', 2);
+        $this->assertSame('1.00', $result);
+    }
 }
