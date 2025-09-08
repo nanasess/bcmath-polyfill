@@ -738,7 +738,11 @@ abstract class BCMath
             $skipIntegerPart = true;
             // Count leading zeros in decimal part
             $leadingZeros = strspn($decimalPart, '0');
-            // For sqrt, leading zero pairs in result = floor(leading zeros / 2)
+            // In square root extraction, each pair of leading zeros in the decimal part of a number less than 1
+            // results in a single leading zero in the decimal part of the square root. This is because taking the
+            // square root of a number with k leading decimal zeros yields a result with floor(k/2) leading zeros,
+            // reflecting the property that sqrt(0.00...0x) = 0.0...0y, where the number of zeros is halved (rounded down).
+            // Therefore, we count the number of leading zero pairs as floor(leadingZeros / 2).
             $leadingZeroPairs = (int) floor($leadingZeros / 2);
 
             // Now we need to create proper pairs from the decimal part
