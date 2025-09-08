@@ -1240,9 +1240,9 @@ final class BCMathTest extends TestCase
     /**
      * Data provider for bcpow zero base test cases.
      *
-     * @return array<int, array<int, string>>
+     * @return iterable<int, array<int, int|string>>
      */
-    public static function bcpowZeroBaseProvider(): array
+    public static function provideBcpowZeroBaseCases(): iterable
     {
         return [
             // [base, exponent, scale, expected_result]
@@ -1263,13 +1263,8 @@ final class BCMathTest extends TestCase
     /**
      * Test bcpow zero base handling with various formats.
      * Based on issue where zero base with negative exponents caused infinite loops.
-     *
-     * @param string $base
-     * @param string $exponent
-     * @param int $scale
-     * @param string $expected
      */
-    #[DataProvider('bcpowZeroBaseProvider')]
+    #[DataProvider('provideBcpowZeroBaseCases')]
     public function testBcpowZeroBase(string $base, string $exponent, int $scale, string $expected): void
     {
         $result = BCMath::pow($base, $exponent, $scale);

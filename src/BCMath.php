@@ -588,6 +588,7 @@ abstract class BCMath
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
             }
+
             return $result;
         }
 
