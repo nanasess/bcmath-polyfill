@@ -753,7 +753,7 @@ abstract class BCMath
 
             // Now pad the decimal part if needed
             if (strlen($decimalPart) % 2 !== 0) {
-                $decimalPart = $decimalPart . '0';
+                $decimalPart .= '0';
             }
 
             // For numbers < 1, we only process the decimal part
@@ -767,7 +767,7 @@ abstract class BCMath
 
             // Pad decimal part on the right if odd length
             if (strlen($decimalPart) % 2 !== 0) {
-                $decimalPart = $decimalPart . '0';
+                $decimalPart .= '0';
             }
 
             // Create combined string
