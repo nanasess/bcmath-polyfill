@@ -1282,4 +1282,73 @@ final class BCMathTest extends TestCase
         $result = BCMath::pow('0.00', '0', 2);
         $this->assertSame('1.00', $result);
     }
+
+    /**
+     * Data provider for comprehensive bcsqrt test cases from php-src.
+     *
+     * @return array<int, array{string, int, string}>
+     */
+    public static function provideBcsqrtTestCases(): array
+    {
+        return [
+            // Scale 0 test cases
+            ['0', 0, '0'],
+            ['0.00', 0, '0'],
+            ['15151324141414.412312232141241', 0, '3892470'],
+            ['141241241241241248267654747412', 0, '375820756799356'],
+            ['0.1322135476547459213732911312', 0, '0'],
+            ['14.14', 0, '3'],
+            ['0.15', 0, '0'],
+            ['15', 0, '3'],
+            ['1', 0, '1'],
+
+            // Scale 10 test cases
+            ['0', 10, '0.0000000000'],
+            ['0.00', 10, '0.0000000000'],
+            ['15151324141414.412312232141241', 10, '3892470.1850385973'],
+            ['141241241241241248267654747412', 10, '375820756799356.7439216735'],
+            ['0.1322135476547459213732911312', 10, '0.3636118090'],
+            ['14.14', 10, '3.7603191353'],
+            ['0.15', 10, '0.3872983346'],
+            ['15', 10, '3.8729833462'],
+            ['1', 10, '1.0000000000'],
+        ];
+    }
+
+    /**
+     * Test comprehensive bcsqrt cases from php-src test suite.
+     * These test cases ensure compatibility with native bcmath behavior.
+     */
+    #[DataProvider('provideBcsqrtTestCases')]
+    public function testBcsqrtComprehensive(string $radicant, int $scale, string $expected): void
+    {
+        $result = BCMath::sqrt($radicant, $scale);
+        $this->assertSame($expected, $result, "bcsqrt('$radicant', $scale) should return '$expected'");
+    }
+
+    /**
+     * Test bcsqrt negative number validation.
+     * Should throw ValueError for negative numbers (except negative zero).
+     */
+    public function testBcsqrtNegativeNumberValidation(): void
+    {
+        // Negative numbers should throw ValueError
+        $negativeTestCases = ['-1', '-4', '-100', '-0.1', '-2.5'];
+
+        foreach ($negativeTestCases as $testCase) {
+            try {
+                BCMath::sqrt($testCase);
+                $this->fail("BCMath::sqrt('$testCase') should throw ValueError but didn't");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('must be greater than or equal to 0', $e->getMessage());
+            }
+        }
+
+        // Negative zero variants should NOT throw error
+        $negativeZeroCases = ['-0', '-0.00', '-0.000'];
+        foreach ($negativeZeroCases as $testCase) {
+            $result = BCMath::sqrt($testCase);
+            $this->assertSame('0', $result, "BCMath::sqrt('$testCase') should return '0'");
+        }
+    }
 }
