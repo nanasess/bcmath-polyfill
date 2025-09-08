@@ -238,18 +238,33 @@ abstract class BCMath
     }
 
     /**
+     * Check if a numeric string represents zero.
+     *
+     * Handles various zero formats: '0', '0.00', '-0.00', '+0.000', etc.
+     * Uses consistent normalization logic for reliable zero detection.
+     *
+     * @param string $number The numeric string to check
+     *
+     * @return bool True if the number is zero, false otherwise
+     */
+    private static function isZero(string $number): bool
+    {
+        $normalized = ltrim($number, '+-');
+        $normalized = ltrim($normalized, '0');
+        $normalized = ltrim($normalized, '.');
+        $normalized = rtrim($normalized, '0');
+
+        return $normalized === '' || $normalized === '.';
+    }
+
+    /**
      * Check for division by zero and throw exception.
      *
      * @throws \DivisionByZeroError If divisor is zero
      */
     private static function checkDivisionByZero(string $divisor): void
     {
-        // Normalize and check for zero - handle '0', '0.00', '-0.00', etc.
-        $normalized = ltrim($divisor, '+-');
-        $normalized = ltrim($normalized, '0');
-        $normalized = ltrim($normalized, '.');
-        $normalized = rtrim($normalized, '0');
-        if ($normalized === '' || $normalized === '.') {
+        if (self::isZero($divisor)) {
             throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
         }
     }
@@ -578,12 +593,7 @@ abstract class BCMath
         [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
 
         // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
-        // Check for zero using same logic as division by zero check
-        $normalized = ltrim($base, '+-');
-        $normalized = ltrim($normalized, '0');
-        $normalized = ltrim($normalized, '.');
-        $normalized = rtrim($normalized, '0');
-        if ($normalized === '' || $normalized === '.') {
+        if (self::isZero($base)) {
             $result = '0';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
