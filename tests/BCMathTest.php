@@ -1530,7 +1530,7 @@ final class BCMathTest extends TestCase
             // Basic ASCII whitespace characters
             '  -0  ',           // space (0x20) around negative zero
             '  +0  ',           // space (0x20) around positive zero
-            ' \t-1\n ',         // mixed basic whitespace around negative
+            " \t-1\n ",         // mixed basic whitespace around negative
             '   ',              // only spaces
             ' . ',              // space around decimal point
             ' -. ',             // space around negative decimal point
