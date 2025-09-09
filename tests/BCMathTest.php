@@ -1565,36 +1565,39 @@ final class BCMathTest extends TestCase
             // Whitespace at specific positions
             "\t-1",             // leading tab before negative
             "-1\n",             // trailing newline after negative
-            "1 2",              // space in middle of number
-            "- 1",              // space after negative sign
-            "+ 1",              // space after positive sign
-            "1. ",              // space after decimal point
-            ". 5",              // space after lone decimal point
+            '1 2',              // space in middle of number
+            '- 1',              // space after negative sign
+            '+ 1',              // space after positive sign
+            '1. ',              // space after decimal point
+            '. 5',              // space after lone decimal point
         ];
 
         $methods = [
-            ['add', ['1']],           // bcadd
-            ['sub', ['1']],           // bcsub
-            ['mul', ['2']],           // bcmul
-            ['div', ['2']],           // bcdiv
-            ['mod', ['3']],           // bcmod
-            ['comp', ['1']],          // bccomp - returns int, but should still validate input
-            ['pow', ['2']],           // bcpow
-            ['powmod', ['2', '5']],   // bcpowmod
-            ['sqrt', []],             // bcsqrt
-            ['floor', []],            // bcfloor
-            ['ceil', []],             // bcceil
-            ['round', [0]],           // bcround
+            ['add', ['1']],           // bcadd - second parameter
+            ['sub', ['1']],           // bcsub - second parameter
+            ['mul', ['2']],           // bcmul - second parameter
+            ['div', ['2']],           // bcdiv - second parameter
+            ['mod', ['3']],           // bcmod - second parameter
+            ['comp', ['1']],          // bccomp - second parameter
+            ['pow', ['2']],           // bcpow - second parameter (exponent)
+            ['powmod', ['2', '5']],   // bcpowmod - second parameter (exponent), third parameter (modulus)
+            ['sqrt', []],             // bcsqrt - only one parameter
+            ['floor', []],            // bcfloor - only one parameter
+            ['ceil', []],             // bcceil - only one parameter
+            ['round', [0]],           // bcround - second parameter (precision)
         ];
 
         foreach ($methods as [$method, $extraArgs]) {
             foreach ($edgeCases as $testCase) {
                 try {
-                    BCMath::$method($testCase, ...$extraArgs);
+                    BCMath::$method($testCase, ...$extraArgs); // @phpstan-ignore-line arguments.count
                     $this->fail("BCMath::{$method}('{$testCase}') should throw ValueError for malformed input");
-                } catch (ValueError $e) {
-                    $this->assertStringContainsString('is not well-formed', $e->getMessage(),
-                        "Method {$method} should throw 'not well-formed' error for input '{$testCase}'");
+                } catch (ValueError $e) { // @phpstan-ignore catch.neverThrown
+                    $this->assertStringContainsString(
+                        'is not well-formed',
+                        $e->getMessage(),
+                        "Method {$method} should throw 'not well-formed' error for input '{$testCase}'"
+                    );
                 }
             }
         }

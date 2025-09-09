@@ -426,6 +426,8 @@ abstract class BCMath
 
     /**
      * Add two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
@@ -448,6 +450,8 @@ abstract class BCMath
 
     /**
      * Subtract one arbitrary precision number from another.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
@@ -470,6 +474,8 @@ abstract class BCMath
 
     /**
      * Multiply two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
@@ -501,6 +507,7 @@ abstract class BCMath
      * Divide two arbitrary precision numbers.
      *
      * @throws \DivisionByZeroError When divisor is zero
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
@@ -532,6 +539,7 @@ abstract class BCMath
      * Uses the PHP 7.2+ behavior
      *
      * @throws \DivisionByZeroError When divisor is zero
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
@@ -557,6 +565,8 @@ abstract class BCMath
 
     /**
      * Compare two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
@@ -710,6 +720,8 @@ abstract class BCMath
 
     /**
      * Get the square root of an arbitrary precision number.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function sqrt(string $num, ?int $scale = null): string
     {
@@ -865,6 +877,8 @@ abstract class BCMath
 
     /**
      * Round down to the nearest integer.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function floor(string $num): string
     {
@@ -899,6 +913,8 @@ abstract class BCMath
 
     /**
      * Round up to the nearest integer.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function ceil(string $num): string
     {
@@ -935,6 +951,8 @@ abstract class BCMath
 
     /**
      * Round to a given decimal place.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP): string
     {
