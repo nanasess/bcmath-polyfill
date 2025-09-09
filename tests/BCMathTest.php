@@ -1527,24 +1527,64 @@ final class BCMathTest extends TestCase
     public function testWhitespaceEdgeCases(): void
     {
         $edgeCases = [
-            '  -0  ',      // whitespace around negative zero
-            '  +0  ',      // whitespace around positive zero
-            ' \t-1\n ',    // mixed whitespace around negative
-            '   ',         // only whitespace
-            ' . ',         // whitespace around decimal point
-            ' -. ',        // whitespace around negative decimal point
-            ' +. ',        // whitespace around positive decimal point
+            // Basic ASCII whitespace characters
+            '  -0  ',           // space (0x20) around negative zero
+            '  +0  ',           // space (0x20) around positive zero
+            ' \t-1\n ',         // mixed basic whitespace around negative
+            '   ',              // only spaces
+            ' . ',              // space around decimal point
+            ' -. ',             // space around negative decimal point
+            ' +. ',             // space around positive decimal point
+
+            // Extended ASCII whitespace characters
+            "\t1\t",            // tab (0x09) around positive number
+            "\n-5\n",           // newline (0x0A) around negative number
+            "\r2\r",            // carriage return (0x0D) around positive number
+            "\x0B3\x0B",        // vertical tab (0x0B) around positive number
+            "\f-4\f",           // form feed (0x0C) around negative number
+
+            // Mixed whitespace combinations
+            " \t\n\r-1 \t\n\r", // all basic whitespace around negative
+            "\t \n\r0.5\r\n \t", // mixed whitespace around decimal
+
+            // Null byte (special case)
+            "\0-1\0",           // null byte (0x00) around negative
+
+            // Unicode whitespace (some may not be caught by \s but worth testing)
+            "\xA0-1\xA0",       // non-breaking space (0xA0)
+            "\x85-1\x85",       // next line (0x85)
+
+            // Edge cases with only whitespace
+            "\t\t\t",           // only tabs
+            "\n\n\n",           // only newlines
+            "\r\r\r",           // only carriage returns
+            "\x0B\x0B\x0B",     // only vertical tabs
+            "\f\f\f",           // only form feeds
+            "\0\0\0",           // only null bytes
+
+            // Whitespace at specific positions
+            "\t-1",             // leading tab before negative
+            "-1\n",             // trailing newline after negative
+            "1 2",              // space in middle of number
+            "- 1",              // space after negative sign
+            "+ 1",              // space after positive sign
+            "1. ",              // space after decimal point
+            ". 5",              // space after lone decimal point
         ];
 
         $methods = [
-            ['sqrt', []],
-            ['add', ['1']],
-            ['sub', ['1']],
-            ['mul', ['2']],
-            ['div', ['2']],
-            ['floor', []],
-            ['ceil', []],
-            ['round', [0]]
+            ['add', ['1']],           // bcadd
+            ['sub', ['1']],           // bcsub
+            ['mul', ['2']],           // bcmul
+            ['div', ['2']],           // bcdiv
+            ['mod', ['3']],           // bcmod
+            ['comp', ['1']],          // bccomp - returns int, but should still validate input
+            ['pow', ['2']],           // bcpow
+            ['powmod', ['2', '5']],   // bcpowmod
+            ['sqrt', []],             // bcsqrt
+            ['floor', []],            // bcfloor
+            ['ceil', []],             // bcceil
+            ['round', [0]],           // bcround
         ];
 
         foreach ($methods as [$method, $extraArgs]) {
