@@ -268,6 +268,18 @@ abstract class BCMath
     }
 
     /**
+     * Check if a string starts with a negative sign after trimming whitespace.
+     *
+     * @param string $num The string to check
+     * @return bool True if the string starts with '-' after trimming, false otherwise
+     */
+    private static function startsWithNegativeSign(string $num): bool
+    {
+        $trimmed = ltrim($num);
+        return $trimmed !== '' && $trimmed[0] === '-';
+    }
+
+    /**
      * Check for division by zero and throw exception.
      *
      * @throws \DivisionByZeroError If divisor is zero
@@ -317,15 +329,14 @@ abstract class BCMath
             }
 
             // Check non-negative constraint
-            $trimmedIntPart = ltrim($intPart);
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && $trimmedIntPart !== '' && $trimmedIntPart[0] === '-') {
+            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && self::startsWithNegativeSign($intPart)) {
                 throw new \ValueError("{$paramName} must be greater than or equal to 0");
             }
 
             // Handle negative numbers by removing the sign if allowed
-            $trimmedIntPart = ltrim($intPart);
-            if ($trimmedIntPart !== '' && $trimmedIntPart[0] === '-'
+            if (self::startsWithNegativeSign($intPart)
                 && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
+                $trimmedIntPart = ltrim($intPart);
                 $intPart = substr($trimmedIntPart, 1);
             }
 
@@ -742,8 +753,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcsqrt', 2);
 
         // Check for negative numbers (except negative zero)
-        $trimmedNum = ltrim($num);
-        if ($trimmedNum !== '' && $trimmedNum[0] === '-' && !self::isZero($trimmedNum)) {
+        if (self::startsWithNegativeSign($num) && !self::isZero($num)) {
             throw new \ValueError('bcsqrt(): Argument #1 ($num) must be greater than or equal to 0');
         }
 
@@ -896,8 +906,7 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For negative numbers with fractional parts, we need to subtract 1
-            $trimmedNum = ltrim($num);
-            if ($trimmedNum !== '' && $trimmedNum[0] === '-' && ltrim($fractionalPart, '0') !== '') {
+            if (self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
                 return self::sub($integerPart, '1', 0);
             }
 
@@ -932,8 +941,7 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For positive numbers with fractional parts, we need to add 1
-            $trimmedNum = ltrim($num);
-            if (($trimmedNum === '' || $trimmedNum[0] !== '-') && ltrim($fractionalPart, '0') !== '') {
+            if (!self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
                 $integerPart = $integerPart === '' ? '0' : $integerPart;
 
                 return self::add($integerPart, '1', 0);
@@ -991,12 +999,12 @@ abstract class BCMath
 
         // Extract sign
         $sign = '';
-        $trimmedNumber = ltrim($number);
-        if ($trimmedNumber !== '' && $trimmedNumber[0] === '-') {
+        if (self::startsWithNegativeSign($number)) {
             $sign = '-';
+            $trimmedNumber = ltrim($number);
             $number = substr($trimmedNumber, 1);
         } else {
-            $number = $trimmedNumber;
+            $number = ltrim($number);
         }
 
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
