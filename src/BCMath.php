@@ -238,18 +238,57 @@ abstract class BCMath
     }
 
     /**
+     * Check if a numeric string represents zero.
+     *
+     * Handles various zero formats: '0', '0.00', '-0.00', '+0.000', etc.
+     * Uses consistent normalization logic for reliable zero detection.
+     *
+     * Examples of inputs that return true:
+     * - '0', '0.0', '0.00', '0.000'
+     * - '-0', '-0.0', '-0.00', '-0.000'
+     * - '+0', '+0.0', '+0.00', '+0.000'
+     * - '00', '00.00', '000.000'
+     *
+     * Examples of inputs that return false:
+     * - '1', '0.1', '0.001', '-0.001'
+     * - 'abc', '', '.'
+     *
+     * @param string $number The numeric string to check
+     *
+     * @return bool True if the number is zero, false otherwise
+     */
+    private static function isZero(string $number): bool
+    {
+        $normalized = ltrim($number, '+-');
+        $normalized = ltrim($normalized, '0');
+        $normalized = ltrim($normalized, '.');
+        $normalized = rtrim($normalized, '0');
+
+        return $normalized === '' || $normalized === '.';
+    }
+
+    /**
+     * Check if a string starts with a negative sign after trimming whitespace.
+     *
+     * @param string $num The string to check
+     *
+     * @return bool True if the string starts with '-' after trimming, false otherwise
+     */
+    private static function startsWithNegativeSign(string $num): bool
+    {
+        $trimmed = ltrim($num);
+
+        return $trimmed !== '' && $trimmed[0] === '-';
+    }
+
+    /**
      * Check for division by zero and throw exception.
      *
      * @throws \DivisionByZeroError If divisor is zero
      */
     private static function checkDivisionByZero(string $divisor): void
     {
-        // Normalize and check for zero - handle '0', '0.00', '-0.00', etc.
-        $normalized = ltrim($divisor, '+-');
-        $normalized = ltrim($normalized, '0');
-        $normalized = ltrim($normalized, '.');
-        $normalized = rtrim($normalized, '0');
-        if ($normalized === '' || $normalized === '.') {
+        if (self::isZero($divisor)) {
             throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
         }
     }
@@ -292,14 +331,15 @@ abstract class BCMath
             }
 
             // Check non-negative constraint
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && isset($intPart[0]) && $intPart[0] === '-') {
+            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && self::startsWithNegativeSign($intPart)) {
                 throw new \ValueError("{$paramName} must be greater than or equal to 0");
             }
 
             // Handle negative numbers by removing the sign if allowed
-            if ($intPart[0] === '-'
+            if (self::startsWithNegativeSign($intPart)
                 && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
-                $intPart = substr($intPart, 1);
+                $trimmedIntPart = ltrim($intPart);
+                $intPart = substr($trimmedIntPart, 1);
             }
 
             $results[] = $intPart;
@@ -399,6 +439,8 @@ abstract class BCMath
 
     /**
      * Add two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
@@ -421,6 +463,8 @@ abstract class BCMath
 
     /**
      * Subtract one arbitrary precision number from another.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
@@ -443,6 +487,8 @@ abstract class BCMath
 
     /**
      * Multiply two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
@@ -474,6 +520,7 @@ abstract class BCMath
      * Divide two arbitrary precision numbers.
      *
      * @throws \DivisionByZeroError When divisor is zero
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
@@ -505,6 +552,7 @@ abstract class BCMath
      * Uses the PHP 7.2+ behavior
      *
      * @throws \DivisionByZeroError When divisor is zero
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
@@ -530,6 +578,8 @@ abstract class BCMath
 
     /**
      * Compare two arbitrary precision numbers.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
@@ -578,12 +628,7 @@ abstract class BCMath
         [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
 
         // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
-        // Check for zero using same logic as division by zero check
-        $normalized = ltrim($base, '+-');
-        $normalized = ltrim($normalized, '0');
-        $normalized = ltrim($normalized, '.');
-        $normalized = rtrim($normalized, '0');
-        if ($normalized === '' || $normalized === '.') {
+        if (self::isZero($base)) {
             $result = '0';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -688,6 +733,8 @@ abstract class BCMath
 
     /**
      * Get the square root of an arbitrary precision number.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function sqrt(string $num, ?int $scale = null): string
     {
@@ -697,7 +744,7 @@ abstract class BCMath
         // Argument validation
         self::validateNumberString($num, 'bcsqrt', 1, 'num');
 
-        // Use default scale if not provided
+        // Use default scale if not provided (needed for early zero return)
         if ($scale === null) {
             if (!isset(self::$scale)) {
                 $defaultScale = ini_get('bcmath.scale');
@@ -707,21 +754,78 @@ abstract class BCMath
         }
         self::validateScale($scale, 'bcsqrt', 2);
 
-        $temp = explode('.', $num);
-        $numStr = implode('', $temp);
-        $wasPadded = strlen($numStr) % 2 !== 0;
-        if ($wasPadded) {
-            $numStr = "0{$numStr}";
+        // Check for negative numbers (except negative zero)
+        if (self::startsWithNegativeSign($num) && !self::isZero($num)) {
+            throw new \ValueError('bcsqrt(): Argument #1 ($num) must be greater than or equal to 0');
         }
-        // Calculate decimal start position: original integer length + padding, divided by 2
-        $integerLength = strlen($temp[0]) + ($wasPadded ? 1 : 0);
-        $decStart = $integerLength / 2;
+
+        // Handle zero case early (including negative zero)
+        if (self::isZero($num)) {
+            return $scale !== 0 ? '0.'.str_repeat('0', $scale) : '0';
+        }
+
+        $temp = explode('.', $num);
+        $integerPart = $temp[0];
+        $decimalPart = $temp[1] ?? '';
+
+        // Special handling for numbers < 1
+        $leadingZeroPairs = 0;
+        $skipIntegerPart = false;
+        if ($integerPart === '0' && $decimalPart !== '') {
+            $skipIntegerPart = true;
+            // Count leading zeros in decimal part
+            $leadingZeros = strspn($decimalPart, '0');
+            // For decimals < 1, each pair of leading zeros in the input produces one leading zero in the result.
+            $leadingZeroPairs = (int) floor($leadingZeros / 2);
+
+            // Now we need to create proper pairs from the decimal part
+            // If odd number of leading zeros, the last zero pairs with first non-zero digit
+            if ($leadingZeros % 2 === 1) {
+                // Skip the paired zeros, keep the odd zero with remaining digits
+                $decimalPart = substr($decimalPart, $leadingZeros - 1);
+            } else {
+                // Skip all the leading zeros as they're all paired
+                $decimalPart = substr($decimalPart, $leadingZeros);
+            }
+
+            // Now pad the decimal part if needed
+            if (strlen($decimalPart) % 2 !== 0) {
+                $decimalPart .= '0';
+            }
+
+            // For numbers < 1, we only process the decimal part
+            $numStr = $decimalPart;
+        } else {
+            // For numbers >= 1, process normally
+            // Pad integer part on the left if odd length
+            if (strlen($integerPart) % 2 !== 0) {
+                $integerPart = '0'.$integerPart;
+            }
+
+            // Pad decimal part on the right if odd length
+            if (strlen($decimalPart) % 2 !== 0) {
+                $decimalPart .= '0';
+            }
+
+            // Create combined string
+            $numStr = $integerPart.$decimalPart;
+        }
+
+        // Calculate how many digits the integer part of the result should have
+        // For numbers >= 1: ceil(n/2) where n is the number of integer digits
+        // For numbers < 1: 0 (the result will also be < 1)
+        $integerResultDigits = ($temp[0] === '0') ? 0 : (int) ceil(strlen($temp[0]) / 2);
+
+        // Create array of digit pairs
         $parts = str_split($numStr, 2);
         $parts = array_map('intval', $parts);
+
         $i = 0;
         $p = 0; // for the first step, p = 0
         $c = $parts[$i];
         $result = '';
+        $digitCount = 0; // Track how many result digits we've generated
+
         while (true) {
             // determine the greatest digit x such that x(20p+x) <= c
             for ($x = 1; $x <= 10; $x++) {
@@ -732,17 +836,40 @@ abstract class BCMath
                 }
             }
             $result .= $x;
+            $digitCount++;
+
+            // Add decimal point after we've generated all integer digits
+            if ($digitCount === $integerResultDigits && $scale > 0) {
+                $result .= '.';
+            }
+
             $y = $x * (20 * $p + $x);
             $p = 10 * $p + $x;
             $c = 100 * ($c - $y);
             if (isset($parts[++$i])) {
                 $c += $parts[$i];
             }
-            if ((!$c && $i >= $decStart) || $i - $decStart === $scale) {
+
+            // Check if we should stop
+            $decimalDigits = $digitCount - $integerResultDigits;
+            if ((!$c && $digitCount >= $integerResultDigits) || ($decimalDigits >= $scale && $scale >= 0)) {
                 break;
             }
-            if ($decStart === $i) {
-                $result .= '.';
+        }
+
+        // For numbers < 1, format the result properly
+        if ($integerResultDigits === 0) {
+            // If scale is 0 and result would be < 1, return '0'
+            if ($scale === 0) {
+                return '0';
+            }
+
+            if ($leadingZeroPairs > 0) {
+                // Result should be 0.{leadingZeroPairs zeros}{result}
+                $result = '0.'.str_repeat('0', $leadingZeroPairs).$result;
+            } else {
+                // No leading zeros, but still < 1, so add '0.' prefix
+                $result = '0.'.$result;
             }
         }
 
@@ -758,9 +885,13 @@ abstract class BCMath
 
     /**
      * Round down to the nearest integer.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function floor(string $num): string
     {
+        self::validateNumberString($num, 'bcfloor', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
@@ -777,7 +908,7 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For negative numbers with fractional parts, we need to subtract 1
-            if ($num[0] === '-' && ltrim($fractionalPart, '0') !== '') {
+            if (self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
                 return self::sub($integerPart, '1', 0);
             }
 
@@ -789,9 +920,13 @@ abstract class BCMath
 
     /**
      * Round up to the nearest integer.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function ceil(string $num): string
     {
+        self::validateNumberString($num, 'bcceil', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
@@ -808,7 +943,7 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For positive numbers with fractional parts, we need to add 1
-            if ($num[0] !== '-' && ltrim($fractionalPart, '0') !== '') {
+            if (!self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
                 $integerPart = $integerPart === '' ? '0' : $integerPart;
 
                 return self::add($integerPart, '1', 0);
@@ -822,9 +957,13 @@ abstract class BCMath
 
     /**
      * Round to a given decimal place.
+     *
+     * @throws \ValueError if inputs are not well-formed
      */
     public static function round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP): string
     {
+        self::validateNumberString($num, 'bcround', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
@@ -862,9 +1001,12 @@ abstract class BCMath
 
         // Extract sign
         $sign = '';
-        if ($number[0] === '-') {
+        if (self::startsWithNegativeSign($number)) {
             $sign = '-';
-            $number = substr($number, 1);
+            $trimmedNumber = ltrim($number);
+            $number = substr($trimmedNumber, 1);
+        } else {
+            $number = ltrim($number);
         }
 
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)

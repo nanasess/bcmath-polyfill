@@ -1282,4 +1282,324 @@ final class BCMathTest extends TestCase
         $result = BCMath::pow('0.00', '0', 2);
         $this->assertSame('1.00', $result);
     }
+
+    /**
+     * Data provider for comprehensive bcsqrt test cases from php-src.
+     *
+     * @return array<int, array{string, int, string}>
+     */
+    public static function provideBcsqrtComprehensiveCases(): iterable
+    {
+        return [
+            // Scale 0 test cases
+            ['0', 0, '0'],
+            ['0.00', 0, '0'],
+            ['-0', 0, '0'],
+            ['-0.00', 0, '0'],
+            ['15151324141414.412312232141241', 0, '3892470'],
+            ['141241241241241248267654747412', 0, '375820756799356'],
+            ['0.1322135476547459213732911312', 0, '0'],
+            ['14.14', 0, '3'],
+            ['0.15', 0, '0'],
+            ['15', 0, '3'],
+            ['1', 0, '1'],
+
+            // Scale 10 test cases
+            ['0', 10, '0.0000000000'],
+            ['0.00', 10, '0.0000000000'],
+            ['-0', 10, '0.0000000000'],
+            ['-0.00', 10, '0.0000000000'],
+            ['15151324141414.412312232141241', 10, '3892470.1850385973'],
+            ['141241241241241248267654747412', 10, '375820756799356.7439216735'],
+            ['0.1322135476547459213732911312', 10, '0.3636118090'],
+            ['14.14', 10, '3.7603191353'],
+            ['0.15', 10, '0.3872983346'],
+            ['15', 10, '3.8729833462'],
+            ['1', 10, '1.0000000000'],
+        ];
+    }
+
+    /**
+     * Test comprehensive bcsqrt cases from php-src test suite.
+     * These test cases ensure compatibility with native bcmath behavior.
+     */
+    #[DataProvider('provideBcsqrtComprehensiveCases')]
+    public function testBcsqrtComprehensive(string $radicant, int $scale, string $expected): void
+    {
+        $result = BCMath::sqrt($radicant, $scale);
+        $this->assertSame($expected, $result, "bcsqrt('{$radicant}', {$scale}) should return '{$expected}'");
+    }
+
+    /**
+     * Test bcsqrt negative number validation.
+     * Should throw ValueError for negative numbers (except negative zero).
+     */
+    public function testBcsqrtNegativeNumberValidation(): void
+    {
+        // Negative numbers should throw ValueError
+        $negativeTestCases = ['-1', '-4', '-100', '-0.1', '-2.5'];
+
+        foreach ($negativeTestCases as $testCase) {
+            try {
+                BCMath::sqrt($testCase);
+                $this->fail("BCMath::sqrt('{$testCase}') should throw ValueError but didn't");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('must be greater than or equal to 0', $e->getMessage());
+            }
+        }
+
+        // Negative zero variants should NOT throw error
+        $negativeZeroCases = ['-0', '-0.00', '-0.000'];
+        foreach ($negativeZeroCases as $testCase) {
+            $result = BCMath::sqrt($testCase);
+            $this->assertSame('0', $result, "BCMath::sqrt('{$testCase}') should return '0'");
+        }
+    }
+
+    /**
+     * Test whitespace handling across all bcmath functions.
+     * All functions should throw ValueError for inputs with whitespace,
+     * matching native bcmath behavior.
+     */
+    public function testWhitespaceHandlingInAllMethods(): void
+    {
+        // Test cases with various whitespace patterns
+        $whitespaceTestCases = [
+            ' 4 ',      // leading and trailing spaces
+            '  -1  ',   // spaces around negative number
+            "\t5\n",    // tab and newline
+            '1 2',      // space in middle
+            ' 0 ',      // spaces around zero
+            '  +3  ',   // spaces around positive with explicit sign
+        ];
+
+        // Test sqrt function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::sqrt($testCase);
+                $this->fail("BCMath::sqrt('{$testCase}') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test add function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::add($testCase, '1');
+                $this->fail("BCMath::add('{$testCase}', '1') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+
+            try {
+                BCMath::add('1', $testCase);
+                $this->fail("BCMath::add('1', '{$testCase}') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test sub function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::sub($testCase, '1');
+                $this->fail("BCMath::sub('{$testCase}', '1') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test mul function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::mul($testCase, '2');
+                $this->fail("BCMath::mul('{$testCase}', '2') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test div function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::div($testCase, '2');
+                $this->fail("BCMath::div('{$testCase}', '2') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test floor function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::floor($testCase);
+                $this->fail("BCMath::floor('{$testCase}') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test ceil function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::ceil($testCase);
+                $this->fail("BCMath::ceil('{$testCase}') should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test round function
+        foreach ($whitespaceTestCases as $testCase) {
+            try {
+                BCMath::round($testCase, 0);
+                $this->fail("BCMath::round('{$testCase}', 0) should throw ValueError for whitespace input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Test negative number validation with whitespace scenarios.
+     * This tests the specific vulnerability where whitespace before negative sign
+     * could bypass negative number validation.
+     */
+    public function testNegativeNumberValidationWithWhitespace(): void
+    {
+        // These should all throw "not well-formed" errors due to whitespace
+        // NOT because they're negative numbers
+        $whitespaceNegativeTestCases = [
+            '  -1',     // leading spaces before negative
+            '-1  ',     // trailing spaces after negative
+            '  -1  ',   // spaces around negative
+            "\t-5",     // tab before negative
+            "-3\n",     // newline after negative
+        ];
+
+        // Test sqrt - should throw "not well-formed" not "must be greater than or equal to 0"
+        foreach ($whitespaceNegativeTestCases as $testCase) {
+            try {
+                BCMath::sqrt($testCase);
+                $this->fail("BCMath::sqrt('{$testCase}') should throw ValueError for malformed input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+                $this->assertStringNotContainsString('must be greater than or equal to 0', $e->getMessage());
+            }
+        }
+
+        // Test floor - should throw "not well-formed"
+        foreach ($whitespaceNegativeTestCases as $testCase) {
+            try {
+                BCMath::floor($testCase);
+                $this->fail("BCMath::floor('{$testCase}') should throw ValueError for malformed input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test ceil - should throw "not well-formed"
+        foreach ($whitespaceNegativeTestCases as $testCase) {
+            try {
+                BCMath::ceil($testCase);
+                $this->fail("BCMath::ceil('{$testCase}') should throw ValueError for malformed input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+
+        // Test round - should throw "not well-formed"
+        foreach ($whitespaceNegativeTestCases as $testCase) {
+            try {
+                BCMath::round($testCase, 0);
+                $this->fail("BCMath::round('{$testCase}', 0) should throw ValueError for malformed input");
+            } catch (ValueError $e) {
+                $this->assertStringContainsString('is not well-formed', $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Test edge cases with whitespace that could expose vulnerabilities.
+     * These are specific scenarios that could bypass validation if not handled properly.
+     */
+    public function testWhitespaceEdgeCases(): void
+    {
+        $edgeCases = [
+            // Basic ASCII whitespace characters
+            '  -0  ',           // space (0x20) around negative zero
+            '  +0  ',           // space (0x20) around positive zero
+            " \t-1\n ",         // mixed basic whitespace around negative
+            '   ',              // only spaces
+            ' . ',              // space around decimal point
+            ' -. ',             // space around negative decimal point
+            ' +. ',             // space around positive decimal point
+
+            // Extended ASCII whitespace characters
+            "\t1\t",            // tab (0x09) around positive number
+            "\n-5\n",           // newline (0x0A) around negative number
+            "\r2\r",            // carriage return (0x0D) around positive number
+            "\x0B3\x0B",        // vertical tab (0x0B) around positive number
+            "\f-4\f",           // form feed (0x0C) around negative number
+
+            // Mixed whitespace combinations
+            " \t\n\r-1 \t\n\r", // all basic whitespace around negative
+            "\t \n\r0.5\r\n \t", // mixed whitespace around decimal
+
+            // Null byte (special case)
+            "\0-1\0",           // null byte (0x00) around negative
+
+            // Unicode whitespace (some may not be caught by \s but worth testing)
+            "\xA0-1\xA0",       // non-breaking space (0xA0)
+            "\x85-1\x85",       // next line (0x85)
+
+            // Edge cases with only whitespace
+            "\t\t\t",           // only tabs
+            "\n\n\n",           // only newlines
+            "\r\r\r",           // only carriage returns
+            "\x0B\x0B\x0B",     // only vertical tabs
+            "\f\f\f",           // only form feeds
+            "\0\0\0",           // only null bytes
+
+            // Whitespace at specific positions
+            "\t-1",             // leading tab before negative
+            "-1\n",             // trailing newline after negative
+            '1 2',              // space in middle of number
+            '- 1',              // space after negative sign
+            '+ 1',              // space after positive sign
+            '1. ',              // space after decimal point
+            '. 5',              // space after lone decimal point
+        ];
+
+        $methods = [
+            ['add', ['1']],           // bcadd - second parameter
+            ['sub', ['1']],           // bcsub - second parameter
+            ['mul', ['2']],           // bcmul - second parameter
+            ['div', ['2']],           // bcdiv - second parameter
+            ['mod', ['3']],           // bcmod - second parameter
+            ['comp', ['1']],          // bccomp - second parameter
+            ['pow', ['2']],           // bcpow - second parameter (exponent)
+            ['powmod', ['2', '5']],   // bcpowmod - second parameter (exponent), third parameter (modulus)
+            ['sqrt', []],             // bcsqrt - only one parameter
+            ['floor', []],            // bcfloor - only one parameter
+            ['ceil', []],             // bcceil - only one parameter
+            ['round', [0]],           // bcround - second parameter (precision)
+        ];
+
+        foreach ($methods as [$method, $extraArgs]) {
+            foreach ($edgeCases as $testCase) {
+                try {
+                    BCMath::$method($testCase, ...$extraArgs); // @phpstan-ignore-line arguments.count
+                    $this->fail("BCMath::{$method}('{$testCase}') should throw ValueError for malformed input");
+                } catch (ValueError $e) { // @phpstan-ignore catch.neverThrown
+                    $this->assertStringContainsString(
+                        'is not well-formed',
+                        $e->getMessage(),
+                        "Method {$method} should throw 'not well-formed' error for input '{$testCase}'"
+                    );
+                }
+            }
+        }
+    }
 }
