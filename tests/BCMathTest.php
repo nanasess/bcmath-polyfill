@@ -1590,21 +1590,7 @@ final class BCMathTest extends TestCase
         foreach ($methods as [$method, $extraArgs]) {
             foreach ($edgeCases as $testCase) {
                 try {
-                    match ($method) {
-                        'add'    => BCMath::add($testCase, ...$extraArgs),
-                        'sub'    => BCMath::sub($testCase, ...$extraArgs),
-                        'mul'    => BCMath::mul($testCase, ...$extraArgs),
-                        'div'    => BCMath::div($testCase, ...$extraArgs),
-                        'mod'    => BCMath::mod($testCase, ...$extraArgs),
-                        'comp'   => BCMath::comp($testCase, ...$extraArgs),
-                        'pow'    => BCMath::pow($testCase, ...$extraArgs),
-                        'powmod' => BCMath::powmod($testCase, ...$extraArgs),
-                        'sqrt'   => BCMath::sqrt($testCase),
-                        'floor'  => BCMath::floor($testCase),
-                        'ceil'   => BCMath::ceil($testCase),
-                        'round'  => BCMath::round($testCase, ...$extraArgs),
-                        default  => throw new \LogicException("Unknown method: $method"),
-                    };
+                    BCMath::$method($testCase, ...$extraArgs); // @phpstan-ignore-line arguments.count
                     $this->fail("BCMath::{$method}('{$testCase}') should throw ValueError for malformed input");
                 } catch (ValueError $e) { // @phpstan-ignore catch.neverThrown
                     $this->assertStringContainsString(
