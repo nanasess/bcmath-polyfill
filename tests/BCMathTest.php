@@ -1474,8 +1474,8 @@ final class BCMathTest extends TestCase
             '  -1',     // leading spaces before negative
             '-1  ',     // trailing spaces after negative
             '  -1  ',   // spaces around negative
-            '\t-5',     // tab before negative
-            '-3\n',     // newline after negative
+            "\t-5",     // tab before negative
+            "-3\n",     // newline after negative
         ];
 
         // Test sqrt - should throw "not well-formed" not "must be greater than or equal to 0"
