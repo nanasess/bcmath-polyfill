@@ -271,11 +271,13 @@ abstract class BCMath
      * Check if a string starts with a negative sign after trimming whitespace.
      *
      * @param string $num The string to check
+     *
      * @return bool True if the string starts with '-' after trimming, false otherwise
      */
     private static function startsWithNegativeSign(string $num): bool
     {
         $trimmed = ltrim($num);
+
         return $trimmed !== '' && $trimmed[0] === '-';
     }
 
