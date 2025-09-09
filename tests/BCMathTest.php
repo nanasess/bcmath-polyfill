@@ -1367,7 +1367,7 @@ final class BCMathTest extends TestCase
         $whitespaceTestCases = [
             ' 4 ',      // leading and trailing spaces
             '  -1  ',   // spaces around negative number
-            '\t5\n',    // tab and newline
+            "\t5\n",    // tab and newline
             '1 2',      // space in middle
             ' 0 ',      // spaces around zero
             '  +3  ',   // spaces around positive with explicit sign
