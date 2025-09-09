@@ -317,14 +317,16 @@ abstract class BCMath
             }
 
             // Check non-negative constraint
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && isset($intPart[0]) && $intPart[0] === '-') {
+            $trimmedIntPart = ltrim($intPart);
+            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && $trimmedIntPart !== '' && $trimmedIntPart[0] === '-') {
                 throw new \ValueError("{$paramName} must be greater than or equal to 0");
             }
 
             // Handle negative numbers by removing the sign if allowed
-            if ($intPart[0] === '-'
+            $trimmedIntPart = ltrim($intPart);
+            if ($trimmedIntPart !== '' && $trimmedIntPart[0] === '-'
                 && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
-                $intPart = substr($intPart, 1);
+                $intPart = substr($trimmedIntPart, 1);
             }
 
             $results[] = $intPart;
@@ -728,7 +730,8 @@ abstract class BCMath
         self::validateScale($scale, 'bcsqrt', 2);
 
         // Check for negative numbers (except negative zero)
-        if ($num !== '' && $num[0] === '-' && !self::isZero($num)) {
+        $trimmedNum = ltrim($num);
+        if ($trimmedNum !== '' && $trimmedNum[0] === '-' && !self::isZero($trimmedNum)) {
             throw new \ValueError('bcsqrt(): Argument #1 ($num) must be greater than or equal to 0');
         }
 
@@ -865,6 +868,8 @@ abstract class BCMath
      */
     public static function floor(string $num): string
     {
+        self::validateNumberString($num, 'bcfloor', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
@@ -881,7 +886,8 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For negative numbers with fractional parts, we need to subtract 1
-            if ($num[0] === '-' && ltrim($fractionalPart, '0') !== '') {
+            $trimmedNum = ltrim($num);
+            if ($trimmedNum !== '' && $trimmedNum[0] === '-' && ltrim($fractionalPart, '0') !== '') {
                 return self::sub($integerPart, '1', 0);
             }
 
@@ -896,6 +902,8 @@ abstract class BCMath
      */
     public static function ceil(string $num): string
     {
+        self::validateNumberString($num, 'bcceil', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
@@ -912,7 +920,8 @@ abstract class BCMath
             $fractionalPart = substr($num, $dotPos + 1);
 
             // For positive numbers with fractional parts, we need to add 1
-            if ($num[0] !== '-' && ltrim($fractionalPart, '0') !== '') {
+            $trimmedNum = ltrim($num);
+            if (($trimmedNum === '' || $trimmedNum[0] !== '-') && ltrim($fractionalPart, '0') !== '') {
                 $integerPart = $integerPart === '' ? '0' : $integerPart;
 
                 return self::add($integerPart, '1', 0);
@@ -929,6 +938,8 @@ abstract class BCMath
      */
     public static function round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP): string
     {
+        self::validateNumberString($num, 'bcround', 1, 'num');
+
         if (!is_numeric($num)) {
             if (version_compare(PHP_VERSION, '8.4', '>=')) {
                 throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
@@ -966,9 +977,12 @@ abstract class BCMath
 
         // Extract sign
         $sign = '';
-        if ($number[0] === '-') {
+        $trimmedNumber = ltrim($number);
+        if ($trimmedNumber !== '' && $trimmedNumber[0] === '-') {
             $sign = '-';
-            $number = substr($number, 1);
+            $number = substr($trimmedNumber, 1);
+        } else {
+            $number = $trimmedNumber;
         }
 
         // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
