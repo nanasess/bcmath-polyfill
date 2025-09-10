@@ -387,6 +387,60 @@ abstract class BCMath
     }
 
     /**
+     * Handle rounding operations with negative zero normalization.
+     *
+     * @param string $num The number to process
+     * @param string $functionName Function name for error messages
+     * @param callable(string, string, string): ?string $fractionHandler Handler for numbers with non-zero fractional parts
+     *
+     * @return string The processed result
+     */
+    private static function normalizeZeroForRounding(string $num, string $functionName, callable $fractionHandler): string
+    {
+        self::validateNumberString($num, $functionName, 1, 'num');
+
+        if (!is_numeric($num)) {
+            if (version_compare(PHP_VERSION, '8.4', '>=')) {
+                throw new \ValueError($functionName.'(): Argument #1 ($num) is not well-formed');
+            }
+            trigger_error($functionName.'(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+
+            return '0';
+        }
+
+        // Handle the case where input is exactly '-0' (no decimal point)
+        if ($num === '-0') {
+            return '0';
+        }
+
+        // Remove any fractional part
+        if (str_contains($num, '.')) {
+            $dotPos = (int) strpos($num, '.');
+            $integerPart = substr($num, 0, $dotPos);
+            $fractionalPart = substr($num, $dotPos + 1);
+
+            // Check if there's a non-zero fractional part
+            $hasNonZeroFraction = ltrim($fractionalPart, '0') !== '';
+
+            if ($hasNonZeroFraction) {
+                $result = $fractionHandler($num, $integerPart, $fractionalPart);
+                if ($result !== null) {
+                    return $result;
+                }
+            }
+
+            // Handle special cases: empty, '-', or '-0' should return '0'
+            if ($integerPart === '' || $integerPart === '-' || $integerPart === '-0') {
+                return '0';
+            }
+
+            return $integerPart;
+        }
+
+        return $num;
+    }
+
+    /**
      * Set or get default scale parameter for all bc math functions.
      *
      * Uses the PHP 7.3+ behavior
@@ -894,32 +948,14 @@ abstract class BCMath
      */
     public static function floor(string $num): string
     {
-        self::validateNumberString($num, 'bcfloor', 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error('bcfloor(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
-
-        // Remove any fractional part
-        if (str_contains($num, '.')) {
-            $dotPos = (int) strpos($num, '.');
-            $integerPart = substr($num, 0, $dotPos);
-            $fractionalPart = substr($num, $dotPos + 1);
-
+        return self::normalizeZeroForRounding($num, 'bcfloor', static function (string $num, string $integerPart, string $fractionalPart): ?string {
             // For negative numbers with fractional parts, we need to subtract 1
-            if (self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
+            if (self::startsWithNegativeSign($num)) {
                 return self::sub($integerPart, '1', 0);
             }
 
-            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
-        }
-
-        return $num;
+            return null; // Let the common logic handle this case
+        });
     }
 
     /**
@@ -929,44 +965,16 @@ abstract class BCMath
      */
     public static function ceil(string $num): string
     {
-        self::validateNumberString($num, 'bcceil', 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error('bcceil(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
-
-        // Remove any fractional part
-        if (str_contains($num, '.')) {
-            $dotPos = (int) strpos($num, '.');
-            $integerPart = substr($num, 0, $dotPos);
-            $fractionalPart = substr($num, $dotPos + 1);
-
+        return self::normalizeZeroForRounding($num, 'bcceil', static function (string $num, string $integerPart, string $fractionalPart): ?string {
             // For positive numbers with fractional parts, we need to add 1
-            if (!self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
+            if (!self::startsWithNegativeSign($num)) {
                 $integerPart = $integerPart === '' ? '0' : $integerPart;
 
                 return self::add($integerPart, '1', 0);
             }
 
-            // Handle special cases: empty, '-', or '-0' should return '0'
-            if ($integerPart === '' || $integerPart === '-' || $integerPart === '-0') {
-                return '0';
-            }
-
-            return $integerPart;
-        }
-
-        // Handle the case where input is exactly '-0' (no decimal point)
-        if ($num === '-0') {
-            return '0';
-        }
-
-        return $num;
+            return null; // Let the common logic handle this case
+        });
     }
 
     /**
