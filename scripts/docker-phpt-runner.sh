@@ -157,32 +157,6 @@ fi
 
 # Test polyfill functionality using -d option
 echo "Testing polyfill functionality:"
-echo "Debug: Checking file contents..."
-echo "lib/bcmath.php exists: $([ -f 'lib/bcmath.php' ] && echo 'YES' || echo 'NO')"
-echo "lib/bcmath.php first 5 lines:"
-head -5 lib/bcmath.php
-
-echo "Debug: Testing with composer autoloader + polyfill..."
-php -r "
-require_once '/app/vendor/autoload.php';
-require_once '/app/lib/bcmath.php';
-if (function_exists('bcadd')) {
-    echo 'SUCCESS: bcadd function available after autoloader + polyfill' . PHP_EOL;
-    echo 'bcadd(1, 2) = ' . bcadd('1', '2') . PHP_EOL;
-} else {
-    echo 'ERROR: bcadd function NOT available after autoloader + polyfill' . PHP_EOL;
-}
-"
-
-echo "Debug: Testing with bootstrap file..."
-php -d auto_prepend_file=/app/scripts/polyfill-bootstrap.php -r "
-echo 'auto_prepend_file setting: ' . ini_get('auto_prepend_file') . PHP_EOL;
-if (function_exists('bcadd')) {
-    echo 'SUCCESS: bcadd(1, 2) = ' . bcadd('1', '2') . PHP_EOL;
-} else {
-    echo 'ERROR: bcadd function not available after bootstrap' . PHP_EOL;
-}
-"
 
 # Set environment for run-tests.php
 export TEST_PHP_EXECUTABLE="/usr/local/bin/php"
