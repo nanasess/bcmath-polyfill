@@ -371,9 +371,13 @@ abstract class BCMath
         [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
-        // Apply scale truncation
+        // Apply scale truncation and padding
         $num1Dec = substr((string) $num1Dec, 0, $scale);
         $num2Dec = substr((string) $num2Dec, 0, $scale);
+
+        // Pad decimal parts to the same length (scale)
+        $num1Dec = str_pad($num1Dec, $scale, '0', STR_PAD_RIGHT);
+        $num2Dec = str_pad($num2Dec, $scale, '0', STR_PAD_RIGHT);
 
         // Convert to BigInteger for comparison
         $num1Big = new BigInteger($num1Int.$num1Dec);
