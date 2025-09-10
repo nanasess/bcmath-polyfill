@@ -47,6 +47,12 @@ echo bcpow('2', '8');               // 256
 echo bcfloor('4.7');                // 4
 echo bcceil('4.3');                 // 5
 echo bcround('3.14159', 2);         // 3.14
+
+// bcround() supports RoundingMode enum (PHP 8.1+ with polyfill, native in PHP 8.4+)
+echo bcround('2.5', 0, \RoundingMode::HalfAwayFromZero);  // 3
+echo bcround('2.5', 0, \RoundingMode::HalfTowardsZero);   // 2
+echo bcround('2.5', 0, \RoundingMode::HalfEven);          // 2
+echo bcround('2.5', 0, \RoundingMode::HalfOdd);           // 3
 ```
 
 ## 📋 Supported Functions
@@ -68,6 +74,20 @@ echo bcround('3.14159', 2);         // 3.14
 - `bcceil()` - Round up to the nearest integer
 - `bcround()` - Round to a specified precision with configurable rounding modes
 
+#### RoundingMode Enum Support
+The `bcround()` function supports PHP 8.4's `RoundingMode` enum through a polyfill for PHP 8.1-8.3:
+
+**Supported Modes:**
+- `RoundingMode::HalfAwayFromZero` (equivalent to `PHP_ROUND_HALF_UP`)
+- `RoundingMode::HalfTowardsZero` (equivalent to `PHP_ROUND_HALF_DOWN`)
+- `RoundingMode::HalfEven` (equivalent to `PHP_ROUND_HALF_EVEN`)
+- `RoundingMode::HalfOdd` (equivalent to `PHP_ROUND_HALF_ODD`)
+
+**Not Yet Supported:**
+- `RoundingMode::TowardsZero` - Throws `ValueError` (planned for future release)
+- `RoundingMode::AwayFromZero` - Throws `ValueError` (planned for future release)  
+- `RoundingMode::NegativeInfinity` - Throws `ValueError` (planned for future release)
+
 ## ⚡ Performance
 
 This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger class for arbitrary precision arithmetic, providing reliable performance for applications that cannot use the native bcmath extension.
@@ -85,18 +105,34 @@ This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInte
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
 
+### RoundingMode Enum Limitations
+- Three `RoundingMode` enum values are not yet implemented:
+  - `RoundingMode::TowardsZero` - Will throw `ValueError`
+  - `RoundingMode::AwayFromZero` - Will throw `ValueError`
+  - `RoundingMode::NegativeInfinity` - Will throw `ValueError`
+- These modes are planned for implementation in a future release
+- Use traditional `PHP_ROUND_*` constants as alternatives when needed
+
 ## 🔄 Key Differences from phpseclib/bcmath_compat
 
-| Feature | phpseclib/bcmath_compat | bcmath-polyfill |
-|---------|------------------------|-----------------|
-| **PHP 8.4 functions** | ❌ Not supported | ✅ Full support |
-| `bcfloor()` | ❌ | ✅ |
-| `bcceil()` | ❌ | ✅ |
-| `bcround()` | ❌ | ✅ |
-| **PHP 8.2+ deprecations** | ⚠️ Warnings | ✅ Fixed |
-| **Test suite pollution** | ⚠️ Issues | ✅ Fixed |
-| **Active maintenance** | ❌ Limited | ✅ Active |
-| **CI/CD (PHP versions)** | GitHub Actions (8.1, 8.2, 8.3) | GitHub Actions (8.1, 8.2, 8.3, 8.4) |
+| Feature                   | phpseclib/bcmath_compat        | bcmath-polyfill                     |
+|---------------------------|--------------------------------|-------------------------------------|
+| **PHP 8.4 functions**     | ❌ Not supported               | ✅ Full support                     |
+| `bcfloor()`               | ❌                             | ✅                                  |
+| `bcceil()`                | ❌                             | ✅                                  |
+| `bcround()`               | ❌                             | ✅                                  |
+| **RoundingMode enum**     | ❌ Not supported               | ✅ Partial (4/7 modes)              |
+| `HalfAwayFromZero`        | ❌                             | ✅                                  |
+| `HalfTowardsZero`         | ❌                             | ✅                                  |
+| `HalfEven`                | ❌                             | ✅                                  |
+| `HalfOdd`                 | ❌                             | ✅                                  |
+| `TowardsZero`             | ❌                             | ⏳ Planned                          |
+| `AwayFromZero`            | ❌                             | ⏳ Planned                          |
+| `NegativeInfinity`        | ❌                             | ⏳ Planned                          |
+| **PHP 8.2+ deprecations** | ⚠️ Warnings                     | ✅ Fixed                            |
+| **Test suite pollution**  | ⚠️ Issues                       | ✅ Fixed                            |
+| **Active maintenance**    | ❌ Limited                     | ✅ Active                           |
+| **CI/CD (PHP versions)**  | GitHub Actions (8.1, 8.2, 8.3) | GitHub Actions (8.1, 8.2, 8.3, 8.4) |
 
 ### Migration from phpseclib/bcmath_compat
 
