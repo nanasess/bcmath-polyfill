@@ -1647,7 +1647,7 @@ final class BCMathTest extends TestCase
     public function testInvalidRoundingMode(array|float|int|string|null $invalidMode): void
     {
         try {
-            BCMath::round('1.55', 1, $invalidMode); // @phpstan-ignore-line argment.type
+            BCMath::round('1.55', 1, $invalidMode); // @phpstan-ignore-line argument.type
 
             // Some invalid modes might be handled gracefully by PHP's round()
             if (is_int($invalidMode)) {
