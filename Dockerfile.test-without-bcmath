@@ -1,0 +1,28 @@
+ARG PHP_VERSION=8.3
+FROM php:${PHP_VERSION}-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Ensure bcmath extension is not available
+RUN php -m | grep bcmath && echo 'extension=' > /usr/local/etc/php/conf.d/disable-bcmath.ini || echo "bcmath not loaded"
+
+# Verify bcmath is not available
+RUN php -m | grep bcmath && exit 1 || echo "bcmath extension not loaded - ready for testing"
+RUN php -r "var_dump(extension_loaded('bcmath')); exit(extension_loaded('bcmath') ? 1 : 0);"
+
+# Set working directory
+WORKDIR /app
+
+# Copy and setup PHPT test runner script
+COPY scripts/docker-phpt-runner.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-phpt-runner.sh
+
+# Default entrypoint
+ENTRYPOINT ["docker-phpt-runner.sh"]

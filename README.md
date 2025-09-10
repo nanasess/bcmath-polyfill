@@ -146,6 +146,58 @@ composer remove phpseclib/bcmath_compat
 composer require nanasess/bcmath-polyfill
 ```
 
+## 🧪 Testing
+
+### Running PHPUnit Tests
+
+```bash
+# Install dependencies
+composer install
+
+# Run all tests
+composer test
+# or
+vendor/bin/phpunit
+
+# Run tests without bcmath extension
+vendor/bin/phpunit --group without-bcmath
+```
+
+### Docker-based PHPT Testing
+
+This project includes comprehensive Docker-based testing using official PHP core bcmath tests to ensure 100% compatibility:
+
+```bash
+# Build Docker test environment (PHP 8.3 by default)
+docker build -f Dockerfile.test-without-bcmath -t bcmath-phpt-test .
+
+# Run all PHPT tests
+docker run --rm -v $PWD:/app bcmath-phpt-test
+
+# Build and test with specific PHP version
+docker build -f Dockerfile.test-without-bcmath --build-arg PHP_VERSION=8.4 -t bcmath-phpt-test:8.4 .
+docker run --rm -v $PWD:/app bcmath-phpt-test:8.4
+
+# Skip specific tests (supports exact test name matching)
+docker run --rm -v $PWD:/app bcmath-phpt-test --skip bcceil,bcround,bcpowmod
+
+# Run specific test file
+docker run --rm -v $PWD:/app bcmath-phpt-test tests/php-src/bcadd.phpt
+
+# Show help
+docker run --rm bcmath-phpt-test --help
+```
+
+#### Available Options
+
+- `--skip TESTS` - Comma-separated list of test names to skip (exact matching)
+- `--help, -h` - Show usage information
+
+#### Supported PHP Versions
+- PHP 8.1, 8.2, 8.3, 8.4
+
+The Docker PHPT tests automatically run on GitHub Actions CI across all supported PHP versions to ensure comprehensive compatibility with the official PHP core bcmath test suite.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
