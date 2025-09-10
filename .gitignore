@@ -6,3 +6,9 @@ phpunit.xml
 tests/php-src/*.phpt
 tests/php-src/*.php
 tests/php-src/*.inc
+tests/php-src/*.diff
+tests/php-src/*.exp
+tests/php-src/*.log
+tests/php-src/*.out
+tests/php-src/*.sh
+*.cache
