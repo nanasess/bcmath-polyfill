@@ -41,7 +41,7 @@
         "ext-gmp": "Will enable faster math operations"
     },
     "autoload": {
-        "files": ["lib/bcmath.php"],
+        "files": ["lib/bcmath.php", "lib/RoundingMode.php"],
         "psr-4": {
             "bcmath_compat\\": "src"
         }

@@ -958,9 +958,13 @@ abstract class BCMath
     /**
      * Round to a given decimal place.
      *
+     * @param string $num The value to round
+     * @param int $precision The number of decimal digits to round to
+     * @param int|\RoundingMode $mode The rounding mode (PHP8.4+ supports RoundingMode enum)
+     *
      * @throws \ValueError if inputs are not well-formed
      */
-    public static function round(string $num, int $precision = 0, int $mode = PHP_ROUND_HALF_UP): string
+    public static function round(string $num, int $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
         self::validateNumberString($num, 'bcround', 1, 'num');
 
@@ -973,6 +977,9 @@ abstract class BCMath
             return '0';
         }
 
+        // Convert RoundingMode enum to integer constant for PHP 8.4+ compatibility
+        $roundingMode = self::convertRoundingMode($mode);
+
         // Based on: https://stackoverflow.com/a/1653826
         if ($precision < 0) {
             // When precision is negative, we round to the left of the decimal point
@@ -981,13 +988,51 @@ abstract class BCMath
             $shifted = self::div($num, $factor, 10); // Use a high precision for intermediate calculation
 
             // Apply rounding
-            $rounded = self::bcroundHelper($shifted, 0, $mode);
+            $rounded = self::bcroundHelper($shifted, 0, $roundingMode);
 
             // Shift back
             return self::mul($rounded, $factor, 0);
         }
 
-        return self::bcroundHelper($num, $precision, $mode);
+        return self::bcroundHelper($num, $precision, $roundingMode);
+    }
+
+    /**
+     * Convert RoundingMode enum to integer constant for backward compatibility.
+     *
+     * Note: Parameter type declaration is intentionally omitted to prevent PHP's type coercion.
+     * With int|\RoundingMode type hint, float values like 1.5 would be auto-converted to int (1),
+     * preventing proper validation and exception throwing for invalid types.
+     *
+     * @param int|\RoundingMode $mode
+     *
+     * @return int The corresponding PHP_ROUND_* constant
+     *
+     * @throws \ValueError If an invalid rounding mode is provided
+     */
+    private static function convertRoundingMode($mode): int
+    {
+        // RoundingMode enum support (both native PHP 8.4+ and polyfill PHP 8.1-8.3)
+        if (enum_exists('RoundingMode') && $mode instanceof \RoundingMode) {
+            return match ($mode) {
+                \RoundingMode::HalfAwayFromZero => PHP_ROUND_HALF_UP,
+                \RoundingMode::HalfTowardsZero => PHP_ROUND_HALF_DOWN,
+                \RoundingMode::HalfEven => PHP_ROUND_HALF_EVEN,
+                \RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
+                // TODO: Support additional modes if needed
+                \RoundingMode::NegativeInfinity => throw new \ValueError('RoundingMode::NegativeInfinity is not supported'),
+                \RoundingMode::TowardsZero => throw new \ValueError('RoundingMode::TowardsZero is not supported'),
+                \RoundingMode::AwayFromZero => throw new \ValueError('RoundingMode::AwayFromZero is not supported'), // @phpstan-ignore-line
+                default => throw new \ValueError('Unsupported RoundingMode')
+            };
+        }
+
+        // Backward compatibility for PHP_ROUND_* constants
+        if (is_int($mode)) {
+            return $mode;
+        }
+
+        throw new \ValueError('Invalid rounding mode provided');
     }
 
     /**
