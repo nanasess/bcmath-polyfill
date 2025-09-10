@@ -673,7 +673,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcpow', 3);
 
         // Phase 3: Early special case handling
-        if ($exponent === self::DEFAULT_NUMBER) {
+        if ($exponent === self::DEFAULT_NUMBER || $exponent === '-0' || $exponent === '-0.0') {
             $result = '1';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -685,8 +685,13 @@ abstract class BCMath
         // Normalize inputs
         [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
 
-        // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
+        // Handle special case: 0 to any power
         if (self::isZero($base)) {
+            // Check for negative power of zero - PHP 8.4+ behavior
+            if (self::isNegative(new BigInteger($exponent))) {
+                throw new \DivisionByZeroError('Negative power of zero');
+            }
+
             $result = '0';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -714,7 +719,7 @@ abstract class BCMath
         // Convert to BigInteger for calculation
         $baseBig = new BigInteger($baseParts[0].$baseParts[1]);
 
-        $sign = self::isNegative($baseBig) ? '-' : '';
+        $baseIsNegative = self::isNegative($baseBig);
         $baseBig = $baseBig->abs();
 
         // Phase 5: Calculation execution
@@ -735,7 +740,28 @@ abstract class BCMath
             $finalPad = $maxPad * (int) $absExponent;
         }
 
-        return $sign.self::format($r, $scale, $finalPad);
+        // Format the result first
+        $result = self::format($r, $scale, $finalPad);
+
+        // Determine if we should apply negative sign
+        // For negative base: negative sign only if exponent is odd integer
+        if ($baseIsNegative) {
+            // Check if exponent is an odd integer
+            $exponentIsOddInteger = false;
+            if (!str_contains($exponent, '.') || rtrim(substr($exponent, strpos($exponent, '.')), '0') === '.') {
+                $exponentInt = (int) $exponent;
+                $exponentIsOddInteger = ($exponentInt % 2 !== 0);
+            }
+
+            // Apply negative sign only if:
+            // 1. Exponent is odd integer
+            // 2. Result is not effectively zero
+            if ($exponentIsOddInteger && !self::isZero($result)) {
+                $result = '-'.$result;
+            }
+        }
+
+        return $result;
     }
 
     /**

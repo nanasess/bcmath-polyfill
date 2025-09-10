@@ -1256,15 +1256,10 @@ final class BCMathTest extends TestCase
             // [base, exponent, scale, expected_result]
             ['0', '1', 2, '0.00'],
             ['0', '2', 2, '0.00'],
-            ['0', '-1', 2, '0.00'],
-            ['0', '-2', 2, '0.00'],
             ['0.0', '1', 2, '0.00'],
-            ['0.00', '-1', 2, '0.00'],
             ['-0', '2', 2, '0.00'],
-            ['-0.00', '-1', 2, '0.00'],
             ['+0.000', '3', 2, '0.00'],
             ['0', '1', 0, '0'],
-            ['0.00', '-2', 4, '0.0000'],
         ];
     }
 
@@ -1289,6 +1284,34 @@ final class BCMathTest extends TestCase
 
         $result = BCMath::pow('0.00', '0', 2);
         $this->assertSame('1.00', $result);
+    }
+
+    /**
+     * Data provider for bcpow negative power of zero test cases.
+     *
+     * @return iterable<int, array<int, int|string>>
+     */
+    public static function provideBcpowNegativePowerOfZeroCases(): iterable
+    {
+        return [
+            // [base, exponent, scale]
+            ['0', '-1', 2],
+            ['0', '-2', 2],
+            ['0.00', '-1', 2],
+            ['-0.00', '-1', 2],
+            ['0.00', '-2', 4],
+        ];
+    }
+
+    /**
+     * Test bcpow negative power of zero throws DivisionByZeroError.
+     */
+    #[DataProvider('provideBcpowNegativePowerOfZeroCases')]
+    public function testBcpowNegativePowerOfZeroThrowsError(string $base, string $exponent, int $scale): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Negative power of zero');
+        BCMath::pow($base, $exponent, $scale);
     }
 
     /**
