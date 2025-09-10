@@ -949,7 +949,17 @@ abstract class BCMath
                 return self::add($integerPart, '1', 0);
             }
 
-            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
+            // Handle special cases: empty, '-', or '-0' should return '0'
+            if ($integerPart === '' || $integerPart === '-' || $integerPart === '-0') {
+                return '0';
+            }
+
+            return $integerPart;
+        }
+
+        // Handle the case where input is exactly '-0' (no decimal point)
+        if ($num === '-0') {
+            return '0';
         }
 
         return $num;
