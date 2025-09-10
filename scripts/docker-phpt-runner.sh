@@ -205,7 +205,9 @@ if [ -f "run-tests.php" ] && [ -d "tests/php-src" ]; then
 
         for skip_pattern in "${SKIP_ARRAY[@]}"; do
             skip_pattern=$(echo "$skip_pattern" | xargs) # trim whitespace
-            if [[ "$base_name" == *"$skip_pattern"* ]]; then
+            # Remove .phpt extension from skip_pattern if present
+            skip_pattern="${skip_pattern%.phpt}"
+            if [[ "$base_name" == "$skip_pattern" ]]; then
                 return 0  # Should skip
             fi
         done
