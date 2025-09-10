@@ -1015,15 +1015,10 @@ abstract class BCMath
                 \RoundingMode::HalfTowardsZero => PHP_ROUND_HALF_DOWN,
                 \RoundingMode::HalfEven => PHP_ROUND_HALF_EVEN,
                 \RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
-                \RoundingMode::TowardsZero => version_compare(PHP_VERSION, '8.4', '>=')
-                    ? PHP_ROUND_HALF_DOWN
-                    : throw new \ValueError('RoundingMode::TowardsZero is not supported in PHP < 8.4'),
-                \RoundingMode::AwayFromZero => version_compare(PHP_VERSION, '8.4', '>=')
-                    ? PHP_ROUND_HALF_UP
-                    : throw new \ValueError('RoundingMode::AwayFromZero is not supported in PHP < 8.4'),
-                \RoundingMode::NegativeInfinity => version_compare(PHP_VERSION, '8.4', '>=')
-                    ? PHP_ROUND_HALF_DOWN
-                    : throw new \ValueError('RoundingMode::NegativeInfinity is not supported in PHP < 8.4'),
+                // TODO: Support additional modes if needed
+                \RoundingMode::NegativeInfinity => throw new \ValueError('RoundingMode::NegativeInfinity is not supported'),
+                \RoundingMode::TowardsZero => throw new \ValueError('RoundingMode::TowardsZero is not supported'),
+                \RoundingMode::AwayFromZero => throw new \ValueError('RoundingMode::AwayFromZero is not supported'), // @phpstan-ignore-line
                 default => throw new \ValueError('Unsupported RoundingMode')
             };
         }

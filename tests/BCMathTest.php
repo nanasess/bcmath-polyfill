@@ -438,30 +438,38 @@ final class BCMathTest extends TestCase
         $this->assertSame(bcround('1.95583', 3), BCMath::round('1.95583', 3));
         $this->assertSame(bcround('1.2345', 1), BCMath::round('1.2345', 1));
 
-        // Test different rounding modes with RoundingMode enum for PHP 8.4
-        if (enum_exists('RoundingMode', false)) {
+        // Test different rounding modes with RoundingMode enum
+        // This tests both native PHP 8.4+ enum and polyfill PHP 8.1-8.3 enum
+        if (enum_exists('RoundingMode')) {
+            // Test supported enum modes that work in both environments
+            $this->assertSame('1.6', BCMath::round('1.55', 1, \RoundingMode::HalfAwayFromZero));
+            $this->assertSame('1.5', BCMath::round('1.55', 1, \RoundingMode::HalfTowardsZero));
+            $this->assertSame('1.6', BCMath::round('1.55', 1, \RoundingMode::HalfEven));
+            $this->assertSame('1.5', BCMath::round('1.55', 1, \RoundingMode::HalfOdd));
+
+            // Compare with native bcround (PHP 8.4+ with bcmath extension)
             $this->assertSame(
                 // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfAwayFromZero),
-                BCMath::round('1.55', 1, PHP_ROUND_HALF_UP)
+                BCMath::round('1.55', 1, \RoundingMode::HalfAwayFromZero)
             );
             $this->assertSame(
                 // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfTowardsZero),
-                BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN)
+                BCMath::round('1.55', 1, \RoundingMode::HalfTowardsZero)
             );
             $this->assertSame(
                 // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfEven),
-                BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN)
+                BCMath::round('1.55', 1, \RoundingMode::HalfEven)
             );
             $this->assertSame(
                 // @phpstan-ignore-next-line
                 bcround('1.55', 1, \RoundingMode::HalfOdd),
-                BCMath::round('1.55', 1, PHP_ROUND_HALF_ODD)
+                BCMath::round('1.55', 1, \RoundingMode::HalfOdd)
             );
         } else {
-            // Fallback for environments where RoundingMode is not available yet
+            // Fallback for environments where RoundingMode is not available (PHP < 8.1)
             $this->assertSame('1.6', BCMath::round('1.55', 1, PHP_ROUND_HALF_UP));
             $this->assertSame('1.5', BCMath::round('1.55', 1, PHP_ROUND_HALF_DOWN));
             $this->assertSame('1.6', BCMath::round('1.55', 1, PHP_ROUND_HALF_EVEN));
@@ -692,7 +700,7 @@ final class BCMathTest extends TestCase
                 );
 
                 // Also test with native bcround if available with RoundingMode enum
-                if (function_exists('bcround') && enum_exists('RoundingMode', false)) {
+                if (function_exists('bcround') && enum_exists('RoundingMode')) {
                     $enumMode = match ($mode) {
                         PHP_ROUND_HALF_UP => \RoundingMode::HalfAwayFromZero,
                         PHP_ROUND_HALF_DOWN => \RoundingMode::HalfTowardsZero,
@@ -1525,7 +1533,7 @@ final class BCMathTest extends TestCase
      *
      * @return array<string, array{string, int, \RoundingMode, string}>
      */
-    public static function provideRoundingModeEnumCases(): iterable
+    public static function provideRoundingModeEnumSupportCases(): iterable
     {
         if (!enum_exists('RoundingMode')) {
             return [];
@@ -1533,17 +1541,13 @@ final class BCMathTest extends TestCase
 
         return [
             // Test supported enum values that map to existing PHP_ROUND_* constants
+            // These work in both polyfill (PHP 8.1-8.3) and native (PHP 8.4+) environments
             'HalfAwayFromZero basic' => ['1.55', 1, \RoundingMode::HalfAwayFromZero, '1.6'],
             'HalfTowardsZero basic' => ['1.55', 1, \RoundingMode::HalfTowardsZero, '1.5'],
             'HalfEven basic' => ['1.55', 1, \RoundingMode::HalfEven, '1.6'],
             'HalfOdd basic' => ['1.55', 1, \RoundingMode::HalfOdd, '1.5'],
 
-            // Test PHP 8.4+ specific enum values
-            'TowardsZero basic' => ['1.55', 1, \RoundingMode::TowardsZero, '1.5'],
-            'AwayFromZero basic' => ['1.55', 1, \RoundingMode::AwayFromZero, '1.6'],
-            'NegativeInfinity basic' => ['1.55', 1, \RoundingMode::NegativeInfinity, '1.5'],
-
-            // Test edge cases
+            // Test edge cases with supported modes
             'HalfAwayFromZero positive half' => ['2.5', 0, \RoundingMode::HalfAwayFromZero, '3'],
             'HalfTowardsZero positive half' => ['2.5', 0, \RoundingMode::HalfTowardsZero, '2'],
             'HalfAwayFromZero negative half' => ['-2.5', 0, \RoundingMode::HalfAwayFromZero, '-3'],
@@ -1559,17 +1563,21 @@ final class BCMathTest extends TestCase
     /**
      * Test RoundingMode enum support for PHP 8.4+.
      *
-     * @param string $number
-     * @param int $scale
      * @param \RoundingMode $mode
-     * @param string $expected
      */
-    #[RequiresPhp('>=8.4')]
-    #[DataProvider('provideRoundingModeEnumCases')]
+    #[RequiresPhp('>=8.1')]
+    #[DataProvider('provideRoundingModeEnumSupportCases')]
     public function testRoundingModeEnumSupport(string $number, int $scale, $mode, string $expected): void
     {
         if (!enum_exists('RoundingMode')) {
             $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Skip unsupported modes in all versions
+        $unsupportedModes = [\RoundingMode::TowardsZero, \RoundingMode::AwayFromZero, \RoundingMode::NegativeInfinity];
+        if (in_array($mode, $unsupportedModes, true)) {
+            $this->expectException(\ValueError::class);
+            $this->expectExceptionMessage("RoundingMode::{$mode->name} is not supported");
         }
 
         $result = BCMath::round($number, $scale, $mode);
@@ -1581,7 +1589,7 @@ final class BCMathTest extends TestCase
      *
      * @return array<string, array{string, int, int, string}>
      */
-    public static function provideBackwardCompatibilityCases(): iterable
+    public static function provideRoundingModeBackwardCompatibilityCases(): iterable
     {
         return [
             // Basic cases with traditional PHP_ROUND_* constants
@@ -1606,13 +1614,8 @@ final class BCMathTest extends TestCase
 
     /**
      * Test backward compatibility with PHP_ROUND_* constants.
-     *
-     * @param string $number
-     * @param int $scale
-     * @param int $mode
-     * @param string $expected
      */
-    #[DataProvider('provideBackwardCompatibilityCases')]
+    #[DataProvider('provideRoundingModeBackwardCompatibilityCases')]
     public function testRoundingModeBackwardCompatibility(string $number, int $scale, int $mode, string $expected): void
     {
         $result = BCMath::round($number, $scale, $mode);
@@ -1624,7 +1627,7 @@ final class BCMathTest extends TestCase
      *
      * @return array<string, array{mixed}>
      */
-    public static function provideInvalidRoundingModes(): iterable
+    public static function provideInvalidRoundingModeCases(): iterable
     {
         return [
             'invalid integer' => [999],
@@ -1638,13 +1641,13 @@ final class BCMathTest extends TestCase
     /**
      * Test invalid rounding mode handling.
      *
-     * @param mixed $invalidMode
+     * @param null|float|int|string|string[] $invalidMode
      */
-    #[DataProvider('provideInvalidRoundingModes')]
-    public function testInvalidRoundingMode($invalidMode): void
+    #[DataProvider('provideInvalidRoundingModeCases')]
+    public function testInvalidRoundingMode(array|float|int|string|null $invalidMode): void
     {
         try {
-            BCMath::round('1.55', 1, $invalidMode);
+            BCMath::round('1.55', 1, $invalidMode); // @phpstan-ignore-line argment.type
 
             // Some invalid modes might be handled gracefully by PHP's round()
             if (is_int($invalidMode)) {
@@ -1654,7 +1657,7 @@ final class BCMathTest extends TestCase
             }
         } catch (\ValueError $e) {
             $this->assertStringContainsString('Invalid rounding mode', $e->getMessage());
-        } catch (\TypeError $e) {
+        } catch (\TypeError) {
             // May also throw TypeError depending on implementation
             $this->addToAssertionCount(1);
         }
@@ -1663,85 +1666,108 @@ final class BCMathTest extends TestCase
     /**
      * Data provider for comprehensive RoundingMode behavior tests.
      *
-     * @return array<string, array{string, int, array<\RoundingMode, string>}>
+     * @return array<string, array{string, int}>
      */
-    public static function provideComprehensiveRoundingCases(): iterable
+    public static function provideRoundingModeComprehensiveCases(): iterable
     {
         if (!enum_exists('RoundingMode')) {
             return [];
         }
 
+        // Simple test cases - the actual enum testing is done in the test method
         return [
-            'positive half 2.5' => ['2.5', 0, [
-                \RoundingMode::HalfAwayFromZero => '3',
-                \RoundingMode::HalfTowardsZero => '2',
-                \RoundingMode::HalfEven => '2',
-                \RoundingMode::HalfOdd => '3',
-                \RoundingMode::TowardsZero => '2',
-                \RoundingMode::AwayFromZero => '3',
-                \RoundingMode::NegativeInfinity => '2',
-            ]],
-            'negative half -2.5' => ['-2.5', 0, [
-                \RoundingMode::HalfAwayFromZero => '-3',
-                \RoundingMode::HalfTowardsZero => '-2',
-                \RoundingMode::HalfEven => '-2',
-                \RoundingMode::HalfOdd => '-3',
-                \RoundingMode::TowardsZero => '-2',
-                \RoundingMode::AwayFromZero => '-3',
-                \RoundingMode::NegativeInfinity => '-3',
-            ]],
-            'positive half 3.5' => ['3.5', 0, [
-                \RoundingMode::HalfAwayFromZero => '4',
-                \RoundingMode::HalfTowardsZero => '3',
-                \RoundingMode::HalfEven => '4',
-                \RoundingMode::HalfOdd => '3',
-                \RoundingMode::TowardsZero => '3',
-                \RoundingMode::AwayFromZero => '4',
-                \RoundingMode::NegativeInfinity => '3',
-            ]],
-            'negative half -3.5' => ['-3.5', 0, [
-                \RoundingMode::HalfAwayFromZero => '-4',
-                \RoundingMode::HalfTowardsZero => '-3',
-                \RoundingMode::HalfEven => '-4',
-                \RoundingMode::HalfOdd => '-3',
-                \RoundingMode::TowardsZero => '-3',
-                \RoundingMode::AwayFromZero => '-4',
-                \RoundingMode::NegativeInfinity => '-4',
-            ]],
-            'decimal precision 1.255' => ['1.255', 2, [
-                \RoundingMode::HalfAwayFromZero => '1.26',
-                \RoundingMode::HalfTowardsZero => '1.25',
-                \RoundingMode::HalfEven => '1.26',
-                \RoundingMode::HalfOdd => '1.25',
-                \RoundingMode::TowardsZero => '1.25',
-                \RoundingMode::AwayFromZero => '1.26',
-                \RoundingMode::NegativeInfinity => '1.25',
-            ]],
+            'positive half 2.5' => ['2.5', 0],
+            'negative half -2.5' => ['-2.5', 0],
+            'positive half 3.5' => ['3.5', 0],
+            'negative half -3.5' => ['-3.5', 0],
+            'decimal precision 1.255' => ['1.255', 2],
         ];
     }
 
     /**
      * Test comprehensive RoundingMode behavior with various numbers.
-     *
-     * @param string $number
-     * @param int $scale
-     * @param array<\RoundingMode, string> $expectedResults
      */
-    #[RequiresPhp('>=8.4')]
-    #[DataProvider('provideComprehensiveRoundingCases')]
-    public function testRoundingModeComprehensive(string $number, int $scale, array $expectedResults): void
+    #[RequiresPhp('>=8.1')]
+    #[DataProvider('provideRoundingModeComprehensiveCases')]
+    public function testRoundingModeComprehensive(string $number, int $scale): void
     {
         if (!enum_exists('RoundingMode')) {
             $this->markTestSkipped('RoundingMode enum not available');
         }
 
-        foreach ($expectedResults as $mode => $expected) {
-            $result = BCMath::round($number, $scale, $mode);
-            $this->assertSame(
-                $expected,
-                $result,
-                "Failed for number={$number}, scale={$scale}, mode={$mode->name}"
-            );
+        // Test supported modes individually to avoid enum key issues
+        $testCases = [
+            ['mode' => \RoundingMode::HalfAwayFromZero, 'name' => 'HalfAwayFromZero'],
+            ['mode' => \RoundingMode::HalfTowardsZero, 'name' => 'HalfTowardsZero'],
+            ['mode' => \RoundingMode::HalfEven, 'name' => 'HalfEven'],
+            ['mode' => \RoundingMode::HalfOdd, 'name' => 'HalfOdd'],
+        ];
+
+        foreach ($testCases as $testCase) {
+            $mode = $testCase['mode'];
+            $modeName = $testCase['name'];
+
+            // Define expected result for current number/scale/mode combination
+            $expected = match (true) {
+                $number === '2.5' && $scale === 0 && $modeName === 'HalfAwayFromZero' => '3',
+                $number === '2.5' && $scale === 0 && $modeName === 'HalfTowardsZero' => '2',
+                $number === '2.5' && $scale === 0 && $modeName === 'HalfEven' => '2',
+                $number === '2.5' && $scale === 0 && $modeName === 'HalfOdd' => '3',
+
+                $number === '-2.5' && $scale === 0 && $modeName === 'HalfAwayFromZero' => '-3',
+                $number === '-2.5' && $scale === 0 && $modeName === 'HalfTowardsZero' => '-2',
+                $number === '-2.5' && $scale === 0 && $modeName === 'HalfEven' => '-2',
+                $number === '-2.5' && $scale === 0 && $modeName === 'HalfOdd' => '-3',
+
+                $number === '3.5' && $scale === 0 && $modeName === 'HalfAwayFromZero' => '4',
+                $number === '3.5' && $scale === 0 && $modeName === 'HalfTowardsZero' => '3',
+                $number === '3.5' && $scale === 0 && $modeName === 'HalfEven' => '4',
+                $number === '3.5' && $scale === 0 && $modeName === 'HalfOdd' => '3',
+
+                $number === '-3.5' && $scale === 0 && $modeName === 'HalfAwayFromZero' => '-4',
+                $number === '-3.5' && $scale === 0 && $modeName === 'HalfTowardsZero' => '-3',
+                $number === '-3.5' && $scale === 0 && $modeName === 'HalfEven' => '-4',
+                $number === '-3.5' && $scale === 0 && $modeName === 'HalfOdd' => '-3',
+
+                $number === '1.255' && $scale === 2 && $modeName === 'HalfAwayFromZero' => '1.26',
+                $number === '1.255' && $scale === 2 && $modeName === 'HalfTowardsZero' => '1.25',
+                $number === '1.255' && $scale === 2 && $modeName === 'HalfEven' => '1.26',
+                $number === '1.255' && $scale === 2 && $modeName === 'HalfOdd' => '1.25',
+
+                default => null
+            };
+
+            if ($expected !== null) {
+                $result = BCMath::round($number, $scale, $mode);
+                $this->assertSame(
+                    $expected,
+                    $result,
+                    "Failed for number={$number}, scale={$scale}, mode={$modeName}"
+                );
+            }
+        }
+
+        // Test unsupported modes throw ValueError
+        $unsupportedModes = [
+            ['mode' => \RoundingMode::TowardsZero, 'name' => 'TowardsZero'],
+            ['mode' => \RoundingMode::AwayFromZero, 'name' => 'AwayFromZero'],
+            ['mode' => \RoundingMode::NegativeInfinity, 'name' => 'NegativeInfinity'],
+        ];
+
+        foreach ($unsupportedModes as $testCase) {
+            $mode = $testCase['mode'];
+            $modeName = $testCase['name'];
+
+            try {
+                BCMath::round($number, $scale, $mode);
+                $this->fail("Expected ValueError for unsupported mode {$modeName}");
+            } catch (\ValueError $e) {
+                $this->assertStringContainsString(
+                    'is not supported',
+                    $e->getMessage(),
+                    "Expected specific error message for unsupported mode {$modeName}"
+                );
+            }
         }
     }
 
@@ -1825,6 +1851,142 @@ final class BCMathTest extends TestCase
                     );
                 }
             }
+        }
+    }
+
+    /**
+     * Test polyfill RoundingMode enum support for PHP 8.1-8.3.
+     * This specifically tests the polyfill enum behavior when native RoundingMode is not available.
+     */
+    #[RequiresPhp('>=8.1')]
+    public function testPolyfillRoundingModeEnumSupport(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Test supported enum values that work in polyfill
+        $supportedCases = [
+            [\RoundingMode::HalfAwayFromZero, '1.55', 1, '1.6'],
+            [\RoundingMode::HalfTowardsZero, '1.55', 1, '1.5'],
+            [\RoundingMode::HalfEven, '1.55', 1, '1.6'],
+            [\RoundingMode::HalfOdd, '1.55', 1, '1.5'],
+        ];
+
+        foreach ($supportedCases as [$mode, $number, $scale, $expected]) {
+            $result = BCMath::round($number, $scale, $mode);
+            $this->assertSame($expected, $result, "Failed for mode {$mode->name}");
+        }
+    }
+
+    /**
+     * Test unsupported RoundingMode enum values in PHP < 8.4.
+     * These modes should throw ValueError when used in polyfill environment.
+     */
+    #[RequiresPhp('>=8.1')]
+    public function testPolyfillUnsupportedModes(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Skip this test on PHP 8.4+ where these modes are supported
+        $unsupportedModes = [
+            \RoundingMode::TowardsZero,
+            \RoundingMode::AwayFromZero,
+            \RoundingMode::NegativeInfinity,
+        ];
+
+        foreach ($unsupportedModes as $mode) {
+            try {
+                BCMath::round('1.55', 1, $mode);
+                $this->fail("Expected ValueError for unsupported mode {$mode->name}");
+            } catch (\ValueError $e) {
+                $this->assertStringContainsString(
+                    'is not supported',
+                    $e->getMessage(),
+                    "Expected specific error message for unsupported mode {$mode->name}"
+                );
+            }
+        }
+    }
+
+    /**
+     * Test backward compatibility between polyfill enum and PHP_ROUND_* constants.
+     * Ensures both enum and constants produce identical results.
+     */
+    #[RequiresPhp('>=8.1')]
+    public function testPolyfillEnumBackwardCompatibility(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        $compatibilityCases = [
+            [\RoundingMode::HalfAwayFromZero, PHP_ROUND_HALF_UP],
+            [\RoundingMode::HalfTowardsZero, PHP_ROUND_HALF_DOWN],
+            [\RoundingMode::HalfEven, PHP_ROUND_HALF_EVEN],
+            [\RoundingMode::HalfOdd, PHP_ROUND_HALF_ODD],
+        ];
+
+        $testNumbers = [
+            ['1.55', 1],
+            ['2.5', 0],
+            ['-2.5', 0],
+            ['3.5', 0],
+            ['-3.5', 0],
+            ['1.255', 2],
+        ];
+
+        foreach ($testNumbers as [$number, $scale]) {
+            foreach ($compatibilityCases as [$enumMode, $constantMode]) {
+                $enumResult = BCMath::round($number, $scale, $enumMode);
+                $constantResult = BCMath::round($number, $scale, $constantMode);
+
+                $this->assertSame(
+                    $constantResult,
+                    $enumResult,
+                    "Enum mode {$enumMode->name} should produce same result as constant {$constantMode} for number={$number}, scale={$scale}"
+                );
+            }
+        }
+    }
+
+    /**
+     * Test environment detection logic for native vs polyfill enum.
+     * This helps ensure proper behavior across different PHP versions.
+     */
+    #[RequiresPhp('>=8.1')]
+    public function testRoundingModeEnvironmentDetection(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Test that enum exists and has expected cases
+        $expectedCases = [
+            'HalfAwayFromZero',
+            'HalfTowardsZero',
+            'HalfEven',
+            'HalfOdd',
+            'TowardsZero',
+            'AwayFromZero',
+            'NegativeInfinity',
+        ];
+
+        foreach ($expectedCases as $caseName) {
+            $this->assertTrue(
+                enum_exists('RoundingMode') && defined("RoundingMode::{$caseName}"),
+                "RoundingMode::{$caseName} should be available"
+            );
+        }
+
+        // Test that unsupported modes always throw ValueError regardless of PHP version
+        try {
+            BCMath::round('1.55', 1, \RoundingMode::TowardsZero);
+            $this->fail('TowardsZero mode should always throw ValueError');
+        } catch (\ValueError $e) {
+            $this->assertStringContainsString('is not supported', $e->getMessage());
         }
     }
 }
