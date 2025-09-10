@@ -1000,7 +1000,11 @@ abstract class BCMath
     /**
      * Convert RoundingMode enum to integer constant for backward compatibility.
      *
-     * @param int|\RoundingMode $mode The rounding mode
+     * Note: Parameter type declaration is intentionally omitted to prevent PHP's type coercion.
+     * With int|\RoundingMode type hint, float values like 1.5 would be auto-converted to int (1),
+     * preventing proper validation and exception throwing for invalid types.
+     *
+     * @param int|\RoundingMode $mode
      *
      * @return int The corresponding PHP_ROUND_* constant
      *
