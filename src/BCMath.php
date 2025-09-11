@@ -1105,16 +1105,25 @@ abstract class BCMath
             $addition = '0.'.str_repeat('0', $precision).'5';
             $number = self::add($number, $addition, $precision + 1);
         } elseif ($mode === PHP_ROUND_HALF_DOWN) {
-            // For HALF_DOWN, we need to check the digit at precision+1
+            // PHP_ROUND_HALF_DOWN (HalfTowardsZero):
+            // - For exactly 0.5: round towards zero (down for positive, up for negative)
+            // - For > 0.5: always round away from zero
+            // - For < 0.5: always round towards zero
+
             [$int, $dec] = explode('.', $number);
             if (isset($dec[$precision])) {
                 $digit = (int) $dec[$precision];
-                if ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
-                    // Exactly 0.5, don't round up
-                } elseif ($digit > 5 || ($digit === 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
-                    $addition = '0.'.str_repeat('0', $precision).'1';
+                $isExactlyHalf = ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === ''));
+
+                if ($digit > 5 || ($digit === 5 && !$isExactlyHalf)) {
+                    // Greater than 0.5: round away from zero (add 0.5)
+                    $addition = '0.'.str_repeat('0', $precision).'5';
                     $number = self::add($number, $addition, $precision + 1);
+                } elseif ($isExactlyHalf && $sign === '-') {
+                    // Exactly 0.5 and negative: round towards zero (which means don't add anything - truncate)
+                    // Do nothing - let truncation handle it
                 }
+                // For exactly 0.5 and positive: round towards zero (which is down, so don't add)
             }
         } else {
             // For other modes, use PHP's round and convert back

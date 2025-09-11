@@ -575,6 +575,33 @@ final class BCMathTest extends TestCase
     }
 
     /**
+     * Test HalfTowardsZero rounding mode behavior.
+     * Reproduces the bcround_all.phpt failure for negative numbers with 0.5.
+     */
+    public function testHalfTowardsZeroRounding(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Test non-boundary values first (should work correctly)
+        $this->assertSame('1', BCMath::round('1.2', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('2', BCMath::round('1.7', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-1', BCMath::round('-1.2', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-2', BCMath::round('-1.7', 0, \RoundingMode::HalfTowardsZero));
+
+        // Now test the boundary cases with 0.5
+        // Positive numbers: should round towards zero (down)
+        $this->assertSame('1', BCMath::round('1.5', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('2', BCMath::round('2.5', 0, \RoundingMode::HalfTowardsZero));
+
+        // Negative numbers: should round towards zero (up)
+        // This is currently failing - expecting -1 but getting -2
+        $this->assertSame('-1', BCMath::round('-1.5', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-2', BCMath::round('-2.5', 0, \RoundingMode::HalfTowardsZero));
+    }
+
+    /**
      * Test boundary values with very large decimal places.
      */
     public function testBoundaryValuesLargeDecimals(): void
