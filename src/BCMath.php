@@ -71,11 +71,19 @@ abstract class BCMath
      *
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
+     * 
+     * **Limitation**: When the native bcmath extension is not loaded,
+     * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
+     * will return false. In this case, the polyfill defaults to scale 0.
+     * This means bcmath.scale INI settings (including in PHPT tests) are ignored
+     * when using the polyfill without the native extension.
      */
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
             if (!isset(self::$scale)) {
+                // Note: ini_get('bcmath.scale') returns false when bcmath extension is not loaded
+                // This is expected behavior - the polyfill cannot access bcmath.scale INI settings
                 $defaultScale = ini_get('bcmath.scale');
                 self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
             }
