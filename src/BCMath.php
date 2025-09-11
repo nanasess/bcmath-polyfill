@@ -293,60 +293,6 @@ abstract class BCMath
         }
     }
 
-    /**
-     * Validate and extract integer parts from numeric strings for integer-only operations.
-     *
-     * This method extracts the integer portion from decimal numbers and validates
-     * that they meet the requirements for integer-only operations like powmod().
-     *
-     * @param string[] $numbers Array of numeric strings to validate
-     * @param string[] $names Array of parameter names for error messages
-     * @param array<string, int[]> $constraints Array of validation constraints:
-     *   - 'non_negative' => [indices] for parameters that must be >= 0
-     *   - 'non_zero' => [indices] for parameters that cannot be zero
-     *
-     * @return string[] Array of validated integer strings
-     *
-     * @throws \ValueError If validation constraints are violated
-     */
-    protected static function validateIntegerInputs(array $numbers, array $names = [], array $constraints = []): array
-    {
-        $results = [];
-
-        foreach ($numbers as $index => $number) {
-            // Extract integer part
-            $parts = explode('.', $number, 2);
-            $intPart = $parts[0];
-
-            // Handle empty or zero cases
-            if ($intPart === '' || $intPart === '0') {
-                $intPart = '0';
-            }
-
-            $paramName = $names[$index] ?? 'Argument #'.($index + 1);
-
-            // Check non-zero constraint
-            if (isset($constraints['non_zero']) && in_array($index, $constraints['non_zero'], true) && $intPart === self::DEFAULT_NUMBER) {
-                throw new \ValueError("{$paramName} cannot be zero");
-            }
-
-            // Check non-negative constraint
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && self::startsWithNegativeSign($intPart)) {
-                throw new \ValueError("{$paramName} must be greater than or equal to 0");
-            }
-
-            // Handle negative numbers by removing the sign if allowed
-            if (self::startsWithNegativeSign($intPart)
-                && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
-                $trimmedIntPart = ltrim($intPart);
-                $intPart = substr($trimmedIntPart, 1);
-            }
-
-            $results[] = $intPart;
-        }
-
-        return $results;
-    }
 
     /**
      * Resolve scale for comparison operations (defaults to 0).
@@ -788,14 +734,28 @@ abstract class BCMath
         self::validateScale($scale, 'bcpowmod', 4);
 
         // Phase 3: Number processing and validation
-        [$baseInt, $exponentInt, $modulusInt] = self::validateIntegerInputs(
-            [$base, $exponent, $modulus],
-            ['bcpowmod(): Argument #1 ($base)', 'bcpowmod(): Argument #2 ($exponent)', 'bcpowmod(): Argument #3 ($modulus)'],
-            [
-                'non_negative' => [1], // exponent must be non-negative
-                'non_zero' => [2],      // modulus cannot be zero
-            ]
-        );
+        // Extract integer parts and apply security measures
+        $baseParts = explode('.', $base, 2);
+        $baseInt = $baseParts[0] === '' ? '0' : $baseParts[0];
+        if (self::startsWithNegativeSign($baseInt)) {
+            $baseInt = ltrim($baseInt);
+        }
+
+        $exponentParts = explode('.', $exponent, 2);
+        $exponentInt = $exponentParts[0] === '' ? '0' : $exponentParts[0];
+        if (self::startsWithNegativeSign($exponentInt)) {
+            $exponentInt = ltrim($exponentInt);
+            throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
+        }
+
+        $modulusParts = explode('.', $modulus, 2);
+        $modulusInt = $modulusParts[0] === '' ? '0' : $modulusParts[0];
+        if (self::startsWithNegativeSign($modulusInt)) {
+            $modulusInt = ltrim($modulusInt);
+        }
+        if ($modulusInt === '0') {
+            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
+        }
         if ($exponentInt === self::DEFAULT_NUMBER) {
             return $scale !== 0
                 ? '1.'.str_repeat('0', $scale)
@@ -807,7 +767,24 @@ abstract class BCMath
         $e = new BigInteger($exponentInt);
         $n = new BigInteger($modulusInt);
 
-        $z = $x->powMod($e, $n);
+        // For negative base, use bcmath-compatible approach
+        if (self::isNegative($x)) {
+            // Calculate x^e first, then take modulus
+            // This preserves bcmath's negative modulus behavior
+            $power = $x->pow($e);
+            [$quotient, $remainder] = $power->divide($n);
+
+            // bcmath returns negative remainder for negative dividend
+            // Convert positive remainder to negative if original was negative
+            if ($power->isNegative() && !$remainder->equals(new BigInteger(0)) && !$remainder->isNegative()) {
+                $remainder = $remainder->subtract($n);
+            }
+
+            $z = $remainder;
+        } else {
+            // For positive base, use efficient powMod
+            $z = $x->powMod($e, $n);
+        }
 
         // Phase 5: Result formatting
         return $scale !== 0

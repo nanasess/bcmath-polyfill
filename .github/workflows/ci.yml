@@ -94,7 +94,7 @@ jobs:
             -   name: Build Docker test image
                 run: docker build -f Dockerfile.test-without-bcmath --build-arg PHP_VERSION=${{ matrix.php-version }} -t bcmath-phpt-test:${{ matrix.php-version }} .
             -   name: Run Docker-based PHPT tests
-                run: docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bcdivmod,bcpowmod,bcround,bcscale,bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,str2num_formatting,bcmul_check_overflow,bug78878,bccomp_variation001,bccomp_variation002,bcdivmod_by_zero,bcmod_error2,bcpow_div_by_zero,bcpow_error1,bcpow_error2,bcpow_error3,bcpow_large_numbers,bcpow_zero,bcpowmod_error,bcpowmod_with_mod_1,bcpowmod_zero_modulus,bcround_all,bcround_away_from_zero,bcround_ceiling,bcround_early_return,bcround_floor,bcround_half_down,bcround_toward_zero,bcscale_variation003
+                run: docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bcdivmod,bcround,bcscale,bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,str2num_formatting,bcmul_check_overflow,bug78878,bccomp_variation001,bccomp_variation002,bcdivmod_by_zero,bcmod_error2,bcpow_div_by_zero,bcpow_error1,bcpow_error2,bcpow_error3,bcpow_large_numbers,bcpow_zero,bcpowmod_error,bcpowmod_with_mod_1,bcpowmod_zero_modulus,bcround_all,bcround_away_from_zero,bcround_ceiling,bcround_early_return,bcround_floor,bcround_half_down,bcround_toward_zero,bcscale_variation003
         strategy:
             fail-fast: false
             matrix:
