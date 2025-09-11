@@ -47,6 +47,7 @@ abstract class BCMath
      */
     private const DEFAULT_NUMBER = '0';
     private const DIVISION_BY_ZERO_MESSAGE = 'Division by zero';
+    private const MODULO_BY_ZERO_MESSAGE = 'Modulo by zero';
 
     /**
      * Validate and normalize two input numbers.
@@ -71,7 +72,7 @@ abstract class BCMath
      *
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
-     * 
+     *
      * **Limitation**: When the native bcmath extension is not loaded,
      * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
      * will return false. In this case, the polyfill defaults to scale 0.
@@ -298,6 +299,18 @@ abstract class BCMath
     {
         if (self::isZero($divisor)) {
             throw new \DivisionByZeroError(self::DIVISION_BY_ZERO_MESSAGE);
+        }
+    }
+
+    /**
+     * Check for modulo by zero.
+     *
+     * @throws \DivisionByZeroError If divisor is zero
+     */
+    private static function checkModuloByZero(string $divisor): void
+    {
+        if (self::isZero($divisor)) {
+            throw new \DivisionByZeroError(self::MODULO_BY_ZERO_MESSAGE);
         }
     }
 
@@ -575,7 +588,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcmod', 3);
 
         // Phase 3: Division by zero check and number processing
-        self::checkDivisionByZero($num2);
+        self::checkModuloByZero($num2);
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
         // Phase 4: Calculation execution
