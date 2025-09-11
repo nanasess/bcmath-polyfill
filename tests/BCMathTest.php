@@ -575,6 +575,33 @@ final class BCMathTest extends TestCase
     }
 
     /**
+     * Test HalfTowardsZero rounding mode behavior.
+     * Reproduces the bcround_all.phpt failure for negative numbers with 0.5.
+     */
+    public function testHalfTowardsZeroRounding(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
+        }
+
+        // Test non-boundary values first (should work correctly)
+        $this->assertSame('1', BCMath::round('1.2', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('2', BCMath::round('1.7', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-1', BCMath::round('-1.2', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-2', BCMath::round('-1.7', 0, \RoundingMode::HalfTowardsZero));
+
+        // Now test the boundary cases with 0.5
+        // Positive numbers: should round towards zero (down)
+        $this->assertSame('1', BCMath::round('1.5', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('2', BCMath::round('2.5', 0, \RoundingMode::HalfTowardsZero));
+
+        // Negative numbers: should round towards zero (up)
+        // This is currently failing - expecting -1 but getting -2
+        $this->assertSame('-1', BCMath::round('-1.5', 0, \RoundingMode::HalfTowardsZero));
+        $this->assertSame('-2', BCMath::round('-2.5', 0, \RoundingMode::HalfTowardsZero));
+    }
+
+    /**
      * Test boundary values with very large decimal places.
      */
     public function testBoundaryValuesLargeDecimals(): void
@@ -1256,15 +1283,10 @@ final class BCMathTest extends TestCase
             // [base, exponent, scale, expected_result]
             ['0', '1', 2, '0.00'],
             ['0', '2', 2, '0.00'],
-            ['0', '-1', 2, '0.00'],
-            ['0', '-2', 2, '0.00'],
             ['0.0', '1', 2, '0.00'],
-            ['0.00', '-1', 2, '0.00'],
             ['-0', '2', 2, '0.00'],
-            ['-0.00', '-1', 2, '0.00'],
             ['+0.000', '3', 2, '0.00'],
             ['0', '1', 0, '0'],
-            ['0.00', '-2', 4, '0.0000'],
         ];
     }
 
@@ -1289,6 +1311,34 @@ final class BCMathTest extends TestCase
 
         $result = BCMath::pow('0.00', '0', 2);
         $this->assertSame('1.00', $result);
+    }
+
+    /**
+     * Data provider for bcpow negative power of zero test cases.
+     *
+     * @return iterable<int, array<int, int|string>>
+     */
+    public static function provideBcpowNegativePowerOfZeroThrowsErrorCases(): iterable
+    {
+        return [
+            // [base, exponent, scale]
+            ['0', '-1', 2],
+            ['0', '-2', 2],
+            ['0.00', '-1', 2],
+            ['-0.00', '-1', 2],
+            ['0.00', '-2', 4],
+        ];
+    }
+
+    /**
+     * Test bcpow negative power of zero throws DivisionByZeroError.
+     */
+    #[DataProvider('provideBcpowNegativePowerOfZeroThrowsErrorCases')]
+    public function testBcpowNegativePowerOfZeroThrowsError(string $base, string $exponent, int $scale): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Negative power of zero');
+        BCMath::pow($base, $exponent, $scale);
     }
 
     /**

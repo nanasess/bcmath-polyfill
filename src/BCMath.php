@@ -47,6 +47,7 @@ abstract class BCMath
      */
     private const DEFAULT_NUMBER = '0';
     private const DIVISION_BY_ZERO_MESSAGE = 'Division by zero';
+    private const MODULO_BY_ZERO_MESSAGE = 'Modulo by zero';
 
     /**
      * Validate and normalize two input numbers.
@@ -71,11 +72,19 @@ abstract class BCMath
      *
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
+     *
+     * **Limitation**: When the native bcmath extension is not loaded,
+     * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
+     * will return false. In this case, the polyfill defaults to scale 0.
+     * This means bcmath.scale INI settings (including in PHPT tests) are ignored
+     * when using the polyfill without the native extension.
      */
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
             if (!isset(self::$scale)) {
+                // Note: ini_get('bcmath.scale') returns false when bcmath extension is not loaded
+                // This is expected behavior - the polyfill cannot access bcmath.scale INI settings
                 $defaultScale = ini_get('bcmath.scale');
                 self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
             }
@@ -294,58 +303,15 @@ abstract class BCMath
     }
 
     /**
-     * Validate and extract integer parts from numeric strings for integer-only operations.
+     * Check for modulo by zero.
      *
-     * This method extracts the integer portion from decimal numbers and validates
-     * that they meet the requirements for integer-only operations like powmod().
-     *
-     * @param string[] $numbers Array of numeric strings to validate
-     * @param string[] $names Array of parameter names for error messages
-     * @param array<string, int[]> $constraints Array of validation constraints:
-     *   - 'non_negative' => [indices] for parameters that must be >= 0
-     *   - 'non_zero' => [indices] for parameters that cannot be zero
-     *
-     * @return string[] Array of validated integer strings
-     *
-     * @throws \ValueError If validation constraints are violated
+     * @throws \DivisionByZeroError If divisor is zero
      */
-    protected static function validateIntegerInputs(array $numbers, array $names = [], array $constraints = []): array
+    private static function checkModuloByZero(string $divisor): void
     {
-        $results = [];
-
-        foreach ($numbers as $index => $number) {
-            // Extract integer part
-            $parts = explode('.', $number, 2);
-            $intPart = $parts[0];
-
-            // Handle empty or zero cases
-            if ($intPart === '' || $intPart === '0') {
-                $intPart = '0';
-            }
-
-            $paramName = $names[$index] ?? 'Argument #'.($index + 1);
-
-            // Check non-zero constraint
-            if (isset($constraints['non_zero']) && in_array($index, $constraints['non_zero'], true) && $intPart === self::DEFAULT_NUMBER) {
-                throw new \ValueError("{$paramName} cannot be zero");
-            }
-
-            // Check non-negative constraint
-            if (isset($constraints['non_negative']) && in_array($index, $constraints['non_negative'], true) && self::startsWithNegativeSign($intPart)) {
-                throw new \ValueError("{$paramName} must be greater than or equal to 0");
-            }
-
-            // Handle negative numbers by removing the sign if allowed
-            if (self::startsWithNegativeSign($intPart)
-                && (!isset($constraints['non_negative']) || !in_array($index, $constraints['non_negative'], true))) {
-                $trimmedIntPart = ltrim($intPart);
-                $intPart = substr($trimmedIntPart, 1);
-            }
-
-            $results[] = $intPart;
+        if (self::isZero($divisor)) {
+            throw new \DivisionByZeroError(self::MODULO_BY_ZERO_MESSAGE);
         }
-
-        return $results;
     }
 
     /**
@@ -371,15 +337,73 @@ abstract class BCMath
         [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
-        // Apply scale truncation
+        // Apply scale truncation and padding
         $num1Dec = substr((string) $num1Dec, 0, $scale);
         $num2Dec = substr((string) $num2Dec, 0, $scale);
+
+        // Pad decimal parts to the same length (scale)
+        $num1Dec = str_pad($num1Dec, $scale, '0', STR_PAD_RIGHT);
+        $num2Dec = str_pad($num2Dec, $scale, '0', STR_PAD_RIGHT);
 
         // Convert to BigInteger for comparison
         $num1Big = new BigInteger($num1Int.$num1Dec);
         $num2Big = new BigInteger($num2Int.$num2Dec);
 
         return [$num1Big, $num2Big];
+    }
+
+    /**
+     * Handle rounding operations with negative zero normalization.
+     *
+     * @param string $num The number to process
+     * @param string $functionName Function name for error messages
+     * @param callable(string, string, string): ?string $fractionHandler Handler for numbers with non-zero fractional parts
+     *
+     * @return string The processed result
+     */
+    private static function normalizeZeroForRounding(string $num, string $functionName, callable $fractionHandler): string
+    {
+        self::validateNumberString($num, $functionName, 1, 'num');
+
+        if (!is_numeric($num)) {
+            if (version_compare(PHP_VERSION, '8.4', '>=')) {
+                throw new \ValueError($functionName.'(): Argument #1 ($num) is not well-formed');
+            }
+            trigger_error($functionName.'(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
+
+            return '0';
+        }
+
+        // Handle the case where input is exactly '-0' (no decimal point)
+        if ($num === '-0') {
+            return '0';
+        }
+
+        // Remove any fractional part
+        if (str_contains($num, '.')) {
+            $dotPos = (int) strpos($num, '.');
+            $integerPart = substr($num, 0, $dotPos);
+            $fractionalPart = substr($num, $dotPos + 1);
+
+            // Check if there's a non-zero fractional part
+            $hasNonZeroFraction = ltrim($fractionalPart, '0') !== '';
+
+            if ($hasNonZeroFraction) {
+                $result = $fractionHandler($num, $integerPart, $fractionalPart);
+                if ($result !== null) {
+                    return $result;
+                }
+            }
+
+            // Handle special cases: empty, '-', or '-0' should return '0'
+            if ($integerPart === '' || $integerPart === '-' || $integerPart === '-0') {
+                return '0';
+            }
+
+            return $integerPart;
+        }
+
+        return $num;
     }
 
     /**
@@ -564,7 +588,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcmod', 3);
 
         // Phase 3: Division by zero check and number processing
-        self::checkDivisionByZero($num2);
+        self::checkModuloByZero($num2);
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
         // Phase 4: Calculation execution
@@ -615,7 +639,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcpow', 3);
 
         // Phase 3: Early special case handling
-        if ($exponent === self::DEFAULT_NUMBER) {
+        if ($exponent === self::DEFAULT_NUMBER || $exponent === '-0' || $exponent === '-0.0') {
             $result = '1';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -627,8 +651,13 @@ abstract class BCMath
         // Normalize inputs
         [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
 
-        // Handle special case: 0 to any power is 0 (except 0^0 which is handled above)
+        // Handle special case: 0 to any power
         if (self::isZero($base)) {
+            // Check for negative power of zero - PHP 8.4+ behavior
+            if (self::isNegative(new BigInteger($exponent))) {
+                throw new \DivisionByZeroError('Negative power of zero');
+            }
+
             $result = '0';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -656,7 +685,7 @@ abstract class BCMath
         // Convert to BigInteger for calculation
         $baseBig = new BigInteger($baseParts[0].$baseParts[1]);
 
-        $sign = self::isNegative($baseBig) ? '-' : '';
+        $baseIsNegative = self::isNegative($baseBig);
         $baseBig = $baseBig->abs();
 
         // Phase 5: Calculation execution
@@ -677,7 +706,28 @@ abstract class BCMath
             $finalPad = $maxPad * (int) $absExponent;
         }
 
-        return $sign.self::format($r, $scale, $finalPad);
+        // Format the result first
+        $result = self::format($r, $scale, $finalPad);
+
+        // Determine if we should apply negative sign
+        // For negative base: negative sign only if exponent is odd integer
+        if ($baseIsNegative) {
+            // Check if exponent is an odd integer
+            $exponentIsOddInteger = false;
+            if (!str_contains($exponent, '.') || ($dotPos = strpos($exponent, '.')) !== false && rtrim(substr($exponent, $dotPos), '0') === '.') {
+                $exponentInt = (int) $exponent;
+                $exponentIsOddInteger = ($exponentInt % 2 !== 0);
+            }
+
+            // Apply negative sign only if:
+            // 1. Exponent is odd integer
+            // 2. Result is not effectively zero
+            if ($exponentIsOddInteger && !self::isZero($result)) {
+                $result = '-'.$result;
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -704,14 +754,29 @@ abstract class BCMath
         self::validateScale($scale, 'bcpowmod', 4);
 
         // Phase 3: Number processing and validation
-        [$baseInt, $exponentInt, $modulusInt] = self::validateIntegerInputs(
-            [$base, $exponent, $modulus],
-            ['bcpowmod(): Argument #1 ($base)', 'bcpowmod(): Argument #2 ($exponent)', 'bcpowmod(): Argument #3 ($modulus)'],
-            [
-                'non_negative' => [1], // exponent must be non-negative
-                'non_zero' => [2],      // modulus cannot be zero
-            ]
-        );
+        // Extract integer parts and apply security measures
+        $baseParts = explode('.', $base, 2);
+        $baseInt = $baseParts[0] === '' ? '0' : $baseParts[0];
+        if (self::startsWithNegativeSign($baseInt)) {
+            $baseInt = ltrim($baseInt);
+        }
+
+        $exponentParts = explode('.', $exponent, 2);
+        $exponentInt = $exponentParts[0] === '' ? '0' : $exponentParts[0];
+        if (self::startsWithNegativeSign($exponentInt)) {
+            $exponentInt = ltrim($exponentInt);
+
+            throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
+        }
+
+        $modulusParts = explode('.', $modulus, 2);
+        $modulusInt = $modulusParts[0] === '' ? '0' : $modulusParts[0];
+        if (self::startsWithNegativeSign($modulusInt)) {
+            $modulusInt = ltrim($modulusInt);
+        }
+        if ($modulusInt === '0') {
+            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
+        }
         if ($exponentInt === self::DEFAULT_NUMBER) {
             return $scale !== 0
                 ? '1.'.str_repeat('0', $scale)
@@ -723,7 +788,24 @@ abstract class BCMath
         $e = new BigInteger($exponentInt);
         $n = new BigInteger($modulusInt);
 
-        $z = $x->powMod($e, $n);
+        // For negative base, use bcmath-compatible approach
+        if (self::isNegative($x)) {
+            // Calculate x^e first, then take modulus
+            // This preserves bcmath's negative modulus behavior
+            $power = $x->pow($e);
+            [$quotient, $remainder] = $power->divide($n);
+
+            // bcmath returns negative remainder for negative dividend
+            // Convert positive remainder to negative if original was negative
+            if ($power->isNegative() && !$remainder->equals(new BigInteger(0)) && !$remainder->isNegative()) {
+                $remainder = $remainder->subtract($n);
+            }
+
+            $z = $remainder;
+        } else {
+            // For positive base, use efficient powMod
+            $z = $x->powMod($e, $n);
+        }
 
         // Phase 5: Result formatting
         return $scale !== 0
@@ -890,32 +972,14 @@ abstract class BCMath
      */
     public static function floor(string $num): string
     {
-        self::validateNumberString($num, 'bcfloor', 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError('bcfloor(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error('bcfloor(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
-
-        // Remove any fractional part
-        if (str_contains($num, '.')) {
-            $dotPos = (int) strpos($num, '.');
-            $integerPart = substr($num, 0, $dotPos);
-            $fractionalPart = substr($num, $dotPos + 1);
-
+        return self::normalizeZeroForRounding($num, 'bcfloor', static function (string $num, string $integerPart, string $fractionalPart): ?string {
             // For negative numbers with fractional parts, we need to subtract 1
-            if (self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
+            if (self::startsWithNegativeSign($num)) {
                 return self::sub($integerPart, '1', 0);
             }
 
-            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
-        }
-
-        return $num;
+            return null; // Let the common logic handle this case
+        });
     }
 
     /**
@@ -925,34 +989,16 @@ abstract class BCMath
      */
     public static function ceil(string $num): string
     {
-        self::validateNumberString($num, 'bcceil', 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError('bcceil(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error('bcceil(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
-
-        // Remove any fractional part
-        if (str_contains($num, '.')) {
-            $dotPos = (int) strpos($num, '.');
-            $integerPart = substr($num, 0, $dotPos);
-            $fractionalPart = substr($num, $dotPos + 1);
-
+        return self::normalizeZeroForRounding($num, 'bcceil', static function (string $num, string $integerPart, string $fractionalPart): ?string {
             // For positive numbers with fractional parts, we need to add 1
-            if (!self::startsWithNegativeSign($num) && ltrim($fractionalPart, '0') !== '') {
+            if (!self::startsWithNegativeSign($num)) {
                 $integerPart = $integerPart === '' ? '0' : $integerPart;
 
                 return self::add($integerPart, '1', 0);
             }
 
-            return $integerPart === '' || $integerPart === '-' ? '0' : $integerPart;
-        }
-
-        return $num;
+            return null; // Let the common logic handle this case
+        });
     }
 
     /**
@@ -1021,6 +1067,7 @@ abstract class BCMath
                 \RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
                 // TODO: Support additional modes if needed
                 \RoundingMode::NegativeInfinity => throw new \ValueError('RoundingMode::NegativeInfinity is not supported'),
+                \RoundingMode::PositiveInfinity => throw new \ValueError('RoundingMode::PositiveInfinity is not supported'),
                 \RoundingMode::TowardsZero => throw new \ValueError('RoundingMode::TowardsZero is not supported'),
                 \RoundingMode::AwayFromZero => throw new \ValueError('RoundingMode::AwayFromZero is not supported'), // @phpstan-ignore-line
                 default => throw new \ValueError('Unsupported RoundingMode')
@@ -1059,16 +1106,25 @@ abstract class BCMath
             $addition = '0.'.str_repeat('0', $precision).'5';
             $number = self::add($number, $addition, $precision + 1);
         } elseif ($mode === PHP_ROUND_HALF_DOWN) {
-            // For HALF_DOWN, we need to check the digit at precision+1
+            // PHP_ROUND_HALF_DOWN (HalfTowardsZero):
+            // - For exactly 0.5: round towards zero (down for positive, up for negative)
+            // - For > 0.5: always round away from zero
+            // - For < 0.5: always round towards zero
+
             [$int, $dec] = explode('.', $number);
             if (isset($dec[$precision])) {
                 $digit = (int) $dec[$precision];
-                if ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === '')) {
-                    // Exactly 0.5, don't round up
-                } elseif ($digit > 5 || ($digit === 5 && ltrim(substr($dec, $precision + 1), '0') !== '')) {
-                    $addition = '0.'.str_repeat('0', $precision).'1';
+                $isExactlyHalf = ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === ''));
+
+                if ($digit > 5 || ($digit === 5 && !$isExactlyHalf)) {
+                    // Greater than 0.5: round away from zero (add 0.5)
+                    $addition = '0.'.str_repeat('0', $precision).'5';
                     $number = self::add($number, $addition, $precision + 1);
+                } elseif ($isExactlyHalf && $sign === '-') {
+                    // Exactly 0.5 and negative: round towards zero (which means don't add anything - truncate)
+                    // Do nothing - let truncation handle it
                 }
+                // For exactly 0.5 and positive: round towards zero (which is down, so don't add)
             }
         } else {
             // For other modes, use PHP's round and convert back

@@ -99,8 +99,12 @@ This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInte
 - Recommended approach: Don't check for the extension, just use the functions
 
 ### Configuration Options
-- `ini_set('bcmath.scale', ...)` won't work without the native extension
-- Use `bcscale()` instead to set the scale globally
+- **bcmath.scale INI setting is ignored**: When the native bcmath extension is not loaded, PHP does not recognize the `bcmath.scale` INI setting. This means:
+  - `ini_get('bcmath.scale')` returns `false`
+  - `ini_set('bcmath.scale', ...)` won't work
+  - INI settings in php.ini or PHPT tests are ignored
+  - The polyfill defaults to scale 0 when no explicit scale is provided
+- **Workaround**: Use `bcscale()` instead to set the scale globally
 - To get the current scale:
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
