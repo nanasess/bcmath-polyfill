@@ -1291,7 +1291,7 @@ final class BCMathTest extends TestCase
      *
      * @return iterable<int, array<int, int|string>>
      */
-    public static function provideBcpowNegativePowerOfZeroCases(): iterable
+    public static function provideBcpowNegativePowerOfZeroThrowsErrorCases(): iterable
     {
         return [
             // [base, exponent, scale]
@@ -1306,7 +1306,7 @@ final class BCMathTest extends TestCase
     /**
      * Test bcpow negative power of zero throws DivisionByZeroError.
      */
-    #[DataProvider('provideBcpowNegativePowerOfZeroCases')]
+    #[DataProvider('provideBcpowNegativePowerOfZeroThrowsErrorCases')]
     public function testBcpowNegativePowerOfZeroThrowsError(string $base, string $exponent, int $scale): void
     {
         $this->expectException(\DivisionByZeroError::class);

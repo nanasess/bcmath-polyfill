@@ -293,7 +293,6 @@ abstract class BCMath
         }
     }
 
-
     /**
      * Resolve scale for comparison operations (defaults to 0).
      */
@@ -694,7 +693,7 @@ abstract class BCMath
         if ($baseIsNegative) {
             // Check if exponent is an odd integer
             $exponentIsOddInteger = false;
-            if (!str_contains($exponent, '.') || rtrim(substr($exponent, strpos($exponent, '.')), '0') === '.') {
+            if (!str_contains($exponent, '.') || ($dotPos = strpos($exponent, '.')) !== false && rtrim(substr($exponent, $dotPos), '0') === '.') {
                 $exponentInt = (int) $exponent;
                 $exponentIsOddInteger = ($exponentInt % 2 !== 0);
             }
@@ -745,6 +744,7 @@ abstract class BCMath
         $exponentInt = $exponentParts[0] === '' ? '0' : $exponentParts[0];
         if (self::startsWithNegativeSign($exponentInt)) {
             $exponentInt = ltrim($exponentInt);
+
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
 
