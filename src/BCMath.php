@@ -1067,6 +1067,7 @@ abstract class BCMath
                 \RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
                 // TODO: Support additional modes if needed
                 \RoundingMode::NegativeInfinity => throw new \ValueError('RoundingMode::NegativeInfinity is not supported'),
+                \RoundingMode::PositiveInfinity => throw new \ValueError('RoundingMode::PositiveInfinity is not supported'),
                 \RoundingMode::TowardsZero => throw new \ValueError('RoundingMode::TowardsZero is not supported'),
                 \RoundingMode::AwayFromZero => throw new \ValueError('RoundingMode::AwayFromZero is not supported'), // @phpstan-ignore-line
                 default => throw new \ValueError('Unsupported RoundingMode')
