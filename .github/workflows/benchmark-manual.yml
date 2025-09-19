@@ -96,7 +96,7 @@ jobs:
             benchmark_output.txt
 
       - name: Format benchmark comment
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number != ''
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number
         id: format_comment
         run: |
           cat > comment.md << 'EOL'
@@ -135,7 +135,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post results to PR
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number != ''
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number
         uses: actions/github-script@v7
         with:
           script: |
