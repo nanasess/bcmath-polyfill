@@ -46,10 +46,16 @@
             "bcmath_compat\\": "src"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "bcmath_compat\\Benchmarks\\": "benchmarks"
+        }
+    },
     "scripts": {
         "test": "phpunit",
         "check-style": "phpcs src tests",
-        "fix-style": "phpcbf src tests"
+        "fix-style": "phpcbf src tests",
+        "benchmark": "php benchmarks/run-benchmarks.php"
     },
     "provide": {
       "ext-bcmath": "8.1.0"

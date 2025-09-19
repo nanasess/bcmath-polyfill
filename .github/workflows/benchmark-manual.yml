@@ -1,0 +1,151 @@
+name: Run Benchmark (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Number of iterations per test'
+        required: false
+        default: '10000'
+        type: string
+      post_comment:
+        description: 'Post results as comment on PR'
+        required: false
+        default: false
+        type: boolean
+      pr_number:
+        description: 'PR number to post comment (if enabled)'
+        required: false
+        type: string
+
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'benchmarks/**'
+      - 'composer.json'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    strategy:
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+
+    name: PHP ${{ matrix.php-version }} Benchmark
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-interaction
+
+      - name: Update benchmark iterations
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Update iterations if custom value provided
+          ITERATIONS="${{ github.event.inputs.iterations }}"
+          if [ -n "$ITERATIONS" ]; then
+            sed -i "s/private const ITERATIONS = [0-9]\+;/private const ITERATIONS = $ITERATIONS;/" benchmarks/BenchmarkRunner.php
+            WARMUP=$((ITERATIONS / 10))
+            sed -i "s/private const WARMUP_ITERATIONS = [0-9]\+;/private const WARMUP_ITERATIONS = $WARMUP;/" benchmarks/BenchmarkRunner.php
+          fi
+
+      - name: Run benchmarks
+        id: benchmark
+        run: |
+          echo "## Running benchmark with PHP ${{ matrix.php-version }}"
+          php benchmarks/run-benchmarks.php | tee benchmark_output.txt
+
+          # Generate reports
+          php benchmarks/run-benchmarks.php -f markdown -o benchmark_results.md
+          php benchmarks/run-benchmarks.php -f json -o benchmark_results.json
+
+          # Extract summary
+          echo "BENCHMARK_SUMMARY<<EOF" >> $GITHUB_OUTPUT
+          tail -n 5 benchmark_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Get native vs polyfill ratio
+          RATIO=$(tail -n 2 benchmark_output.txt | head -n 1 | grep -oP '\d+\.\d+x' || echo "N/A")
+          echo "performance_ratio=$RATIO" >> $GITHUB_OUTPUT
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-php${{ matrix.php-version }}
+          path: |
+            benchmark_results.md
+            benchmark_results.json
+            benchmark_output.txt
+
+      - name: Format benchmark comment
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number != ''
+        id: format_comment
+        run: |
+          cat > comment.md << 'EOL'
+          ## 🚀 Performance Benchmark Results (Manual Run)
+
+          ### Configuration
+          - **PHP Version**: ${{ matrix.php-version }}
+          - **Iterations**: ${{ github.event.inputs.iterations || '10000' }}
+          - **Commit**: ${{ github.sha }}
+
+          ### Performance Ratio
+          **Polyfill is ${{ steps.benchmark.outputs.performance_ratio }} compared to native BCMath**
+
+          <details>
+          <summary>📊 Detailed Results</summary>
+
+          EOL
+
+          cat benchmark_results.md >> comment.md
+
+          cat >> comment.md << 'EOL'
+
+          </details>
+
+          ### Summary
+          ```
+          ${{ steps.benchmark.outputs.BENCHMARK_SUMMARY }}
+          ```
+
+          ---
+          <sub>🤖 Triggered manually via GitHub Actions</sub>
+          EOL
+
+          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
+          cat comment.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post results to PR
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.post_comment == 'true' && github.event.inputs.pr_number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `${{ steps.format_comment.outputs.COMMENT }}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.inputs.pr_number }},
+              body: comment
+            });
+
+            console.log('Results posted to PR #${{ github.event.inputs.pr_number }}');

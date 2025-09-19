@@ -1,0 +1,111 @@
+name: Benchmark on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    # Only run if the PR was merged
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-interaction
+
+      - name: Run benchmarks
+        id: benchmark
+        run: |
+          # Run the benchmark and capture output
+          php benchmarks/run-benchmarks.php > benchmark_output.txt
+
+          # Also generate markdown report
+          php benchmarks/run-benchmarks.php -f markdown -o benchmark_results.md
+
+          # Extract summary for PR comment
+          echo "BENCHMARK_SUMMARY<<EOF" >> $GITHUB_OUTPUT
+          tail -n 5 benchmark_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Format benchmark results
+        id: format
+        run: |
+          # Read the markdown results
+          RESULTS=$(cat benchmark_results.md)
+
+          # Create formatted comment
+          cat > comment.md << 'EOL'
+          ## 🚀 Performance Benchmark Results
+
+          Benchmark executed on merge to `main` branch from PR #${{ github.event.pull_request.number }}
+
+          ### Configuration
+          - **Iterations per test**: 10,000
+          - **PHP Version**: 8.2
+          - **Extension**: bcmath (native) vs polyfill
+
+          ### Results
+
+          <details>
+          <summary>📊 Detailed Benchmark Results (click to expand)</summary>
+
+          EOL
+
+          # Add the benchmark results
+          cat benchmark_results.md >> comment.md
+
+          # Add closing details tag and summary
+          cat >> comment.md << 'EOL'
+
+          </details>
+
+          ### Summary
+
+          ```
+          ${{ steps.benchmark.outputs.BENCHMARK_SUMMARY }}
+          ```
+
+          ---
+
+          <sub>🤖 Generated automatically by GitHub Actions</sub>
+          EOL
+
+          # Save formatted comment
+          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
+          cat comment.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post benchmark results to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `${{ steps.format.outputs.COMMENT }}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: comment
+            });
+
+            console.log('Benchmark results posted to PR #' + context.payload.pull_request.number);
