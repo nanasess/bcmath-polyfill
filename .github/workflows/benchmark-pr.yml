@@ -1,0 +1,161 @@
+name: Benchmark on PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'benchmarks/**'
+      - 'composer.json'
+
+  issue_comment:
+    types: [created]
+
+jobs:
+  benchmark:
+    # Run on PR or when someone comments "/benchmark"
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/benchmark'))
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Get PR number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          # Checkout the PR branch for pull_request events
+          # For issue_comment events, checkout the PR's head
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
+
+      - name: Fetch PR details for comment trigger
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        id: pr_details
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ steps.pr.outputs.number }}
+            });
+            core.setOutput('head_sha', pr.data.head.sha);
+            return pr.data;
+
+      - name: Checkout PR for comment trigger
+        if: github.event_name == 'issue_comment'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr_details.outputs.head_sha }}
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-interaction
+
+      - name: Run benchmarks (Quick mode for PR)
+        id: benchmark
+        run: |
+          # Use fewer iterations for PR checks (1000 instead of 10000)
+          sed -i 's/private const ITERATIONS = [0-9]\+;/private const ITERATIONS = 1000;/' benchmarks/BenchmarkRunner.php
+          sed -i 's/private const WARMUP_ITERATIONS = [0-9]\+;/private const WARMUP_ITERATIONS = 100;/' benchmarks/BenchmarkRunner.php
+
+          # Run benchmark
+          php benchmarks/run-benchmarks.php | tee benchmark_output.txt
+
+          # Generate markdown report
+          php benchmarks/run-benchmarks.php -f markdown -o benchmark_results.md
+
+          # Extract summary
+          echo "BENCHMARK_SUMMARY<<EOF" >> $GITHUB_OUTPUT
+          tail -n 5 benchmark_output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Get ratio
+          RATIO=$(tail -n 2 benchmark_output.txt | head -n 1 | grep -oP '\d+\.\d+x' || echo "N/A")
+          echo "performance_ratio=$RATIO" >> $GITHUB_OUTPUT
+
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '🚀 Performance Benchmark Results'
+
+      - name: Format benchmark comment
+        id: format
+        run: |
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            TRIGGER_MSG="Triggered by @${{ github.event.comment.user.login }} with \`/benchmark\` command"
+          else
+            TRIGGER_MSG="Automatically triggered by PR update"
+          fi
+
+          cat > comment.md << EOL
+          ## 🚀 Performance Benchmark Results
+
+          ### Configuration
+          - **PHP Version**: 8.2
+          - **Iterations**: 1,000 (quick mode for PR)
+          - **Commit**: \`${{ github.event.pull_request.head.sha || steps.pr_details.outputs.head_sha }}\`
+
+          ### Performance Summary
+          **Polyfill is ${{ steps.benchmark.outputs.performance_ratio }} compared to native BCMath**
+
+          <details>
+          <summary>📊 View Detailed Results</summary>
+
+          EOL
+
+          # Add first 20 rows of results for brevity
+          head -n 35 benchmark_results.md >> comment.md
+
+          cat >> comment.md << 'EOL'
+
+          *Note: Showing partial results. Run with `/benchmark` comment for full results.*
+
+          </details>
+
+          ### Quick Summary
+          ```
+          ${{ steps.benchmark.outputs.BENCHMARK_SUMMARY }}
+          ```
+
+          ---
+          <sub>🤖 ${TRIGGER_MSG}</sub>
+          <sub>💡 Comment with `/benchmark` to re-run this test</sub>
+          EOL
+
+          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
+          cat comment.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          body: ${{ steps.format.outputs.COMMENT }}
+          edit-mode: replace
