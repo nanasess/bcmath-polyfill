@@ -132,30 +132,29 @@ jobs:
           # Add first 20 rows of results for brevity
           head -n 35 benchmark_results.md >> comment.md
 
-          cat >> comment.md << 'EOL'
+          cat >> comment.md << EOL
 
-          *Note: Showing partial results. Run with `/benchmark` comment for full results.*
+          *Note: Showing partial results. Run with \`/benchmark\` comment for full results.*
 
           </details>
 
           ### Quick Summary
-          ```
+          \`\`\`
           ${{ steps.benchmark.outputs.BENCHMARK_SUMMARY }}
-          ```
+          \`\`\`
 
           ---
           <sub>🤖 ${TRIGGER_MSG}</sub>
-          <sub>💡 Comment with `/benchmark` to re-run this test</sub>
+          <sub>💡 Comment with \`/benchmark\` to re-run this test</sub>
           EOL
 
-          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
-          cat comment.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Save comment to file instead of output variable
+          # to avoid issues with multiline strings
 
       - name: Create or update comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ steps.pr.outputs.number }}
-          body: ${{ steps.format.outputs.COMMENT }}
+          body-path: comment.md
           edit-mode: replace
