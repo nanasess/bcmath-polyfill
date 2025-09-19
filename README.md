@@ -92,6 +92,89 @@ The `bcround()` function supports PHP 8.4's `RoundingMode` enum through a polyfi
 
 This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger class for arbitrary precision arithmetic, providing reliable performance for applications that cannot use the native bcmath extension.
 
+### Performance Benchmarking
+
+This project includes a comprehensive benchmarking tool to compare the performance of the polyfill against native bcmath functions.
+
+#### Local Benchmark Execution
+
+```bash
+# Run benchmark with default settings (10,000 iterations)
+composer benchmark
+# or
+php benchmarks/run-benchmarks.php
+
+# Export results in different formats
+php benchmarks/run-benchmarks.php -f json -o results.json
+php benchmarks/run-benchmarks.php -f csv -o results.csv
+php benchmarks/run-benchmarks.php -f markdown -o BENCHMARK.md
+
+# Show help
+php benchmarks/run-benchmarks.php --help
+```
+
+#### Benchmark Configuration
+
+The benchmark tests include:
+- **Basic Operations**: Addition, subtraction, multiplication, division with various number sizes
+- **Advanced Operations**: Power, square root, modulo operations
+- **Large Numbers**: Operations with 100, 500, and 1000 digit numbers
+- **High Precision**: Operations with scale values of 20, 50, and 100
+
+#### Interpreting Results
+
+Typical performance comparison shows:
+- **Basic operations**: Polyfill is ~100-250x slower than native
+- **Large numbers**: Performance gap increases with number size (up to ~800x slower)
+- **Square root**: Interestingly, polyfill can be faster for high-precision operations
+
+Example output:
+```
+BCMath Performance Benchmark
+========================================
+Iterations per test: 10000
+Native BCMath: Available
+
+Basic Operations
+----------------
+  Small numbers (10 digits):
+    bcadd      | Native:    1.5ms | Polyfill:  230ms | Ratio: 150x slower
+    ...
+
+Summary
+========================================
+Average performance ratio: 26x
+Polyfill is on average 26x slower than native
+```
+
+### GitHub Actions Integration
+
+The project includes automated benchmarking workflows:
+
+#### 1. PR Benchmarks (`/benchmark` command)
+Comment `/benchmark` on any PR to run performance tests:
+- Automatically triggered on PR updates to relevant files
+- Quick mode (1,000 iterations) for fast feedback
+- Results posted as PR comment
+
+#### 2. Merge Benchmarks
+Automatically runs when PRs are merged to main:
+- Full benchmark (10,000 iterations)
+- Results posted to the merged PR for reference
+
+#### 3. Manual Benchmarks
+Trigger via GitHub Actions UI:
+- Customizable iteration count
+- Multi-PHP version testing (8.1, 8.2, 8.3, 8.4)
+- Results saved as artifacts
+
+### Performance Considerations
+
+While the polyfill is significantly slower than native bcmath:
+- It provides full functionality when bcmath extension is unavailable
+- Performance is adequate for most applications not requiring intensive calculations
+- Consider using native bcmath for performance-critical applications
+
 ## ⚠️ Known Limitations
 
 ### Extension Detection
