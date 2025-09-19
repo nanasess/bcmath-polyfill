@@ -139,7 +139,8 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const comment = `${{ steps.format_comment.outputs.COMMENT }}`;
+            const fs = require('fs');
+            const comment = fs.readFileSync('comment.md', 'utf8');
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,

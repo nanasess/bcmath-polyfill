@@ -148,14 +148,13 @@ jobs:
           <sub>💡 Comment with `/benchmark` to re-run this test</sub>
           EOL
 
-          echo "COMMENT<<EOF" >> $GITHUB_OUTPUT
-          cat comment.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Save comment to file instead of output variable
+          # to avoid issues with multiline strings
 
       - name: Create or update comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ steps.pr.outputs.number }}
-          body: ${{ steps.format.outputs.COMMENT }}
+          body-path: comment.md
           edit-mode: replace
