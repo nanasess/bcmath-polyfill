@@ -87,7 +87,7 @@ jobs:
           echo "performance_ratio=$RATIO" >> $GITHUB_OUTPUT
 
       - name: Upload benchmark artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: benchmark-results-php${{ matrix.php-version }}
           path: |
