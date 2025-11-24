@@ -38,7 +38,7 @@ jobs:
           fi
 
       - name: Checkout PR
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Checkout the PR branch for pull_request events
           # For issue_comment events, checkout the PR's head
@@ -60,7 +60,7 @@ jobs:
 
       - name: Checkout PR for comment trigger
         if: github.event_name == 'issue_comment'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr_details.outputs.head_sha }}
 
