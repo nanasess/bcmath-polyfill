@@ -54,7 +54,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
-                php-version: ['8.1', '8.2', '8.3', '8.4']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
 
     tests-without-bcmath:
         name: Tests (without BCMath extension)
@@ -76,7 +76,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
 
     docker-phpt-tests:
         name: Docker PHPT Tests
@@ -100,4 +100,4 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
