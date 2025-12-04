@@ -1,5 +1,6 @@
 parameters:
 	level: max
+	reportUnmatchedIgnoredErrors: false
 	paths:
 		- src
 		- tests
@@ -7,3 +8,6 @@ parameters:
 	excludePaths:
 		- tests/php-src
 	ignoreErrors:
+		-
+			identifier: expr.resultUnused
+			path: tests/BCMathWithoutExtensionTest.php
