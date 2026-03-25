@@ -251,7 +251,7 @@ final class BCMathTest extends TestCase
             throw new \InvalidArgumentException('Invalid exception class name');
         }
         $this->expectException($name);
-        if ($message !== null && $message !== '' && $message !== '0') {
+        if (!in_array($message, [null, '', '0'], true)) {
             $this->expectExceptionMessage($message);
         }
         if (!empty($code) && (is_int($code) || is_string($code))) {
