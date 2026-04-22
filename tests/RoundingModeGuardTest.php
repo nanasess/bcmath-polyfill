@@ -20,9 +20,9 @@ final class RoundingModeGuardTest extends TestCase
     #[RequiresPhp('< 8.4')]
     public function testPolyfillSkipsWhenRoundingModeClassAlreadyDefined(): void
     {
-        $result = $this->runFixture(__DIR__ . '/fixtures/rector-scenario.php');
+        $result = $this->runFixture(__DIR__.'/fixtures/rector-scenario.php');
 
-        $this->assertSame(0, $result['exitCode'], 'Fixture exited with non-zero status. stderr: ' . $result['stderr']);
+        $this->assertSame(0, $result['exitCode'], 'Fixture exited with non-zero status. stderr: '.$result['stderr']);
         $this->assertStringNotContainsString('Cannot declare enum', $result['stderr']);
         $this->assertStringNotContainsString('Fatal error', $result['stderr']);
         $this->assertStringContainsString('OK', $result['stdout']);
@@ -31,9 +31,9 @@ final class RoundingModeGuardTest extends TestCase
     #[RequiresPhp('>= 8.1 < 8.4')]
     public function testPolyfillDefinesEnumOnCleanLoad(): void
     {
-        $result = $this->runFixture(__DIR__ . '/fixtures/clean-load.php');
+        $result = $this->runFixture(__DIR__.'/fixtures/clean-load.php');
 
-        $this->assertSame(0, $result['exitCode'], 'Fixture exited with non-zero status. stderr: ' . $result['stderr']);
+        $this->assertSame(0, $result['exitCode'], 'Fixture exited with non-zero status. stderr: '.$result['stderr']);
         $this->assertStringContainsString('ENUM_DEFINED', $result['stdout']);
     }
 

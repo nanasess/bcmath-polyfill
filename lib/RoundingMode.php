@@ -14,7 +14,7 @@
  *   (e.g. Rector 2.4+ scoped polyfill exposes a class via class_alias)
  */
 // @phpstan-ignore-next-line
-if (!class_exists('\\RoundingMode', false) && !enum_exists('RoundingMode') && version_compare(PHP_VERSION, '8.1', '>=')) {
+if (!class_exists('\RoundingMode', false) && !enum_exists('RoundingMode') && version_compare(PHP_VERSION, '8.1', '>=')) {
     enum RoundingMode: string
     {
         case HalfAwayFromZero = 'half_away_from_zero';

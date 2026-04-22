@@ -20,6 +20,6 @@ class RoundingMode
     public const PositiveInfinity = 'positiveinfinity';
 }
 
-require __DIR__ . '/../../lib/RoundingMode.php';
+require __DIR__.'/../../lib/RoundingMode.php';
 
 echo "OK\n";
