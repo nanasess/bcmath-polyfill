@@ -75,6 +75,7 @@ final class RoundingModeGuardTest extends TestCase
 
         $stdout = '';
         $stderr = '';
+        $exitCode = -1;
         $deadline = microtime(true) + $timeoutSeconds;
 
         while (true) {
@@ -89,6 +90,9 @@ final class RoundingModeGuardTest extends TestCase
 
             $status = proc_get_status($process);
             if (!$status['running']) {
+                // Capture exit code from status: on PHP < 8.3 calling proc_get_status()
+                // reaps the process so the subsequent proc_close() returns -1.
+                $exitCode = $status['exitcode'];
                 // Drain any remaining buffered output after the process exited.
                 $chunkOut = stream_get_contents($pipes[1]);
                 if ($chunkOut !== false) {
@@ -115,7 +119,7 @@ final class RoundingModeGuardTest extends TestCase
 
         fclose($pipes[1]);
         fclose($pipes[2]);
-        $exitCode = proc_close($process);
+        proc_close($process);
 
         return [
             'stdout' => $stdout,
