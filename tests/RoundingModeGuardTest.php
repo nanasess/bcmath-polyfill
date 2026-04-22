@@ -17,7 +17,7 @@ final class RoundingModeGuardTest extends TestCase
      * via `class_alias` on PHP < 8.4. The polyfill in lib/RoundingMode.php
      * must detect this and skip enum declaration.
      */
-    #[RequiresPhp('< 8.4')]
+    #[RequiresPhp('>= 8.1 < 8.4')]
     public function testPolyfillSkipsWhenRoundingModeClassAlreadyDefined(): void
     {
         $result = $this->runFixture(__DIR__.'/fixtures/rector-scenario.php');
