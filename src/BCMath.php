@@ -631,7 +631,7 @@ abstract class BCMath
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        self::validateNumberString($base, 'bcpow', 1, 'base');
+        self::validateNumberString($base, 'bcpow', 1, 'num');
         self::validateNumberString($exponent, 'bcpow', 2, 'exponent');
 
         // Phase 2: Scale resolution and validation
@@ -743,7 +743,7 @@ abstract class BCMath
             throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
-        self::validateNumberString($base, 'bcpowmod', 1, 'base');
+        self::validateNumberString($base, 'bcpowmod', 1, 'num');
         self::validateNumberString($exponent, 'bcpowmod', 2, 'exponent');
         self::validateNumberString($modulus, 'bcpowmod', 3, 'modulus');
 
