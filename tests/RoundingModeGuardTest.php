@@ -38,9 +38,25 @@ final class RoundingModeGuardTest extends TestCase
     }
 
     /**
+     * On PHP 8.4+ the native RoundingMode enum is already registered, so the polyfill
+     * guard in lib/RoundingMode.php must short-circuit. This asserts that loading the
+     * polyfill produces no fatal, and that the (native) enum is visible afterwards.
+     */
+    #[RequiresPhp('>= 8.4')]
+    public function testPolyfillSkipsOnPhp84WithNativeEnum(): void
+    {
+        $result = $this->runFixture(__DIR__.'/fixtures/clean-load.php');
+
+        $this->assertSame(0, $result['exitCode'], 'Fixture exited with non-zero status. stderr: '.$result['stderr']);
+        $this->assertStringNotContainsString('Cannot declare enum', $result['stderr']);
+        $this->assertStringNotContainsString('Fatal error', $result['stderr']);
+        $this->assertStringContainsString('ENUM_DEFINED', $result['stdout']);
+    }
+
+    /**
      * @return array{stdout: string, stderr: string, exitCode: int}
      */
-    private function runFixture(string $fixturePath): array
+    private function runFixture(string $fixturePath, int $timeoutSeconds = 10): array
     {
         $descriptors = [
             0 => ['pipe', 'r'],
@@ -54,16 +70,56 @@ final class RoundingModeGuardTest extends TestCase
         }
 
         fclose($pipes[0]);
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+
+        $stdout = '';
+        $stderr = '';
+        $deadline = microtime(true) + $timeoutSeconds;
+
+        while (true) {
+            $chunkOut = stream_get_contents($pipes[1]);
+            if ($chunkOut !== false) {
+                $stdout .= $chunkOut;
+            }
+            $chunkErr = stream_get_contents($pipes[2]);
+            if ($chunkErr !== false) {
+                $stderr .= $chunkErr;
+            }
+
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                // Drain any remaining buffered output after the process exited.
+                $chunkOut = stream_get_contents($pipes[1]);
+                if ($chunkOut !== false) {
+                    $stdout .= $chunkOut;
+                }
+                $chunkErr = stream_get_contents($pipes[2]);
+                if ($chunkErr !== false) {
+                    $stderr .= $chunkErr;
+                }
+
+                break;
+            }
+
+            if (microtime(true) > $deadline) {
+                proc_terminate($process);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                proc_close($process);
+                $this->fail(sprintf('Subprocess for %s timed out after %ds. stderr so far: %s', $fixturePath, $timeoutSeconds, $stderr));
+            }
+
+            usleep(10000);
+        }
+
         fclose($pipes[1]);
         fclose($pipes[2]);
-
         $exitCode = proc_close($process);
 
         return [
-            'stdout' => $stdout === false ? '' : $stdout,
-            'stderr' => $stderr === false ? '' : $stderr,
+            'stdout' => $stdout,
+            'stderr' => $stderr,
             'exitCode' => $exitCode,
         ];
     }
