@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\If_\UnwrapFutureCompatibleIfPhpVersionRector;
+use Rector\TypeDeclaration\Rector\StmtsAwareInterface\SafeDeclareStrictTypesRector;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -16,5 +17,8 @@ return RectorConfig::configure()
     ->withPreparedSets(typeDeclarations: true, deadCode: true, codeQuality: true)
     ->withSkip([
         UnwrapFutureCompatibleIfPhpVersionRector::class,
+        // Tests rely on implicit int/bool→string coercion to verify native bcmath
+        // extension compatibility; declaring strict types would break them.
+        SafeDeclareStrictTypesRector::class,
         __DIR__ . '/tests/php-src',
     ]);
