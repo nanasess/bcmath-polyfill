@@ -22,6 +22,9 @@ return (new PhpCsFixer\Config())
         '@PhpCsFixer:risky' => true,
         'native_function_invocation' => false,
         'php_unit_test_case_static_method_calls' => false,
+        // Tests verify implicit int/bool→string coercion matching the native bcmath
+        // extension, so enforcing strict types would break intentional compatibility checks.
+        'declare_strict_types' => false,
     ])
     ->setFinder($finder)
 ;

@@ -73,7 +73,7 @@ final class BCMathWithoutExtensionTest extends TestCase
     public function testBcdivByZeroError(): void
     {
         $this->expectException(\DivisionByZeroError::class);
-        @bcdiv('1', '0'); // @phpstan-ignore-line
+        @bcdiv('1', '0');
     }
 
     public function testBcmodWithoutExtension(): void
@@ -90,7 +90,7 @@ final class BCMathWithoutExtensionTest extends TestCase
     public function testBcmodByZeroError(): void
     {
         $this->expectException(\DivisionByZeroError::class);
-        @bcmod('1', '0'); // @phpstan-ignore-line
+        @bcmod('1', '0');
     }
 
     public function testBcpowWithoutExtension(): void

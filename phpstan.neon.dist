@@ -1,5 +1,6 @@
 parameters:
 	level: max
+	reportUnmatchedIgnoredErrors: false
 	paths:
 		- src
 		- tests
@@ -7,3 +8,45 @@ parameters:
 	excludePaths:
 		- tests/php-src
 	ignoreErrors:
+		-
+			identifier: expr.resultUnused
+			path: tests/BCMathWithoutExtensionTest.php
+		# Rector 2.4+ ships a scoped polyfill at
+		# vendor/rector/rector/vendor/symfony/polyfill-php84/Resources/RoundingMode.php
+		# that registers a global `class RoundingMode` with string constants
+		# (e.g. HalfAwayFromZero = 'halfawayfromzero') via class_alias. PHPStan's
+		# Better Reflection walks vendor recursively and binds `\RoundingMode` to
+		# that class instead of our enum polyfill in lib/RoundingMode.php, so
+		# references to `\RoundingMode::HalfAwayFromZero` are typed as string
+		# rather than as an enum case. At runtime the enum in lib/RoundingMode.php
+		# wins because it is loaded via composer files autoload before Rector's
+		# autoload has any chance to run for the global name (and our tests
+		# confirm the enum is the one in use). These errors are purely a
+		# static-analysis artifact. See https://github.com/nanasess/bcmath-polyfill/issues/56
+		-
+			identifier: match.alwaysFalse
+			path: src/BCMath.php
+			message: "#Match arm comparison between RoundingMode and '(halfawayfromzero|halftowardszero|halfeven|halfodd|towardszero|awayfromzero|negativeinfinity|positiveinfinity)' is always false\\.#"
+		-
+			identifier: argument.type
+			message: "#Parameter \\#3 \\$mode of (static method bcmath_compat\\\\BCMath::round\\(\\)|function bcround) expects int\\|RoundingMode, (string|int) given\\.#"
+			paths:
+				- src/BCMath.php
+				- tests/BCMathTest.php
+				- tests/BCMathWithoutExtensionTest.php
+		-
+			identifier: return.type
+			path: tests/BCMathTest.php
+			message: "#Method BCMathTest::provideRoundingModeEnumSupportCases\\(\\).*RoundingMode.*#"
+		-
+			identifier: function.impossibleType
+			path: tests/BCMathTest.php
+			message: "#Call to function in_array\\(\\) with arguments RoundingMode, array\\{.*\\} and true will always evaluate to false\\.#"
+		-
+			identifier: encapsedStringPart.nonString
+			path: tests/BCMathTest.php
+			message: "#Part \\$\\w+->name \\(mixed\\) of encapsed string cannot be cast to string\\.#"
+		-
+			identifier: property.nonObject
+			path: tests/BCMathTest.php
+			message: "#Cannot access property \\$name on string\\.#"

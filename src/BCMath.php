@@ -396,7 +396,7 @@ abstract class BCMath
             }
 
             // Handle special cases: empty, '-', or '-0' should return '0'
-            if ($integerPart === '' || $integerPart === '-' || $integerPart === '-0') {
+            if (in_array($integerPart, ['', '-', '-0'], true)) {
                 return '0';
             }
 
@@ -631,7 +631,7 @@ abstract class BCMath
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
         // Phase 1: Argument validation
-        self::validateNumberString($base, 'bcpow', 1, 'base');
+        self::validateNumberString($base, 'bcpow', 1, 'num');
         self::validateNumberString($exponent, 'bcpow', 2, 'exponent');
 
         // Phase 2: Scale resolution and validation
@@ -639,7 +639,7 @@ abstract class BCMath
         self::validateScale($scale, 'bcpow', 3);
 
         // Phase 3: Early special case handling
-        if ($exponent === self::DEFAULT_NUMBER || $exponent === '-0' || $exponent === '-0.0') {
+        if (in_array($exponent, [self::DEFAULT_NUMBER, '-0', '-0.0'], true)) {
             $result = '1';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -743,7 +743,7 @@ abstract class BCMath
             throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
-        self::validateNumberString($base, 'bcpowmod', 1, 'base');
+        self::validateNumberString($base, 'bcpowmod', 1, 'num');
         self::validateNumberString($exponent, 'bcpowmod', 2, 'exponent');
         self::validateNumberString($modulus, 'bcpowmod', 3, 'modulus');
 
@@ -900,7 +900,7 @@ abstract class BCMath
 
         // Create array of digit pairs
         $parts = str_split($numStr, 2);
-        $parts = array_map('intval', $parts);
+        $parts = array_map(intval(...), $parts);
 
         $i = 0;
         $p = 0; // for the first step, p = 0
