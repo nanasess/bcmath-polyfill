@@ -9,10 +9,15 @@
  *
  * The enum is only defined if:
  * - PHP version is 8.1 or higher (enum support)
- * - Native RoundingMode enum doesn't already exist (PHP < 8.4)
+ * - No class/enum named RoundingMode is already declared in the global namespace.
+ *   Since PHP 8.1 `class_exists()` returns true for enums too, this single check
+ *   covers both the native PHP 8.4+ RoundingMode enum and the Rector 2.4+
+ *   scoped polyfill that exposes a class via class_alias.
  */
-// @phpstan-ignore-next-line
-if (!enum_exists('RoundingMode') && version_compare(PHP_VERSION, '8.1', '>=')) {
+// The version_compare check is defensive runtime safety. composer.json constrains
+// PHP to >=8.1, so PHPStan always infers this as always-true; silence that.
+// @phpstan-ignore-next-line booleanAnd.rightAlwaysTrue
+if (!class_exists('RoundingMode', false) && version_compare(PHP_VERSION, '8.1', '>=')) {
     enum RoundingMode: string
     {
         case HalfAwayFromZero = 'half_away_from_zero';
