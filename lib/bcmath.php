@@ -88,9 +88,9 @@ if (!function_exists('bcadd')) {
      *
      * @param null|int $scale optional
      */
-    function bcpow(string $base, string $exponent, ?int $scale = null): string
+    function bcpow(string $num, string $exponent, ?int $scale = null): string
     {
-        return BCMath::pow($base, $exponent, $scale);
+        return BCMath::pow($num, $exponent, $scale);
     }
 
     /**
@@ -98,9 +98,9 @@ if (!function_exists('bcadd')) {
      *
      * @param null|int $scale optional
      */
-    function bcpowmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
+    function bcpowmod(string $num, string $exponent, string $modulus, ?int $scale = null): string
     {
-        return BCMath::powmod($base, $exponent, $modulus, $scale);
+        return BCMath::powmod($num, $exponent, $modulus, $scale);
     }
 
     /**
