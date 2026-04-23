@@ -36,11 +36,9 @@ if (!function_exists('bcadd')) {
     /**
      * Add two arbitrary precision numbers.
      *
-     * @param string $left_operand
-     * @param string $right_operand
      * @param null|int $scale optional
      */
-    function bcadd($left_operand, $right_operand, $scale = null): string
+    function bcadd(string $left_operand, string $right_operand, ?int $scale = null): string
     {
         return BCMath::add($left_operand, $right_operand, $scale);
     }
@@ -48,11 +46,9 @@ if (!function_exists('bcadd')) {
     /**
      * Compare two arbitrary precision numbers.
      *
-     * @param string $left_operand
-     * @param string $right_operand
      * @param null|int $scale optional
      */
-    function bccomp($left_operand, $right_operand, $scale = null): int
+    function bccomp(string $left_operand, string $right_operand, ?int $scale = null): int
     {
         return BCMath::comp($left_operand, $right_operand, $scale);
     }
@@ -60,11 +56,9 @@ if (!function_exists('bcadd')) {
     /**
      * Divide two arbitrary precision numbers.
      *
-     * @param string $dividend
-     * @param string $divisor
      * @param null|int $scale optional
      */
-    function bcdiv($dividend, $divisor, $scale = null): string
+    function bcdiv(string $dividend, string $divisor, ?int $scale = null): string
     {
         return BCMath::div($dividend, $divisor, $scale);
     }
@@ -72,11 +66,9 @@ if (!function_exists('bcadd')) {
     /**
      * Get modulus of an arbitrary precision number.
      *
-     * @param string $dividend
-     * @param string $divisor
      * @param null|int $scale optional
      */
-    function bcmod($dividend, $divisor, $scale = null): string
+    function bcmod(string $dividend, string $divisor, ?int $scale = null): string
     {
         return BCMath::mod($dividend, $divisor, $scale);
     }
@@ -84,11 +76,9 @@ if (!function_exists('bcadd')) {
     /**
      * Multiply two arbitrary precision numbers.
      *
-     * @param string $dividend
-     * @param string $divisor
      * @param null|int $scale optional
      */
-    function bcmul($dividend, $divisor, $scale = null): string
+    function bcmul(string $dividend, string $divisor, ?int $scale = null): string
     {
         return BCMath::mul($dividend, $divisor, $scale);
     }
@@ -96,34 +86,27 @@ if (!function_exists('bcadd')) {
     /**
      * Raise an arbitrary precision number to another.
      *
-     * @param string $base
-     * @param string $exponent
      * @param null|int $scale optional
      */
-    function bcpow($base, $exponent, $scale = null): string
+    function bcpow(string $num, string $exponent, ?int $scale = null): string
     {
-        return BCMath::pow($base, $exponent, $scale);
+        return BCMath::pow($num, $exponent, $scale);
     }
 
     /**
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
-     * @param string $base
-     * @param string $exponent
-     * @param string $modulus
      * @param null|int $scale optional
      */
-    function bcpowmod($base, $exponent, $modulus, $scale = null): string
+    function bcpowmod(string $num, string $exponent, string $modulus, ?int $scale = null): string
     {
-        return BCMath::powmod($base, $exponent, $modulus, $scale);
+        return BCMath::powmod($num, $exponent, $modulus, $scale);
     }
 
     /**
      * Set or get default scale parameter for all bc math functions.
-     *
-     * @param null|int $scale
      */
-    function bcscale($scale = null): ?int
+    function bcscale(?int $scale = null): ?int
     {
         return BCMath::scale($scale);
     }
@@ -131,10 +114,9 @@ if (!function_exists('bcadd')) {
     /**
      * Get the square root of an arbitrary precision number.
      *
-     * @param string $operand
      * @param null|int $scale optional
      */
-    function bcsqrt($operand, $scale = null): string
+    function bcsqrt(string $operand, ?int $scale = null): string
     {
         return BCMath::sqrt($operand, $scale);
     }
@@ -142,11 +124,9 @@ if (!function_exists('bcadd')) {
     /**
      * Subtract one arbitrary precision number from another.
      *
-     * @param string $left_operand
-     * @param string $right_operand
      * @param null|int $scale optional
      */
-    function bcsub($left_operand, $right_operand, $scale = null): string
+    function bcsub(string $left_operand, string $right_operand, ?int $scale = null): string
     {
         return BCMath::sub($left_operand, $right_operand, $scale);
     }
@@ -155,10 +135,8 @@ if (!function_exists('bcadd')) {
 if (!function_exists('bcfloor')) {
     /**
      * Round down to the nearest integer (PHP 8.4+).
-     *
-     * @param string $operand
      */
-    function bcfloor($operand): string
+    function bcfloor(string $operand): string
     {
         return BCMath::floor($operand);
     }
@@ -167,10 +145,8 @@ if (!function_exists('bcfloor')) {
 if (!function_exists('bcceil')) {
     /**
      * Round up to the nearest integer (PHP 8.4+).
-     *
-     * @param string $operand
      */
-    function bcceil($operand): string
+    function bcceil(string $operand): string
     {
         return BCMath::ceil($operand);
     }
@@ -180,11 +156,10 @@ if (!function_exists('bcround')) {
     /**
      * Round to a given decimal place (PHP 8.4+).
      *
-     * @param string $operand
      * @param int $precision optional
      * @param int $mode optional
      */
-    function bcround($operand, $precision = 0, $mode = PHP_ROUND_HALF_UP): string
+    function bcround(string $operand, int $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
         return BCMath::round($operand, $precision, $mode);
     }
