@@ -12,6 +12,12 @@ on:
 
 jobs:
   claude-review:
+    # Skip on Dependabot PRs: such PRs may modify this workflow file (e.g. bumping
+    # the actions/checkout SHA), which makes claude-code-action's OIDC token exchange
+    # fail with "Workflow validation failed" because the workflow no longer matches the
+    # version on the default branch. Skipping avoids that expected, unavoidable failure.
+    if: github.actor != 'dependabot[bot]'
+
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
