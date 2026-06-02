@@ -38,7 +38,7 @@ jobs:
           fi
 
       - name: Checkout PR
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # Checkout the PR branch for pull_request events
           # For issue_comment events, checkout the PR's head
@@ -46,7 +46,7 @@ jobs:
 
       - name: Fetch PR details for comment trigger
         if: github.event_name == 'issue_comment'
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         id: pr_details
         with:
           script: |
@@ -60,12 +60,12 @@ jobs:
 
       - name: Checkout PR for comment trigger
         if: github.event_name == 'issue_comment'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ steps.pr_details.outputs.head_sha }}
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
         with:
           php-version: '8.2'
           extensions: bcmath
@@ -97,7 +97,7 @@ jobs:
           echo "performance_ratio=$RATIO" >> $GITHUB_OUTPUT
 
       - name: Find existing comment
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
         id: fc
         with:
           issue-number: ${{ steps.pr.outputs.number }}
@@ -152,7 +152,7 @@ jobs:
           # to avoid issues with multiline strings
 
       - name: Create or update comment
-        uses: peter-evans/create-or-update-comment@v5
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ steps.pr.outputs.number }}

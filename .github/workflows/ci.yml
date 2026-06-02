@@ -10,9 +10,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
             -   name: Install dependencies
-                uses: php-actions/composer@v6
+                uses: php-actions/composer@8a65f0d3c6a1d17ca4800491a40b5756a4c164f3 # v6
                 with:
                     php_version: '8.1'
             -   name: Run PHP-CS-Fixer
@@ -24,13 +24,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
             -   name: Install dependencies
-                uses: php-actions/composer@v6
+                uses: php-actions/composer@8a65f0d3c6a1d17ca4800491a40b5756a4c164f3 # v6
                 with:
                     php_version: '8.1'
             -   name: Run PHPStan
-                uses: php-actions/phpstan@v3
+                uses: php-actions/phpstan@d8f8887acaac249b05ac11909c4cdbb018f52211 # v3
                 with:
                     php_version: '8.1'
 
@@ -41,9 +41,9 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             -   name: Checkout
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
             -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
+                uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
                 with:
                     php-version: ${{ matrix.php-version }}
             -   name: Composer Install
@@ -63,9 +63,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
             -   name: Setup PHP
-                uses: shivammathur/setup-php@v2
+                uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
                 with:
                     php-version: ${{ matrix.php-version }}
                     extensions: :bcmath # ubuntu only
@@ -85,9 +85,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   name: Checkout
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
             -   name: Checkout php-src repository
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
                 with:
                     repository: php/php-src
                     path: php-src
