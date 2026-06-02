@@ -16,7 +16,12 @@ jobs:
     # the actions/checkout SHA), which makes claude-code-action's OIDC token exchange
     # fail with "Workflow validation failed" because the workflow no longer matches the
     # version on the default branch. Skipping avoids that expected, unavoidable failure.
-    if: github.actor != 'dependabot[bot]'
+    #
+    # Use the PR author (pull_request.user.login), NOT github.actor: github.actor is
+    # whoever triggered the run, so when merging another PR causes Dependabot to rebase
+    # this one, the run is attributed to the human merger and the check would not be
+    # skipped. The PR author stays 'dependabot[bot]' regardless of who triggers the run.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
 
     # Optional: Filter by PR author
     # if: |
