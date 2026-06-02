@@ -2025,8 +2025,10 @@ final class BCMathTest extends TestCase
         ];
 
         foreach ($expectedCases as $caseName) {
+            // enum_exists('RoundingMode') は冒頭の markTestSkipped ガードで true 確定済みのため、
+            // ここでは defined() のみ検証する（PHPStan の booleanAnd.leftAlwaysTrue 回避）。
             $this->assertTrue(
-                enum_exists('RoundingMode') && defined("RoundingMode::{$caseName}"),
+                defined("RoundingMode::{$caseName}"),
                 "RoundingMode::{$caseName} should be available"
             );
         }
