@@ -11,25 +11,25 @@ jobs:
         steps:
             -
                 if: github.event.pull_request.head.repo.full_name == github.repository
-                uses: actions/checkout@v5
+                uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
                 with:
                     # Must be used to trigger workflow after push
                     token: ${{ secrets.ACCESS_TOKEN }}
 
             -
-                uses: shivammathur/setup-php@v2
+                uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc # v2
                 with:
                     php-version: 8.1
                     coverage: none
 
-            -   uses: "ramsey/composer-install@v3"
+            -   uses: "ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f" # v3
 
             -   run: vendor/bin/rector --ansi
             # @todo apply coding standard if used
 
             -
                 # commit only to core contributors who have repository access
-                uses: stefanzweifel/git-auto-commit-action@v6
+                uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6
                 with:
                     commit_message: '[rector] Rector fixes'
                     commit_author: 'GitHub Action <actions@github.com>'
