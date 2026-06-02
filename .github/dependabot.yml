@@ -8,6 +8,11 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+    ignore:
+      # PHP 8.1 サポート維持のため phpunit はメジャー更新しない
+      # (phpunit 11=PHP8.2, 12=8.3, 13=8.4 を要求するため)
+      - dependency-name: "phpunit/phpunit"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
