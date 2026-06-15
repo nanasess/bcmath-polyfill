@@ -42,6 +42,17 @@ parameters:
 			identifier: function.impossibleType
 			path: tests/BCMathTest.php
 			message: "#Call to function in_array\\(\\) with arguments RoundingMode, array\\{.*\\} and true will always evaluate to false\\.#"
+		# PHPStan binds `\RoundingMode` to Rector's scoped polyfill class (not an
+		# enum), so `enum_exists('RoundingMode')` is statically inferred as always
+		# false. At runtime our enum polyfill in lib/RoundingMode.php is the one in
+		# use, so these guards are legitimate. Same static-analysis artifact as above.
+		-
+			identifier: function.impossibleType
+			message: "#Call to function enum_exists\\(\\) with 'RoundingMode' will always evaluate to false\\.#"
+			paths:
+				- src/BCMath.php
+				- tests/BCMathTest.php
+				- tests/fixtures/clean-load.php
 		-
 			identifier: encapsedStringPart.nonString
 			path: tests/BCMathTest.php
