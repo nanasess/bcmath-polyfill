@@ -1012,6 +1012,16 @@ abstract class BCMath
      */
     public static function round(string $num, int $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
+        // PHP's native bcround() (8.4+) rejects a $precision above INT_MAX before
+        // performing any computation. Without this guard a huge precision triggers
+        // an out-of-memory fatal via str_repeat() in bcroundHelper(). Mirror
+        // php-src's bcmath_check_precision(): only the upper bound overflows int.
+        if ($precision > 2147483647) {
+            throw new \ValueError(
+                'bcround(): Argument #2 ($precision) must be between '.PHP_INT_MIN.' and 2147483647'
+            );
+        }
+
         self::validateNumberString($num, 'bcround', 1, 'num');
 
         if (!is_numeric($num)) {

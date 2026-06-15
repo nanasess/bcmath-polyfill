@@ -827,6 +827,43 @@ final class BCMathTest extends TestCase
     }
 
     /**
+     * bcround() must reject a $precision above INT_MAX with a ValueError,
+     * mirroring PHP 8.4's native behaviour. Previously such values triggered
+     * an out-of-memory fatal via str_repeat() (php-src bcround_precision_bounds).
+     */
+    public function testRoundPrecisionAboveIntMaxThrows(): void
+    {
+        if (PHP_INT_SIZE !== 8) {
+            $this->markTestSkipped('Requires a 64-bit platform where PHP_INT_MAX exceeds INT_MAX.');
+        }
+
+        $expectedMessage = 'bcround(): Argument #2 ($precision) must be between '.PHP_INT_MIN.' and 2147483647';
+
+        foreach ([PHP_INT_MAX, 2147483648] as $precision) {
+            $caught = null;
+
+            try {
+                BCMath::round('1', $precision);
+            } catch (\ValueError $e) {
+                $caught = $e;
+            }
+            $this->assertInstanceOf(
+                \ValueError::class,
+                $caught,
+                "Expected ValueError for precision={$precision}"
+            );
+            $this->assertSame($expectedMessage, $caught->getMessage());
+        }
+
+        // Note: we intentionally do not cross-check against the native bcround(),
+        // because the precision bounds guard is a php-src master (8.6) addition and
+        // released bcmath (e.g. 8.5) still OOMs on such precision values.
+
+        // A normal in-range precision must still work and not be over-rejected.
+        $this->assertSame('1.00', BCMath::round('1', 2));
+    }
+
+    /**
      * Test sqrt bug reproduction cases.
      *
      * This test reproduces the bug that was exposed by strict_comparison setting.
