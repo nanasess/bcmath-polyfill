@@ -61,3 +61,10 @@ parameters:
 			identifier: property.nonObject
 			path: tests/BCMathTest.php
 			message: "#Cannot access property \\$name on string\\.#"
+		# On PHP 8.1 PHPStan narrows $function to the six non-pow operations and
+		# reports this in_array() guard as always-true, while PHP 8.5 does not.
+		# The guard deliberately excludes bcpow() from the second-argument check,
+		# so it must stay. Pre-existing on main; ignored to keep the 8.1 matrix green.
+		-
+			path: tests/BCMathTest.php
+			message: "#Call to function in_array\\(\\) with arguments .* and true will always evaluate to true\\.#"
