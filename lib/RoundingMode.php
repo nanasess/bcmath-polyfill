@@ -3,9 +3,10 @@
 /**
  * RoundingMode enum polyfill for PHP 8.1-8.3.
  *
- * This enum provides the same interface as PHP 8.4's native RoundingMode enum,
- * but TowardsZero, AwayFromZero, NegativeInfinity, and PositiveInfinity will throw exceptions
- * when used in PHP < 8.4 to maintain compatibility expectations.
+ * This enum mirrors PHP 8.4's native RoundingMode, which is a *pure* enum
+ * (no backing type). Keeping it backing-less here ensures the polyfill behaves
+ * identically to the native enum on 8.4+ (e.g. no `->value`, `from()`/`tryFrom()`),
+ * avoiding an 8.1-8.3 vs. 8.4+ inconsistency.
  *
  * The enum is only defined if:
  * - PHP version is 8.1 or higher (enum support)
@@ -18,15 +19,15 @@
 // PHP to >=8.1, so PHPStan always infers this as always-true; silence that.
 // @phpstan-ignore-next-line booleanAnd.rightAlwaysTrue
 if (!class_exists('RoundingMode', false) && version_compare(PHP_VERSION, '8.1', '>=')) {
-    enum RoundingMode: string
+    enum RoundingMode
     {
-        case HalfAwayFromZero = 'half_away_from_zero';
-        case HalfTowardsZero = 'half_towards_zero';
-        case HalfEven = 'half_even';
-        case HalfOdd = 'half_odd';
-        case TowardsZero = 'towards_zero';
-        case AwayFromZero = 'away_from_zero';
-        case NegativeInfinity = 'negative_infinity';
-        case PositiveInfinity = 'positive_infinity';
+        case HalfAwayFromZero;
+        case HalfTowardsZero;
+        case HalfEven;
+        case HalfOdd;
+        case TowardsZero;
+        case AwayFromZero;
+        case NegativeInfinity;
+        case PositiveInfinity;
     }
 }
