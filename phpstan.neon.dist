@@ -29,7 +29,7 @@ parameters:
 			message: "#Match arm comparison between RoundingMode and '(halfawayfromzero|halftowardszero|halfeven|halfodd|towardszero|awayfromzero|negativeinfinity|positiveinfinity)' is always false\\.#"
 		-
 			identifier: argument.type
-			message: "#Parameter \\#3 \\$mode of (static method bcmath_compat\\\\BCMath::round\\(\\)|function bcround) expects int\\|RoundingMode, (string|int) given\\.#"
+			message: "#Parameter \\#3 \\$mode of (static method bcmath_compat\\\\BCMath::round\\(\\)|function bcround) expects (int\\|RoundingMode|RoundingMode), (string|int) given\\.#"
 			paths:
 				- src/BCMath.php
 				- tests/BCMathTest.php

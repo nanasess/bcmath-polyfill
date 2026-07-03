@@ -1660,13 +1660,6 @@ final class BCMathTest extends TestCase
             $this->markTestSkipped('RoundingMode enum not available');
         }
 
-        // Skip unsupported modes in all versions
-        $unsupportedModes = [\RoundingMode::TowardsZero, \RoundingMode::AwayFromZero, \RoundingMode::NegativeInfinity];
-        if (in_array($mode, $unsupportedModes, true)) {
-            $this->expectException(\ValueError::class);
-            $this->expectExceptionMessage("RoundingMode::{$mode->name} is not supported");
-        }
-
         $result = BCMath::round($number, $scale, $mode);
         $this->assertSame($expected, $result);
     }
@@ -1788,6 +1781,10 @@ final class BCMathTest extends TestCase
             ['mode' => \RoundingMode::HalfTowardsZero, 'name' => 'HalfTowardsZero'],
             ['mode' => \RoundingMode::HalfEven, 'name' => 'HalfEven'],
             ['mode' => \RoundingMode::HalfOdd, 'name' => 'HalfOdd'],
+            ['mode' => \RoundingMode::TowardsZero, 'name' => 'TowardsZero'],
+            ['mode' => \RoundingMode::AwayFromZero, 'name' => 'AwayFromZero'],
+            ['mode' => \RoundingMode::NegativeInfinity, 'name' => 'NegativeInfinity'],
+            ['mode' => \RoundingMode::PositiveInfinity, 'name' => 'PositiveInfinity'],
         ];
 
         foreach ($testCases as $testCase) {
@@ -1821,6 +1818,32 @@ final class BCMathTest extends TestCase
                 $number === '1.255' && $scale === 2 && $modeName === 'HalfEven' => '1.26',
                 $number === '1.255' && $scale === 2 && $modeName === 'HalfOdd' => '1.25',
 
+                // Directional modes (PHP 8.4+ semantics, now supported by the polyfill)
+                $number === '2.5' && $scale === 0 && $modeName === 'TowardsZero' => '2',
+                $number === '2.5' && $scale === 0 && $modeName === 'AwayFromZero' => '3',
+                $number === '2.5' && $scale === 0 && $modeName === 'NegativeInfinity' => '2',
+                $number === '2.5' && $scale === 0 && $modeName === 'PositiveInfinity' => '3',
+
+                $number === '-2.5' && $scale === 0 && $modeName === 'TowardsZero' => '-2',
+                $number === '-2.5' && $scale === 0 && $modeName === 'AwayFromZero' => '-3',
+                $number === '-2.5' && $scale === 0 && $modeName === 'NegativeInfinity' => '-3',
+                $number === '-2.5' && $scale === 0 && $modeName === 'PositiveInfinity' => '-2',
+
+                $number === '3.5' && $scale === 0 && $modeName === 'TowardsZero' => '3',
+                $number === '3.5' && $scale === 0 && $modeName === 'AwayFromZero' => '4',
+                $number === '3.5' && $scale === 0 && $modeName === 'NegativeInfinity' => '3',
+                $number === '3.5' && $scale === 0 && $modeName === 'PositiveInfinity' => '4',
+
+                $number === '-3.5' && $scale === 0 && $modeName === 'TowardsZero' => '-3',
+                $number === '-3.5' && $scale === 0 && $modeName === 'AwayFromZero' => '-4',
+                $number === '-3.5' && $scale === 0 && $modeName === 'NegativeInfinity' => '-4',
+                $number === '-3.5' && $scale === 0 && $modeName === 'PositiveInfinity' => '-3',
+
+                $number === '1.255' && $scale === 2 && $modeName === 'TowardsZero' => '1.25',
+                $number === '1.255' && $scale === 2 && $modeName === 'AwayFromZero' => '1.26',
+                $number === '1.255' && $scale === 2 && $modeName === 'NegativeInfinity' => '1.25',
+                $number === '1.255' && $scale === 2 && $modeName === 'PositiveInfinity' => '1.26',
+
                 default => null
             };
 
@@ -1830,29 +1853,6 @@ final class BCMathTest extends TestCase
                     $expected,
                     $result,
                     "Failed for number={$number}, scale={$scale}, mode={$modeName}"
-                );
-            }
-        }
-
-        // Test unsupported modes throw ValueError
-        $unsupportedModes = [
-            ['mode' => \RoundingMode::TowardsZero, 'name' => 'TowardsZero'],
-            ['mode' => \RoundingMode::AwayFromZero, 'name' => 'AwayFromZero'],
-            ['mode' => \RoundingMode::NegativeInfinity, 'name' => 'NegativeInfinity'],
-        ];
-
-        foreach ($unsupportedModes as $testCase) {
-            $mode = $testCase['mode'];
-            $modeName = $testCase['name'];
-
-            try {
-                BCMath::round($number, $scale, $mode);
-                $this->fail("Expected ValueError for unsupported mode {$modeName}");
-            } catch (\ValueError $e) {
-                $this->assertStringContainsString(
-                    'is not supported',
-                    $e->getMessage(),
-                    "Expected specific error message for unsupported mode {$modeName}"
                 );
             }
         }
@@ -1967,34 +1967,35 @@ final class BCMathTest extends TestCase
     }
 
     /**
-     * Test unsupported RoundingMode enum values in PHP < 8.4.
-     * These modes should throw ValueError when used in polyfill environment.
+     * Test the directional RoundingMode enum values (TowardsZero, AwayFromZero,
+     * NegativeInfinity, PositiveInfinity). These are backported by the polyfill
+     * for PHP 8.1-8.3 and match the native PHP 8.4+ semantics.
      */
     #[RequiresPhp('>=8.1')]
-    public function testPolyfillUnsupportedModes(): void
+    public function testPolyfillDirectionalModes(): void
     {
         if (!enum_exists('RoundingMode')) {
             $this->markTestSkipped('RoundingMode enum not available');
         }
 
-        // Skip this test on PHP 8.4+ where these modes are supported
-        $unsupportedModes = [
-            \RoundingMode::TowardsZero,
-            \RoundingMode::AwayFromZero,
-            \RoundingMode::NegativeInfinity,
+        // [mode, number, scale, expected]
+        $directionalCases = [
+            [\RoundingMode::TowardsZero, '1.55', 1, '1.5'],
+            [\RoundingMode::TowardsZero, '-1.55', 1, '-1.5'],
+            [\RoundingMode::AwayFromZero, '1.55', 1, '1.6'],
+            [\RoundingMode::AwayFromZero, '-1.55', 1, '-1.6'],
+            [\RoundingMode::PositiveInfinity, '1.51', 1, '1.6'],
+            [\RoundingMode::PositiveInfinity, '-1.59', 1, '-1.5'],
+            [\RoundingMode::NegativeInfinity, '1.59', 1, '1.5'],
+            [\RoundingMode::NegativeInfinity, '-1.51', 1, '-1.6'],
         ];
 
-        foreach ($unsupportedModes as $mode) {
-            try {
-                BCMath::round('1.55', 1, $mode);
-                $this->fail("Expected ValueError for unsupported mode {$mode->name}");
-            } catch (\ValueError $e) {
-                $this->assertStringContainsString(
-                    'is not supported',
-                    $e->getMessage(),
-                    "Expected specific error message for unsupported mode {$mode->name}"
-                );
-            }
+        foreach ($directionalCases as [$mode, $number, $scale, $expected]) {
+            $this->assertSame(
+                $expected,
+                BCMath::round($number, $scale, $mode),
+                "Failed for mode {$mode->name}, number={$number}, scale={$scale}"
+            );
         }
     }
 
@@ -2059,6 +2060,7 @@ final class BCMathTest extends TestCase
             'TowardsZero',
             'AwayFromZero',
             'NegativeInfinity',
+            'PositiveInfinity',
         ];
 
         foreach ($expectedCases as $caseName) {
@@ -2070,12 +2072,73 @@ final class BCMathTest extends TestCase
             );
         }
 
-        // Test that unsupported modes always throw ValueError regardless of PHP version
-        try {
-            BCMath::round('1.55', 1, \RoundingMode::TowardsZero);
-            $this->fail('TowardsZero mode should always throw ValueError');
-        } catch (\ValueError $e) {
-            $this->assertStringContainsString('is not supported', $e->getMessage());
+        // Directional modes are supported (polyfilled for 8.1-8.3, native on 8.4+)
+        // and produce the native PHP 8.4 result regardless of PHP version.
+        $this->assertSame('1', BCMath::round('1.55', 0, \RoundingMode::TowardsZero));
+        $this->assertSame('2', BCMath::round('1.55', 0, \RoundingMode::AwayFromZero));
+    }
+
+    /**
+     * Regression test: HalfEven/HalfOdd rounding must stay exact for large and
+     * high-precision inputs. The previous implementation fell back to float
+     * (round((float) ...)), which corrupted digits beyond IEEE-754 precision.
+     */
+    #[RequiresPhp('>=8.1')]
+    public function testHighPrecisionHalfEvenOddRounding(): void
+    {
+        if (!enum_exists('RoundingMode')) {
+            $this->markTestSkipped('RoundingMode enum not available');
         }
+
+        // Larger than 2^53: float conversion would lose the low-order digits.
+        $this->assertSame('12345678901234567890', BCMath::round('12345678901234567890.5', 0, \RoundingMode::HalfEven));
+        $this->assertSame('12345678901234567891', BCMath::round('12345678901234567890.5', 0, \RoundingMode::HalfOdd));
+
+        // Around 2^53 (9007199254740992).
+        $this->assertSame('9007199254740994', BCMath::round('9007199254740993.5', 0, \RoundingMode::HalfEven));
+        $this->assertSame('9007199254740993', BCMath::round('9007199254740993.5', 0, \RoundingMode::HalfOdd));
+
+        // 30 significant digits kept exactly.
+        $this->assertSame('0.12345678901234567890', BCMath::round('0.123456789012345678901234567890', 20, \RoundingMode::HalfEven));
+        $this->assertSame('0.12345678901234567890', BCMath::round('0.123456789012345678901234567890', 20, \RoundingMode::HalfOdd));
+    }
+
+    /**
+     * Test bcdivmod() (PHP 8.4+), implemented on top of BCMath::div()/mod() so it
+     * works without the native bcmath extension.
+     */
+    public function testDivmod(): void
+    {
+        // [num1, num2, scale, expectedQuotient, expectedRemainder]
+        $cases = [
+            ['17', '5', 0, '3', '2'],
+            ['17', '5', 2, '3', '2.00'],
+            ['-17', '5', 0, '-3', '-2'],
+            ['17', '-5', 0, '-3', '2'],
+            ['14.14', '6', 2, '2', '2.14'],
+            ['0.15', '-0.01', 0, '-15', '0'],
+        ];
+
+        foreach ($cases as [$num1, $num2, $scale, $expectedQuot, $expectedRem]) {
+            [$quot, $rem] = BCMath::divmod($num1, $num2, $scale);
+            $this->assertSame($expectedQuot, $quot, "quotient of {$num1} / {$num2} @ {$scale}");
+            $this->assertSame($expectedRem, $rem, "remainder of {$num1} / {$num2} @ {$scale}");
+        }
+
+        // The result must equal the composition of bcdiv()/bcmod().
+        [$quot, $rem] = BCMath::divmod('15151324141414.412', '7.3', 10);
+        $this->assertSame(BCMath::div('15151324141414.412', '7.3', 0), $quot);
+        $this->assertSame(BCMath::mod('15151324141414.412', '7.3', 10), $rem);
+    }
+
+    /**
+     * bcdivmod() by zero must throw DivisionByZeroError with the native message.
+     */
+    public function testDivmodByZero(): void
+    {
+        $this->expectException(\DivisionByZeroError::class);
+        $this->expectExceptionMessage('Division by zero');
+
+        BCMath::divmod('1', '0');
     }
 }
