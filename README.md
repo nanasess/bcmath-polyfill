@@ -17,7 +17,7 @@
 ## 🚀 Features
 
 - ✅ Complete bcmath extension polyfill for PHP 8.1+
-- ✅ Supports all PHP 8.4+ bcmath functions including `bcfloor()`, `bcceil()`, and `bcround()`
+- ✅ Supports all PHP 8.4+ bcmath functions including `bcfloor()`, `bcceil()`, `bcround()`, and `bcdivmod()`
 - ✅ PHP 8.5 compatibility tested and verified
 - ✅ Zero dependencies in production (uses phpseclib for arbitrary precision math)
 - ✅ Seamless fallback when bcmath extension is not available
@@ -54,6 +54,13 @@ echo bcround('2.5', 0, \RoundingMode::HalfAwayFromZero);  // 3
 echo bcround('2.5', 0, \RoundingMode::HalfTowardsZero);   // 2
 echo bcround('2.5', 0, \RoundingMode::HalfEven);          // 2
 echo bcround('2.5', 0, \RoundingMode::HalfOdd);           // 3
+echo bcround('2.5', 0, \RoundingMode::TowardsZero);       // 2
+echo bcround('2.5', 0, \RoundingMode::AwayFromZero);      // 3
+echo bcround('2.5', 0, \RoundingMode::PositiveInfinity);  // 3
+echo bcround('2.5', 0, \RoundingMode::NegativeInfinity);  // 2
+
+// bcdivmod() returns [quotient, remainder]
+[$quot, $rem] = bcdivmod('17', '5');  // ['3', '2']
 ```
 
 ## 📋 Supported Functions
@@ -74,20 +81,39 @@ echo bcround('2.5', 0, \RoundingMode::HalfOdd);           // 3
 - `bcfloor()` - Round down to the nearest integer
 - `bcceil()` - Round up to the nearest integer
 - `bcround()` - Round to a specified precision with configurable rounding modes
+- `bcdivmod()` - Get the quotient and remainder of a division in a single call
 
 #### RoundingMode Enum Support
-The `bcround()` function supports PHP 8.4's `RoundingMode` enum through a polyfill for PHP 8.1-8.3:
+The `bcround()` function supports PHP 8.4's `RoundingMode` enum through a polyfill for PHP 8.1-8.3.
+All eight native modes are implemented with exact, arbitrary-precision string arithmetic (no float
+fallback), so results match the native `bcround()` even for very large or high-precision numbers:
 
-**Supported Modes:**
 - `RoundingMode::HalfAwayFromZero` (equivalent to `PHP_ROUND_HALF_UP`)
 - `RoundingMode::HalfTowardsZero` (equivalent to `PHP_ROUND_HALF_DOWN`)
 - `RoundingMode::HalfEven` (equivalent to `PHP_ROUND_HALF_EVEN`)
 - `RoundingMode::HalfOdd` (equivalent to `PHP_ROUND_HALF_ODD`)
+- `RoundingMode::TowardsZero`
+- `RoundingMode::AwayFromZero`
+- `RoundingMode::NegativeInfinity`
+- `RoundingMode::PositiveInfinity`
 
-**Not Yet Supported:**
-- `RoundingMode::TowardsZero` - Throws `ValueError` (planned for future release)
-- `RoundingMode::AwayFromZero` - Throws `ValueError` (planned for future release)  
-- `RoundingMode::NegativeInfinity` - Throws `ValueError` (planned for future release)
+The legacy integer `PHP_ROUND_*` constants are also accepted for the four half-modes.
+
+> **Note:** The polyfilled `RoundingMode` is a *pure* enum, matching native PHP 8.4 (it has no
+> backing value; `->value` / `from()` / `tryFrom()` are intentionally unavailable).
+
+#### Interoperability with `symfony/polyfill-php84`
+
+`symfony/polyfill-php84` also declares `bcceil()`, `bcfloor()`, `bcround()` and `bcdivmod()`, but only
+when the native bcmath extension is **already loaded** (its purpose is to backport the new PHP 8.4
+functions to older PHP that already has bcmath). This package instead provides the full bcmath API for
+environments **without** the extension.
+
+When both packages are installed on an environment that *does* have the bcmath extension and runs
+**PHP 8.2/8.3**, both declare `bcceil()`/`bcfloor()`/`bcround()`; whichever autoloads first wins (the
+`function_exists()` guards prevent a fatal redeclaration). This package's rounding is implemented with a
+native-compatible string algorithm, so the numeric results are identical regardless of which
+implementation is used. On environments without the extension only this package is active.
 
 ## ⚡ Performance
 
@@ -193,34 +219,33 @@ While the polyfill is significantly slower than native bcmath:
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
 
-### RoundingMode Enum Limitations
-- Three `RoundingMode` enum values are not yet implemented:
-  - `RoundingMode::TowardsZero` - Will throw `ValueError`
-  - `RoundingMode::AwayFromZero` - Will throw `ValueError`
-  - `RoundingMode::NegativeInfinity` - Will throw `ValueError`
-- These modes are planned for implementation in a future release
-- Use traditional `PHP_ROUND_*` constants as alternatives when needed
+## 🔄 Key Differences from phpseclib/bcmath_compat and symfony/polyfill-php84
 
-## 🔄 Key Differences from phpseclib/bcmath_compat
+The three libraries target different goals. `phpseclib/bcmath_compat` is the classic pre-8.4 polyfill.
+`symfony/polyfill-php84` backports **only** the new PHP 8.4 functions and activates them **only when the
+native bcmath extension is already loaded**. `bcmath-polyfill` provides the complete bcmath API —
+including the PHP 8.4 additions — for environments **with or without** the extension.
 
-| Feature                   | phpseclib/bcmath_compat        | bcmath-polyfill                     |
-|---------------------------|--------------------------------|-------------------------------------|
-| **PHP 8.4 functions**     | ❌ Not supported               | ✅ Full support                     |
-| `bcfloor()`               | ❌                             | ✅                                  |
-| `bcceil()`                | ❌                             | ✅                                  |
-| `bcround()`               | ❌                             | ✅                                  |
-| **RoundingMode enum**     | ❌ Not supported               | ✅ Partial (4/7 modes)              |
-| `HalfAwayFromZero`        | ❌                             | ✅                                  |
-| `HalfTowardsZero`         | ❌                             | ✅                                  |
-| `HalfEven`                | ❌                             | ✅                                  |
-| `HalfOdd`                 | ❌                             | ✅                                  |
-| `TowardsZero`             | ❌                             | ⏳ Planned                          |
-| `AwayFromZero`            | ❌                             | ⏳ Planned                          |
-| `NegativeInfinity`        | ❌                             | ⏳ Planned                          |
-| **PHP 8.2+ deprecations** | ⚠️ Warnings                     | ✅ Fixed                            |
-| **Test suite pollution**  | ⚠️ Issues                       | ✅ Fixed                            |
-| **Active maintenance**    | ❌ Limited                     | ✅ Active                           |
-| **CI/CD (PHP versions)**  | GitHub Actions (8.1, 8.2, 8.3) | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5) |
+| Feature                                        | phpseclib/bcmath_compat        | symfony/polyfill-php84          | bcmath-polyfill                          |
+|------------------------------------------------|--------------------------------|---------------------------------|------------------------------------------|
+| Classic bc functions (`bcadd`, `bcmul`, …)     | ✅                             | ❌ Not provided                 | ✅                                       |
+| Works **without** the bcmath extension         | ✅                             | ❌ Requires the extension       | ✅                                       |
+| `bcfloor()` / `bcceil()` / `bcround()`         | ❌                             | ✅ (extension required)         | ✅                                       |
+| `bcdivmod()`                                    | ❌                             | ✅ (delegates to native bc)     | ✅ (works without the extension)         |
+| **RoundingMode enum** (all 8 modes)            | ❌                             | ✅                              | ✅                                       |
+| Arbitrary-precision rounding (no float fallback)| ❌                            | ✅ (pure string algorithm)      | ✅ (pure string algorithm)               |
+| `RoundingMode` is a *pure* enum (native shape) | —                              | ✅                              | ✅                                       |
+| Implementation of rounding                     | —                              | Pure string digits             | Pure string digits (phpseclib elsewhere) |
+| Extra dependency                               | phpseclib                      | none                            | phpseclib                                |
+| **PHP 8.2+ deprecations**                      | ⚠️ Warnings                    | ✅ Fixed                        | ✅ Fixed                                 |
+| **Active maintenance**                         | ❌ Limited                     | ✅ Active                       | ✅ Active                                |
+| **CI/CD (PHP versions)**                       | GitHub Actions (8.1, 8.2, 8.3) | 7.2+                            | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5) |
+
+> When `bcmath-polyfill` and `symfony/polyfill-php84` are installed together on an environment that has
+> the bcmath extension and runs PHP 8.2/8.3, both declare `bcceil()`/`bcfloor()`/`bcround()` and whichever
+> autoloads first wins (guarded by `function_exists()`, so no fatal redeclaration). Because this package's
+> rounding uses a native-compatible string algorithm, the results are identical either way. See
+> [Interoperability with `symfony/polyfill-php84`](#interoperability-with-symfonypolyfill-php84).
 
 ### Migration from phpseclib/bcmath_compat
 

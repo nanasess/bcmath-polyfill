@@ -50,6 +50,19 @@ abstract class BCMath
     private const MODULO_BY_ZERO_MESSAGE = 'Modulo by zero';
 
     /**
+     * Canonical rounding-mode tokens shared by the string-digit rounding core.
+     * They mirror the names of PHP 8.4's RoundingMode enum cases.
+     */
+    private const ROUND_HALF_AWAY_FROM_ZERO = 'HalfAwayFromZero';
+    private const ROUND_HALF_TOWARDS_ZERO = 'HalfTowardsZero';
+    private const ROUND_HALF_EVEN = 'HalfEven';
+    private const ROUND_HALF_ODD = 'HalfOdd';
+    private const ROUND_TOWARDS_ZERO = 'TowardsZero';
+    private const ROUND_AWAY_FROM_ZERO = 'AwayFromZero';
+    private const ROUND_NEGATIVE_INFINITY = 'NegativeInfinity';
+    private const ROUND_POSITIVE_INFINITY = 'PositiveInfinity';
+
+    /**
      * Validate and normalize two input numbers.
      *
      * Converts non-numeric inputs to '0' to match bcmath behavior.
@@ -353,15 +366,16 @@ abstract class BCMath
     }
 
     /**
-     * Handle rounding operations with negative zero normalization.
+     * Validate the argument for bcfloor()/bcceil() and round it to an integer
+     * using the shared string-digit rounding core.
      *
      * @param string $num The number to process
      * @param string $functionName Function name for error messages
-     * @param callable(string, string, string): ?string $fractionHandler Handler for numbers with non-zero fractional parts
+     * @param string $mode Canonical rounding mode token (self::ROUND_NEGATIVE_INFINITY or self::ROUND_POSITIVE_INFINITY)
      *
      * @return string The processed result
      */
-    private static function normalizeZeroForRounding(string $num, string $functionName, callable $fractionHandler): string
+    private static function roundToInteger(string $num, string $functionName, string $mode): string
     {
         self::validateNumberString($num, $functionName, 1, 'num');
 
@@ -374,36 +388,7 @@ abstract class BCMath
             return '0';
         }
 
-        // Handle the case where input is exactly '-0' (no decimal point)
-        if ($num === '-0') {
-            return '0';
-        }
-
-        // Remove any fractional part
-        if (str_contains($num, '.')) {
-            $dotPos = (int) strpos($num, '.');
-            $integerPart = substr($num, 0, $dotPos);
-            $fractionalPart = substr($num, $dotPos + 1);
-
-            // Check if there's a non-zero fractional part
-            $hasNonZeroFraction = ltrim($fractionalPart, '0') !== '';
-
-            if ($hasNonZeroFraction) {
-                $result = $fractionHandler($num, $integerPart, $fractionalPart);
-                if ($result !== null) {
-                    return $result;
-                }
-            }
-
-            // Handle special cases: empty, '-', or '-0' should return '0'
-            if (in_array($integerPart, ['', '-', '-0'], true)) {
-                return '0';
-            }
-
-            return $integerPart;
-        }
-
-        return $num;
+        return self::roundDigits($num, 0, $mode);
     }
 
     /**
@@ -598,6 +583,42 @@ abstract class BCMath
 
         // Phase 5: Result formatting
         return self::formatFinalResult($result, $scale, $maxPad);
+    }
+
+    /**
+     * Get the quotient and remainder of an arbitrary precision division.
+     *
+     * The quotient is always computed at scale 0 (integer division) and the
+     * remainder honours $scale, matching PHP 8.4's native bcdivmod(). Because it
+     * is built on self::div()/self::mod(), it works without the native bcmath
+     * extension (unlike symfony/polyfill-php84, which delegates to native bc).
+     *
+     * @return string[] the quotient (index 0) and remainder (index 1)
+     *
+     * @throws \DivisionByZeroError When divisor is zero
+     * @throws \ValueError if inputs are not well-formed
+     */
+    public static function divmod(string $num1, string $num2, ?int $scale = null): array
+    {
+        // Validate operands and scale under the bcdivmod() name for correct messages.
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdivmod');
+        $scale = self::resolveScale($scale);
+        self::validateScale($scale, 'bcdivmod', 3);
+        self::checkDivisionByZero($num2);
+
+        // Divide once for the quotient, then derive the remainder as
+        // num1 - num2 * quotient. This avoids the second division that separate
+        // div()/mod() calls would perform, and matches bcmod()'s truncated
+        // remainder convention (phpseclib's divide() returns a non-negative
+        // remainder, which differs for negative operands).
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$quotient] = $num1Big->divide($num2Big);
+        $remainder = $num1Big->subtract($num2Big->multiply($quotient));
+
+        return [
+            self::normalizeZeroResult(self::format($quotient, 0, 0)),
+            self::formatFinalResult($remainder, $scale, $maxPad),
+        ];
     }
 
     /**
@@ -968,37 +989,25 @@ abstract class BCMath
     /**
      * Round down to the nearest integer.
      *
+     * Equivalent to rounding towards negative infinity.
+     *
      * @throws \ValueError if inputs are not well-formed
      */
     public static function floor(string $num): string
     {
-        return self::normalizeZeroForRounding($num, 'bcfloor', static function (string $num, string $integerPart, string $fractionalPart): ?string {
-            // For negative numbers with fractional parts, we need to subtract 1
-            if (self::startsWithNegativeSign($num)) {
-                return self::sub($integerPart, '1', 0);
-            }
-
-            return null; // Let the common logic handle this case
-        });
+        return self::roundToInteger($num, 'bcfloor', self::ROUND_NEGATIVE_INFINITY);
     }
 
     /**
      * Round up to the nearest integer.
      *
+     * Equivalent to rounding towards positive infinity.
+     *
      * @throws \ValueError if inputs are not well-formed
      */
     public static function ceil(string $num): string
     {
-        return self::normalizeZeroForRounding($num, 'bcceil', static function (string $num, string $integerPart, string $fractionalPart): ?string {
-            // For positive numbers with fractional parts, we need to add 1
-            if (!self::startsWithNegativeSign($num)) {
-                $integerPart = $integerPart === '' ? '0' : $integerPart;
-
-                return self::add($integerPart, '1', 0);
-            }
-
-            return null; // Let the common logic handle this case
-        });
+        return self::roundToInteger($num, 'bcceil', self::ROUND_POSITIVE_INFINITY);
     }
 
     /**
@@ -1014,7 +1023,7 @@ abstract class BCMath
     {
         // PHP's native bcround() (8.4+) rejects a $precision above INT_MAX before
         // performing any computation. Without this guard a huge precision triggers
-        // an out-of-memory fatal via str_repeat() in bcroundHelper(). Mirror
+        // an out-of-memory fatal via str_repeat() in roundDigits(). Mirror
         // php-src's bcmath_check_precision(): only the upper bound overflows int.
         if ($precision > 2147483647) {
             throw new \ValueError(
@@ -1033,143 +1042,248 @@ abstract class BCMath
             return '0';
         }
 
-        // Convert RoundingMode enum to integer constant for PHP 8.4+ compatibility
-        $roundingMode = self::convertRoundingMode($mode);
-
-        // Based on: https://stackoverflow.com/a/1653826
-        if ($precision < 0) {
-            // When precision is negative, we round to the left of the decimal point
-            $absPrecision = abs($precision);
-            $factor = self::pow('10', (string) $absPrecision, max($absPrecision, 0));
-            $shifted = self::div($num, $factor, 10); // Use a high precision for intermediate calculation
-
-            // Apply rounding
-            $rounded = self::bcroundHelper($shifted, 0, $roundingMode);
-
-            // Shift back
-            return self::mul($rounded, $factor, 0);
-        }
-
-        return self::bcroundHelper($num, $precision, $roundingMode);
+        return self::roundDigits($num, $precision, self::convertRoundingMode($mode));
     }
 
     /**
-     * Convert RoundingMode enum to integer constant for backward compatibility.
+     * Helper function for bcround.
      *
-     * Note: Parameter type declaration is intentionally omitted to prevent PHP's type coercion.
-     * With int|\RoundingMode type hint, float values like 1.5 would be auto-converted to int (1),
-     * preventing proper validation and exception throwing for invalid types.
+     * Retained as a public entry point for backward compatibility. It accepts the
+     * legacy integer PHP_ROUND_* modes and delegates to round() so it shares the
+     * same input, precision and mode validation.
+     */
+    public static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
+    {
+        return self::round($number, $precision, $mode);
+    }
+
+    /**
+     * Normalise a rounding mode (RoundingMode enum or legacy PHP_ROUND_* int)
+     * to one of the canonical self::ROUND_* string tokens.
+     *
+     * Note: the parameter type declaration is intentionally omitted to prevent
+     * PHP's type coercion. With an int|\RoundingMode hint, a float such as 1.5
+     * would be silently truncated to int (1), bypassing validation.
      *
      * @param int|\RoundingMode $mode
      *
-     * @return int The corresponding PHP_ROUND_* constant
-     *
      * @throws \ValueError If an invalid rounding mode is provided
      */
-    private static function convertRoundingMode($mode): int
+    private static function convertRoundingMode($mode): string
     {
         // RoundingMode enum support (both native PHP 8.4+ and polyfill PHP 8.1-8.3)
         if (enum_exists('RoundingMode') && $mode instanceof \RoundingMode) {
             return match ($mode) {
-                \RoundingMode::HalfAwayFromZero => PHP_ROUND_HALF_UP,
-                \RoundingMode::HalfTowardsZero => PHP_ROUND_HALF_DOWN,
-                \RoundingMode::HalfEven => PHP_ROUND_HALF_EVEN,
-                \RoundingMode::HalfOdd => PHP_ROUND_HALF_ODD,
-                // TODO: Support additional modes if needed
-                \RoundingMode::NegativeInfinity => throw new \ValueError('RoundingMode::NegativeInfinity is not supported'),
-                \RoundingMode::PositiveInfinity => throw new \ValueError('RoundingMode::PositiveInfinity is not supported'),
-                \RoundingMode::TowardsZero => throw new \ValueError('RoundingMode::TowardsZero is not supported'),
-                \RoundingMode::AwayFromZero => throw new \ValueError('RoundingMode::AwayFromZero is not supported'), // @phpstan-ignore-line
-                default => throw new \ValueError('Unsupported RoundingMode')
+                \RoundingMode::HalfAwayFromZero => self::ROUND_HALF_AWAY_FROM_ZERO,
+                \RoundingMode::HalfTowardsZero => self::ROUND_HALF_TOWARDS_ZERO,
+                \RoundingMode::HalfEven => self::ROUND_HALF_EVEN,
+                \RoundingMode::HalfOdd => self::ROUND_HALF_ODD,
+                \RoundingMode::TowardsZero => self::ROUND_TOWARDS_ZERO,
+                \RoundingMode::AwayFromZero => self::ROUND_AWAY_FROM_ZERO,
+                \RoundingMode::NegativeInfinity => self::ROUND_NEGATIVE_INFINITY,
+                \RoundingMode::PositiveInfinity => self::ROUND_POSITIVE_INFINITY,
+                // Unreachable: RoundingMode has exactly the eight cases above.
+                // Present because PHPStan binds \RoundingMode to Rector's scoped
+                // polyfill class (not our enum) and cannot prove exhaustiveness.
+                default => throw new \ValueError('Unsupported RoundingMode'),
             };
         }
 
-        // Backward compatibility for PHP_ROUND_* constants
+        // Backward compatibility for the legacy PHP_ROUND_* integer constants.
         if (is_int($mode)) {
-            return $mode;
+            return match ($mode) {
+                PHP_ROUND_HALF_UP => self::ROUND_HALF_AWAY_FROM_ZERO,
+                PHP_ROUND_HALF_DOWN => self::ROUND_HALF_TOWARDS_ZERO,
+                PHP_ROUND_HALF_EVEN => self::ROUND_HALF_EVEN,
+                PHP_ROUND_HALF_ODD => self::ROUND_HALF_ODD,
+                default => throw new \ValueError('Invalid rounding mode provided'),
+            };
         }
 
         throw new \ValueError('Invalid rounding mode provided');
     }
 
     /**
-     * Helper function for bcround.
+     * Core arbitrary-precision rounding using pure string/digit arithmetic.
+     *
+     * Handles every RoundingMode (including the directional modes) and both
+     * positive and negative precision without ever converting to float, so the
+     * result stays exact for arbitrarily large or high-precision inputs.
+     *
+     * String-digit rounding approach inspired by symfony/polyfill-php84 (MIT).
+     *
+     * @param string $number A well-formed numeric string
+     * @param int $precision Decimal places to round to (may be negative)
+     * @param string $mode One of the self::ROUND_* canonical tokens
      */
-    public static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
+    private static function roundDigits(string $number, int $precision, string $mode): string
     {
-        if (!str_contains($number, '.')) {
-            $number .= '.0';
-        }
-
-        // Extract sign
-        $sign = '';
-        if (self::startsWithNegativeSign($number)) {
-            $sign = '-';
-            $trimmedNumber = ltrim($number);
-            $number = substr($trimmedNumber, 1);
-        } else {
-            $number = ltrim($number);
-        }
-
-        // Add 0.5 * 10^(-$precision) for rounding (for HALF_UP mode)
-        if ($mode === PHP_ROUND_HALF_UP) {
-            $addition = '0.'.str_repeat('0', $precision).'5';
-            $number = self::add($number, $addition, $precision + 1);
-        } elseif ($mode === PHP_ROUND_HALF_DOWN) {
-            // PHP_ROUND_HALF_DOWN (HalfTowardsZero):
-            // - For exactly 0.5: round towards zero (down for positive, up for negative)
-            // - For > 0.5: always round away from zero
-            // - For < 0.5: always round towards zero
-
-            [$int, $dec] = explode('.', $number);
-            if (isset($dec[$precision])) {
-                $digit = (int) $dec[$precision];
-                $isExactlyHalf = ($digit === 5 && (!isset($dec[$precision + 1]) || ltrim(substr($dec, $precision + 1), '0') === ''));
-
-                if ($digit > 5 || ($digit === 5 && !$isExactlyHalf)) {
-                    // Greater than 0.5: round away from zero (add 0.5)
-                    $addition = '0.'.str_repeat('0', $precision).'5';
-                    $number = self::add($number, $addition, $precision + 1);
-                } elseif ($isExactlyHalf && $sign === '-') {
-                    // Exactly 0.5 and negative: round towards zero (which means don't add anything - truncate)
-                    // Do nothing - let truncation handle it
-                }
-                // For exactly 0.5 and positive: round towards zero (which is down, so don't add)
+        // Split off an optional sign.
+        $sign = 1;
+        if ($number !== '' && ($number[0] === '-' || $number[0] === '+')) {
+            if ($number[0] === '-') {
+                $sign = -1;
             }
-        } else {
-            // For other modes, use PHP's round and convert back
-            // Ensure mode is within valid range (PHP_ROUND_HALF_UP to PHP_ROUND_HALF_ODD)
-            $validMode = max(PHP_ROUND_HALF_UP, min(PHP_ROUND_HALF_ODD, $mode));
-            $rounded = round((float) ($sign.$number), $precision, $validMode);
-
-            return number_format($rounded, $precision, '.', '');
+            $number = substr($number, 1);
         }
 
-        // Truncate to the desired precision
-        $pos = strpos($number, '.');
-        if ($pos !== false) {
-            if ($precision > 0) {
-                $number = substr($number, 0, $pos + $precision + 1);
-                // Pad with zeros if necessary
-                $currentPrecision = strlen($number) - $pos - 1;
-                if ($currentPrecision < $precision) {
-                    $number .= str_repeat('0', $precision - $currentPrecision);
-                }
+        // Split into integer and fractional digit runs.
+        if (str_contains($number, '.')) {
+            [$intPart, $fracPart] = explode('.', $number, 2);
+        } else {
+            $intPart = $number;
+            $fracPart = '';
+        }
+        if ($intPart === '') {
+            $intPart = '0';
+        }
+        $intPart = self::stripLeadingZeros($intPart);
+
+        // Partition the digits at the rounding position into a "kept" run
+        // (scaledInt) and the "dropped" run (scaledFrac).
+        if ($precision >= 0) {
+            $fracLength = strlen($fracPart);
+            if ($precision <= $fracLength) {
+                $scaledInt = $intPart.substr($fracPart, 0, $precision);
+                $scaledFrac = substr($fracPart, $precision);
             } else {
-                $number = substr($number, 0, $pos);
+                $scaledInt = $intPart.$fracPart.str_repeat('0', $precision - $fracLength);
+                $scaledFrac = '';
+            }
+        } else {
+            $shift = -$precision;
+            $intLength = strlen($intPart);
+            if ($shift <= $intLength) {
+                $splitPos = $intLength - $shift;
+                $scaledInt = substr($intPart, 0, $splitPos);
+                $scaledInt = $scaledInt === '' ? '0' : $scaledInt;
+                $scaledFrac = substr($intPart, $splitPos).$fracPart;
+            } else {
+                $scaledInt = '0';
+                // applyRounding() only inspects the leading dropped digit (always
+                // '0' here) and whether any non-zero digit follows, so we avoid
+                // materialising ($shift - $intLength) zeros for a huge negative
+                // precision. '01' preserves "leading 0, non-zero tail"; '0' means
+                // everything dropped is zero.
+                $scaledFrac = trim($intPart.$fracPart, '0') !== '' ? '01' : '0';
             }
         }
 
-        $result = $sign.$number;
+        $roundedInt = self::applyRounding($scaledInt, $scaledFrac, $sign, $mode);
+        $isZero = trim($roundedInt, '0') === '';
+        $result = self::placeDecimalPoint($roundedInt, $precision);
 
-        // Handle negative zero case
-        if ($result === '-0' || $result === '-0.' || preg_match('/^-0\.0+$/', $result)) {
-            $result = ltrim($result, '-');
-            if ($result === self::DEFAULT_NUMBER || $result === self::DEFAULT_NUMBER.'.' || preg_match('/^0\.0+$/', $result)) {
-                $result = $precision > 0 ? '0.'.str_repeat('0', $precision) : '0';
-            }
+        if ($sign === -1 && !$isZero) {
+            $result = '-'.$result;
         }
 
         return $result;
+    }
+
+    /**
+     * Decide whether the kept digits must be incremented for the given mode and
+     * return the (still unscaled) rounded integer run.
+     *
+     * @param int $sign 1 for a non-negative value, -1 for a negative value
+     */
+    private static function applyRounding(string $intPart, string $fracPart, int $sign, string $mode): string
+    {
+        $intPart = self::stripLeadingZeros($intPart);
+
+        // Nothing is dropped -> no rounding needed.
+        if ($fracPart === '' || trim($fracPart, '0') === '') {
+            return $intPart;
+        }
+
+        $firstDigit = $fracPart[0];
+        $tailNonZero = trim(substr($fracPart, 1), '0') !== '';
+        $isGreaterThanHalf = $firstDigit > '5' || ($firstDigit === '5' && $tailNonZero);
+        $isExactlyHalf = $firstDigit === '5' && !$tailNonZero;
+
+        $increase = match ($mode) {
+            self::ROUND_TOWARDS_ZERO => false,
+            self::ROUND_AWAY_FROM_ZERO => true,
+            self::ROUND_POSITIVE_INFINITY => $sign > 0,
+            self::ROUND_NEGATIVE_INFINITY => $sign < 0,
+            self::ROUND_HALF_AWAY_FROM_ZERO => $isGreaterThanHalf || $isExactlyHalf,
+            self::ROUND_HALF_TOWARDS_ZERO => $isGreaterThanHalf,
+            self::ROUND_HALF_EVEN => $isGreaterThanHalf || ($isExactlyHalf && self::lastDigitValue($intPart) % 2 === 1),
+            self::ROUND_HALF_ODD => $isGreaterThanHalf || ($isExactlyHalf && self::lastDigitValue($intPart) % 2 === 0),
+            default => throw new \ValueError('Invalid rounding mode provided'),
+        };
+
+        if ($increase) {
+            $intPart = self::incrementDigitString($intPart);
+        }
+
+        return self::stripLeadingZeros($intPart);
+    }
+
+    /**
+     * Re-insert the decimal point after rounding, restoring the requested number
+     * of fractional digits (or trailing zeros for negative precision).
+     */
+    private static function placeDecimalPoint(string $roundedInt, int $precision): string
+    {
+        if ($precision > 0) {
+            if (strlen($roundedInt) <= $precision) {
+                $roundedInt = str_pad($roundedInt, $precision + 1, '0', STR_PAD_LEFT);
+            }
+            $intDigits = substr($roundedInt, 0, -$precision);
+            $fracDigits = substr($roundedInt, -$precision);
+            $intDigits = self::stripLeadingZeros($intDigits === '' ? '0' : $intDigits);
+
+            return $intDigits.'.'.$fracDigits;
+        }
+
+        if ($precision === 0) {
+            return self::stripLeadingZeros($roundedInt);
+        }
+
+        // A zero result stays '0' regardless of scale; short-circuit before
+        // allocating -$precision trailing zeros for a huge negative precision.
+        if (trim($roundedInt, '0') === '') {
+            return '0';
+        }
+
+        return self::stripLeadingZeros($roundedInt.str_repeat('0', -$precision));
+    }
+
+    /**
+     * Strip leading zeros, keeping at least a single '0'.
+     */
+    private static function stripLeadingZeros(string $digits): string
+    {
+        $digits = ltrim($digits, '0');
+
+        return $digits === '' ? '0' : $digits;
+    }
+
+    /**
+     * Add one to a non-negative run of decimal digits, propagating any carry.
+     */
+    private static function incrementDigitString(string $digits): string
+    {
+        $digits = $digits === '' ? '0' : $digits;
+        $index = strlen($digits) - 1;
+        $carry = 1;
+        while ($index >= 0 && $carry === 1) {
+            $value = ord($digits[$index]) - 48 + $carry;
+            $carry = $value >= 10 ? 1 : 0;
+            $digits[$index] = chr(48 + $value % 10);
+            --$index;
+        }
+
+        return $carry === 1 ? '1'.$digits : $digits;
+    }
+
+    /**
+     * Return the numeric value of the last digit in a run (0 when empty).
+     */
+    private static function lastDigitValue(string $digits): int
+    {
+        $length = strlen($digits);
+
+        return $length > 0 ? ord($digits[$length - 1]) - 48 : 0;
     }
 }
