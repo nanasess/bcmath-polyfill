@@ -606,9 +606,18 @@ abstract class BCMath
         self::validateScale($scale, 'bcdivmod', 3);
         self::checkDivisionByZero($num2);
 
+        // Divide once for the quotient, then derive the remainder as
+        // num1 - num2 * quotient. This avoids the second division that separate
+        // div()/mod() calls would perform, and matches bcmod()'s truncated
+        // remainder convention (phpseclib's divide() returns a non-negative
+        // remainder, which differs for negative operands).
+        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$quotient] = $num1Big->divide($num2Big);
+        $remainder = $num1Big->subtract($num2Big->multiply($quotient));
+
         return [
-            self::div($num1, $num2, 0),
-            self::mod($num1, $num2, $scale),
+            self::normalizeZeroResult(self::format($quotient, 0, 0)),
+            self::formatFinalResult($remainder, $scale, $maxPad),
         ];
     }
 
@@ -1040,18 +1049,12 @@ abstract class BCMath
      * Helper function for bcround.
      *
      * Retained as a public entry point for backward compatibility. It accepts the
-     * legacy integer PHP_ROUND_* modes and delegates to the string-digit core.
+     * legacy integer PHP_ROUND_* modes and delegates to round() so it shares the
+     * same input, precision and mode validation.
      */
     public static function bcroundHelper(string $number, int $precision, int $mode = PHP_ROUND_HALF_UP): string
     {
-        $token = match ($mode) {
-            PHP_ROUND_HALF_DOWN => self::ROUND_HALF_TOWARDS_ZERO,
-            PHP_ROUND_HALF_EVEN => self::ROUND_HALF_EVEN,
-            PHP_ROUND_HALF_ODD => self::ROUND_HALF_ODD,
-            default => self::ROUND_HALF_AWAY_FROM_ZERO,
-        };
-
-        return self::roundDigits($number, $precision, $token);
+        return self::round($number, $precision, $mode);
     }
 
     /**
@@ -1157,7 +1160,12 @@ abstract class BCMath
                 $scaledFrac = substr($intPart, $splitPos).$fracPart;
             } else {
                 $scaledInt = '0';
-                $scaledFrac = str_repeat('0', $shift - $intLength).$intPart.$fracPart;
+                // applyRounding() only inspects the leading dropped digit (always
+                // '0' here) and whether any non-zero digit follows, so we avoid
+                // materialising ($shift - $intLength) zeros for a huge negative
+                // precision. '01' preserves "leading 0, non-zero tail"; '0' means
+                // everything dropped is zero.
+                $scaledFrac = trim($intPart.$fracPart, '0') !== '' ? '01' : '0';
             }
         }
 
@@ -1230,6 +1238,12 @@ abstract class BCMath
 
         if ($precision === 0) {
             return self::stripLeadingZeros($roundedInt);
+        }
+
+        // A zero result stays '0' regardless of scale; short-circuit before
+        // allocating -$precision trailing zeros for a huge negative precision.
+        if (trim($roundedInt, '0') === '') {
+            return '0';
         }
 
         return self::stripLeadingZeros($roundedInt.str_repeat('0', -$precision));

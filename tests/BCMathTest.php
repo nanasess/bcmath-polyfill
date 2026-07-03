@@ -2123,6 +2123,12 @@ final class BCMathTest extends TestCase
             [$quot, $rem] = BCMath::divmod($num1, $num2, $scale);
             $this->assertSame($expectedQuot, $quot, "quotient of {$num1} / {$num2} @ {$scale}");
             $this->assertSame($expectedRem, $rem, "remainder of {$num1} / {$num2} @ {$scale}");
+
+            // On PHP 8.4+ (native bcdivmod available) the polyfill must match it.
+            if (function_exists('bcdivmod')) {
+                // @phpstan-ignore-next-line
+                $this->assertSame([$expectedQuot, $expectedRem], bcdivmod($num1, $num2, $scale));
+            }
         }
 
         // The result must equal the composition of bcdiv()/bcmod().
