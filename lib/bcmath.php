@@ -136,9 +136,9 @@ if (!function_exists('bcfloor')) {
     /**
      * Round down to the nearest integer (PHP 8.4+).
      */
-    function bcfloor(string $operand): string
+    function bcfloor(string $num): string
     {
-        return BCMath::floor($operand);
+        return BCMath::floor($num);
     }
 }
 
@@ -146,9 +146,9 @@ if (!function_exists('bcceil')) {
     /**
      * Round up to the nearest integer (PHP 8.4+).
      */
-    function bcceil(string $operand): string
+    function bcceil(string $num): string
     {
-        return BCMath::ceil($operand);
+        return BCMath::ceil($num);
     }
 }
 
@@ -157,11 +157,25 @@ if (!function_exists('bcround')) {
      * Round to a given decimal place (PHP 8.4+).
      *
      * @param int $precision optional
-     * @param int $mode optional
+     * @param int|\RoundingMode $mode optional
      */
-    function bcround(string $operand, int $precision = 0, $mode = PHP_ROUND_HALF_UP): string
+    function bcround(string $num, int $precision = 0, $mode = PHP_ROUND_HALF_UP): string
     {
-        return BCMath::round($operand, $precision, $mode);
+        return BCMath::round($num, $precision, $mode);
+    }
+}
+
+if (!function_exists('bcdivmod')) {
+    /**
+     * Get the quotient and remainder of dividing two arbitrary precision numbers (PHP 8.4+).
+     *
+     * @param null|int $scale optional
+     *
+     * @return string[] the quotient (index 0) and remainder (index 1)
+     */
+    function bcdivmod(string $num1, string $num2, ?int $scale = null): array
+    {
+        return BCMath::divmod($num1, $num2, $scale);
     }
 }
 
