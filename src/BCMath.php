@@ -205,9 +205,9 @@ abstract class BCMath
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen((string) $num1Dec), strlen((string) $num2Dec));
-        $num1Dec = str_pad((string) $num1Dec, $maxPad, '0');
-        $num2Dec = str_pad((string) $num2Dec, $maxPad, '0');
+        $maxPad = max(strlen($num1Dec), strlen($num2Dec));
+        $num1Dec = str_pad($num1Dec, $maxPad, '0');
+        $num2Dec = str_pad($num2Dec, $maxPad, '0');
 
         // Convert to BigInteger for calculation
         $num1Big = new BigInteger($num1Int.$num1Dec);
@@ -351,8 +351,8 @@ abstract class BCMath
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
         // Apply scale truncation and padding
-        $num1Dec = substr((string) $num1Dec, 0, $scale);
-        $num2Dec = substr((string) $num2Dec, 0, $scale);
+        $num1Dec = substr($num1Dec, 0, $scale);
+        $num2Dec = substr($num2Dec, 0, $scale);
 
         // Pad decimal parts to the same length (scale)
         $num1Dec = str_pad($num1Dec, $scale, '0', STR_PAD_RIGHT);
