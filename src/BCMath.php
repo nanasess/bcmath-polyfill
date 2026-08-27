@@ -182,10 +182,7 @@ abstract class BCMath
     {
         $parts = explode('.', $num);
 
-        // Ensure both parts exist
-        if (!isset($parts[1])) {
-            $parts[1] = '';
-        }
+        $parts[1] ??= '';
 
         return [$parts[0], $parts[1]];
     }
@@ -205,9 +202,9 @@ abstract class BCMath
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
         // Pad decimal parts to same length
-        $maxPad = max(strlen((string) $num1Dec), strlen((string) $num2Dec));
-        $num1Dec = str_pad((string) $num1Dec, $maxPad, '0');
-        $num2Dec = str_pad((string) $num2Dec, $maxPad, '0');
+        $maxPad = max(strlen($num1Dec), strlen($num2Dec));
+        $num1Dec = str_pad($num1Dec, $maxPad, '0');
+        $num2Dec = str_pad($num2Dec, $maxPad, '0');
 
         // Convert to BigInteger for calculation
         $num1Big = new BigInteger($num1Int.$num1Dec);
@@ -351,8 +348,8 @@ abstract class BCMath
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
         // Apply scale truncation and padding
-        $num1Dec = substr((string) $num1Dec, 0, $scale);
-        $num2Dec = substr((string) $num2Dec, 0, $scale);
+        $num1Dec = substr($num1Dec, 0, $scale);
+        $num2Dec = substr($num2Dec, 0, $scale);
 
         // Pad decimal parts to the same length (scale)
         $num1Dec = str_pad($num1Dec, $scale, '0', STR_PAD_RIGHT);
@@ -695,9 +692,7 @@ abstract class BCMath
 
         // Phase 4: Number processing
         $baseParts = explode('.', $base);
-        if (!isset($baseParts[1])) {
-            $baseParts[1] = '';
-        }
+        $baseParts[1] ??= '';
 
         // Pad decimal parts
         $maxPad = strlen($baseParts[1]);
@@ -768,10 +763,7 @@ abstract class BCMath
         self::validateNumberString($exponent, 'bcpowmod', 2, 'exponent');
         self::validateNumberString($modulus, 'bcpowmod', 3, 'modulus');
 
-        // Phase 2: Scale resolution and validation
-        if ($scale === null) {
-            $scale = 0;
-        }
+        $scale ??= 0;
         self::validateScale($scale, 'bcpowmod', 4);
 
         // Phase 3: Number processing and validation
@@ -1174,7 +1166,7 @@ abstract class BCMath
         $result = self::placeDecimalPoint($roundedInt, $precision);
 
         if ($sign === -1 && !$isZero) {
-            $result = '-'.$result;
+            return '-'.$result;
         }
 
         return $result;
