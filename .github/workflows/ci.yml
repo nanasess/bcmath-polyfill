@@ -25,6 +25,8 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Install dependencies
                 uses: php-actions/composer@8a65f0d3c6a1d17ca4800491a40b5756a4c164f3 # v6
                 with:
@@ -33,6 +35,12 @@ jobs:
                 uses: php-actions/phpstan@d8f8887acaac249b05ac11909c4cdbb018f52211 # v3
                 with:
                     php_version: '8.1'
+        strategy:
+            fail-fast: false
+            matrix:
+                # bcmath_compat\Math\BigInteger is aliased to phpseclib3 or phpseclib4
+                # at runtime, so static analysis must pass against both.
+                phpseclib: ['^3.0', '^4.0']
 
     tests:
         name: Tests
@@ -46,6 +54,8 @@ jobs:
                 uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
                 with:
                     php-version: ${{ matrix.php-version }}
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install
                 run: composer install --no-interaction --no-cache
             -   name: PHPUnit
@@ -55,6 +65,15 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
                 php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                phpseclib: ['^4.0']
+                include:
+                    # phpseclib 3 is still supported; cover both ends of the PHP range on Linux
+                    -   os: ubuntu-latest
+                        php-version: '8.1'
+                        phpseclib: '^3.0'
+                    -   os: ubuntu-latest
+                        php-version: '8.5'
+                        phpseclib: '^3.0'
 
     tests-without-bcmath:
         name: Tests (without BCMath extension)
@@ -69,6 +88,8 @@ jobs:
                 with:
                     php-version: ${{ matrix.php-version }}
                     extensions: :bcmath # ubuntu only
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install
                 run: composer install --no-interaction --no-cache
             -   name: PHPUnit (without BCMath extension)
@@ -77,6 +98,7 @@ jobs:
             fail-fast: false
             matrix:
                 php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                phpseclib: ['^3.0', '^4.0']
 
     docker-phpt-tests:
         name: Docker PHPT Tests

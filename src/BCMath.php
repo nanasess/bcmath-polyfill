@@ -12,12 +12,13 @@
 
 namespace bcmath_compat;
 
-use phpseclib3\Math\BigInteger;
+use bcmath_compat\Math\BigInteger;
 
 /**
  * BCMath Emulation Class.
  *
- * Provides arbitrary precision arithmetic operations using phpseclib3's BigInteger.
+ * Provides arbitrary precision arithmetic operations using phpseclib's BigInteger
+ * (phpseclib 3 or 4, resolved through the bcmath_compat\Math\BigInteger alias).
  * All arithmetic methods follow a standardized 5-phase processing pattern:
  *
  * **Standard 5-Phase Processing Pattern:**
