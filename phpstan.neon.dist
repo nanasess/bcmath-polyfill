@@ -1,6 +1,12 @@
 parameters:
 	level: max
 	reportUnmatchedIgnoredErrors: false
+	# lib/BigInteger.php registers bcmath_compat\Math\BigInteger as a class_alias of
+	# whichever phpseclib (3 or 4) is installed. PHPStan cannot follow class_alias()
+	# statically, so the alias is registered in PHPStan's own runtime via bootstrap
+	# and resolved through reflection.
+	bootstrapFiles:
+		- lib/BigInteger.php
 	paths:
 		- src
 		- tests
