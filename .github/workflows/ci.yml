@@ -25,6 +25,8 @@ jobs:
         steps:
             -   name: Checkout
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Install dependencies
                 uses: php-actions/composer@8a65f0d3c6a1d17ca4800491a40b5756a4c164f3 # v6
                 with:
@@ -33,6 +35,12 @@ jobs:
                 uses: php-actions/phpstan@d8f8887acaac249b05ac11909c4cdbb018f52211 # v3
                 with:
                     php_version: '8.1'
+        strategy:
+            fail-fast: false
+            matrix:
+                # bcmath_compat\Math\BigInteger is aliased to phpseclib3 or phpseclib4
+                # at runtime, so static analysis must pass against both.
+                phpseclib: ['^3.0', '^4.0']
 
     tests:
         name: Tests
@@ -46,6 +54,8 @@ jobs:
                 uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
                 with:
                     php-version: ${{ matrix.php-version }}
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install
                 run: composer install --no-interaction --no-cache
             -   name: PHPUnit
@@ -55,6 +65,15 @@ jobs:
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
                 php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                phpseclib: ['^4.0']
+                include:
+                    # phpseclib 3 is still supported; cover both ends of the PHP range on Linux
+                    -   os: ubuntu-latest
+                        php-version: '8.1'
+                        phpseclib: '^3.0'
+                    -   os: ubuntu-latest
+                        php-version: '8.5'
+                        phpseclib: '^3.0'
 
     tests-without-bcmath:
         name: Tests (without BCMath extension)
@@ -69,6 +88,8 @@ jobs:
                 with:
                     php-version: ${{ matrix.php-version }}
                     extensions: :bcmath # ubuntu only
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install
                 run: composer install --no-interaction --no-cache
             -   name: PHPUnit (without BCMath extension)
@@ -77,6 +98,7 @@ jobs:
             fail-fast: false
             matrix:
                 php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                phpseclib: ['^3.0', '^4.0']
 
     docker-phpt-tests:
         name: Docker PHPT Tests
@@ -98,8 +120,9 @@ jobs:
                   # scale_ini test skipped: bcmath.scale INI setting ignored without native extension
                   # gh20006 test skipped: requires BcMath\Number OOP API (not supported by polyfill)
                   # bcround_precision_bounds test skipped: requires BcMath\Number OOP API (not supported by polyfill)
+                  # bc_is_zero_for_scale_clamp test skipped: requires BcMath\Number OOP API (not supported by polyfill)
                   # bcround directional modes + bcdivmod are now implemented, so those phpt tests no longer need skipping.
-                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,bcmul_check_overflow,bug78878,bcpow_error1,bcpow_error2,bcpow_error3,bcpowmod_error,bcpowmod_with_mod_1,bcpowmod_zero_modulus,bcscale_variation003,gh20006,bcround_precision_bounds
+                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,bcmul_check_overflow,bug78878,bcpow_error1,bcpow_error2,bcpow_error3,bcpowmod_error,bcpowmod_with_mod_1,bcpowmod_zero_modulus,bcscale_variation003,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp
         strategy:
             fail-fast: false
             matrix:
