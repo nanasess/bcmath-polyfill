@@ -162,11 +162,42 @@ final class BCMathFuzzTest extends TestCase
             \RoundingMode::NegativeInfinity,
             \RoundingMode::PositiveInfinity,
         ];
-        $this->fuzz('bcround', BCMath::round(...), fn (): array => [
-            $this->number(),
-            mt_rand(-12, 30),
-            $this->pick($modes),
-        ]);
+        $this->fuzz('bcround', BCMath::round(...), function () use ($modes): array {
+            $precision = mt_rand(-12, 30);
+
+            return [$this->roundable($precision), $precision, $this->pick($modes)];
+        });
+    }
+
+    /**
+     * The polyfill also accepts the legacy PHP_ROUND_* integers. Each of them is passed
+     * to the polyfill, and the RoundingMode case it stands for to the native bcround().
+     */
+    public function testRoundLegacyMode(): void
+    {
+        $this->requireNativeFunction('bcround');
+        // Each RoundingMode case paired with the PHP_ROUND_* integer it stands for.
+        $pairs = [
+            [\RoundingMode::HalfAwayFromZero, PHP_ROUND_HALF_UP],
+            [\RoundingMode::HalfTowardsZero, PHP_ROUND_HALF_DOWN],
+            [\RoundingMode::HalfEven, PHP_ROUND_HALF_EVEN],
+            [\RoundingMode::HalfOdd, PHP_ROUND_HALF_ODD],
+        ];
+        // The generator picks a pair and passes its RoundingMode case as the argument (which the
+        // native bcround() and the report get); the polyfill gets the integer of the same pair.
+        $legacyMode = PHP_ROUND_HALF_UP;
+        $this->fuzz(
+            'bcround',
+            static function (string $num, int $precision) use (&$legacyMode): string {
+                return BCMath::round($num, $precision, $legacyMode);
+            },
+            function () use ($pairs, &$legacyMode): array {
+                [$mode, $legacyMode] = $this->pick($pairs);
+                $precision = mt_rand(-12, 30);
+
+                return [$this->roundable($precision), $precision, $mode];
+            },
+        );
     }
 
     /**
@@ -456,6 +487,34 @@ final class BCMathFuzzTest extends TestCase
         }
 
         return $sign.$int.($frac === '' ? '' : '.'.$frac);
+    }
+
+    /**
+     * A number to round to $precision digits. Exact ties (a 5 just after the rounding
+     * position, e.g. '2.5' for precision 0) and the values next to them (e.g. '2.49',
+     * '2.51') are mixed in, because random digits almost never hit the cases that tell
+     * the rounding modes apart.
+     */
+    private function roundable(int $precision): string
+    {
+        $roll = mt_rand(1, 100);
+        if ($roll > 40) {
+            return $this->number();
+        }
+
+        $tail = $roll <= 25 ? '5'.str_repeat('0', mt_rand(0, 2)) : $this->pick(['49', '51', '4999', '5001']);
+        $sign = $this->chance(40) ? '-' : '';
+        $int = $this->digits(mt_rand(0, 3));
+        if ($precision >= 0) {
+            return $sign.($int === '' ? '0' : $int).'.'.$this->digits($precision).$tail;
+        }
+
+        // A negative precision rounds the integer part: the tail starts -$precision digits left of the point.
+        $digits = $int.$tail;
+        $point = strlen($int) + (-$precision);
+        $digits = str_pad($digits, $point, '0');
+
+        return $sign.substr($digits, 0, $point).(strlen($digits) > $point ? '.'.substr($digits, $point) : '');
     }
 
     /**
