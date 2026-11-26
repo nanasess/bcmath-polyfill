@@ -276,6 +276,20 @@ vendor/bin/phpunit
 vendor/bin/phpunit --group without-bcmath
 ```
 
+### Differential Fuzzing
+
+`tests/BCMathFuzzTest.php` compares every function with the native bcmath extension on random inputs (the extension is required). It runs with a fixed seed as part of the normal test suite, and with more iterations and a new seed every week in the `Fuzz` workflow.
+
+```bash
+# Run with another seed and more iterations
+BCMATH_FUZZ_SEED=12345 BCMATH_FUZZ_ITERATIONS=100000 vendor/bin/phpunit --group fuzz
+
+# Print every case before it runs (to find an input that crashes or hangs)
+BCMATH_FUZZ_TRACE=1 vendor/bin/phpunit --filter 'BCMathFuzzTest::testPowmod'
+```
+
+A failure prints the seed, the arguments, and both results. Known differences are skipped by `knownIssue()` in the test, each with the issue that tracks it.
+
 ### Docker-based PHPT Testing
 
 This project includes comprehensive Docker-based testing using official PHP core bcmath tests to ensure 100% compatibility:
