@@ -195,11 +195,16 @@ final class BCMathFuzzTest extends TestCase
     {
         $mismatches = [];
         $count = 0;
+        $compared = 0;
 
         /** @var array<string, int> $skipped */
         $skipped = [];
 
+        // The polyfill keeps its own default scale, which may differ from the native one
+        // or be still unset (null), so both are saved and restored separately.
         $originalScale = bcscale();
+        $polyfillScale = new \ReflectionProperty(BCMath::class, 'scale');
+        $originalPolyfillScale = $polyfillScale->getValue();
 
         try {
             for ($i = 0; $i < $this->iterations; $i++) {
@@ -220,7 +225,14 @@ final class BCMathFuzzTest extends TestCase
                 }
 
                 if ($this->trace) {
-                    fprintf(STDERR, "#%d %s(%s)\n", $i, $function, implode(', ', array_map($this->describe(...), $args)));
+                    fprintf(
+                        STDERR,
+                        "#%d %s(%s)%s\n",
+                        $i,
+                        $function,
+                        implode(', ', array_map($this->describe(...), $args)),
+                        $defaultScale === null ? '' : " with bcscale({$defaultScale})",
+                    );
                 }
 
                 $native = $this->outcome(static fn (): mixed => $function(...$args));
@@ -228,6 +240,7 @@ final class BCMathFuzzTest extends TestCase
                     fwrite(STDERR, "    native returned\n");
                 }
                 $actual = $this->outcome(static fn (): mixed => $polyfill(...$args));
+                $compared++;
 
                 if ($native === $actual) {
                     continue;
@@ -248,8 +261,17 @@ final class BCMathFuzzTest extends TestCase
             }
         } finally {
             bcscale($originalScale);
-            BCMath::scale($originalScale);
+            $polyfillScale->setValue(null, $originalPolyfillScale);
         }
+
+        $this->assertGreaterThan(0, $compared, sprintf(
+            "No case of %s() was compared: all %d generated cases were skipped as known issues (seed %d).\n"
+            .'Skipped as known issues: %s',
+            $function,
+            $this->iterations,
+            $this->seed,
+            json_encode($skipped, JSON_UNESCAPED_SLASHES),
+        ));
 
         $this->assertSame(0, $count, sprintf(
             "%d of %d cases differ from the native %s() (seed %d).\n"
@@ -344,7 +366,10 @@ final class BCMathFuzzTest extends TestCase
                 default => null,
             },
             // Several bugs give wrong digits; only errors and zero are compared until they are fixed.
-            'bcsqrt' => !str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) ? '#109 sqrt-wrong-result' : null,
+            // A negative scale is rejected before the square root is computed, so it is still compared.
+            'bcsqrt' => !str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) && ($args[1] ?? 0) >= 0
+                ? '#109 sqrt-wrong-result'
+                : null,
             default => null,
         };
     }
