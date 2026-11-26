@@ -56,11 +56,11 @@ final class BCMathFuzzTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->seed = self::intFromEnv('BCMATH_FUZZ_SEED', self::DEFAULT_SEED);
-        $this->iterations = max(1, self::intFromEnv('BCMATH_FUZZ_ITERATIONS', self::DEFAULT_ITERATIONS));
-        $this->trace = self::intFromEnv('BCMATH_FUZZ_TRACE', 0) !== 0;
+        $this->seed = $this->intFromEnv('BCMATH_FUZZ_SEED', self::DEFAULT_SEED);
+        $this->iterations = max(1, $this->intFromEnv('BCMATH_FUZZ_ITERATIONS', self::DEFAULT_ITERATIONS));
+        $this->trace = $this->intFromEnv('BCMATH_FUZZ_TRACE', 0) !== 0;
         $this->originalEngine = BigInteger::getEngine();
-        self::useEngineWithoutBcmath();
+        $this->useEngineWithoutBcmath();
         mt_srand($this->seed);
     }
 
@@ -212,7 +212,7 @@ final class BCMathFuzzTest extends TestCase
                     BCMath::scale($defaultScale);
                 }
 
-                $issue = self::knownIssue($function, $args);
+                $issue = $this->knownIssue($function, $args);
                 if ($issue !== null) {
                     $skipped[$issue] = ($skipped[$issue] ?? 0) + 1;
 
@@ -220,14 +220,14 @@ final class BCMathFuzzTest extends TestCase
                 }
 
                 if ($this->trace) {
-                    fprintf(STDERR, "#%d %s(%s)\n", $i, $function, implode(', ', array_map(self::describe(...), $args)));
+                    fprintf(STDERR, "#%d %s(%s)\n", $i, $function, implode(', ', array_map($this->describe(...), $args)));
                 }
 
-                $native = self::outcome(static fn (): mixed => $function(...$args));
+                $native = $this->outcome(static fn (): mixed => $function(...$args));
                 if ($this->trace) {
                     fwrite(STDERR, "    native returned\n");
                 }
-                $actual = self::outcome(static fn (): mixed => $polyfill(...$args));
+                $actual = $this->outcome(static fn (): mixed => $polyfill(...$args));
 
                 if ($native === $actual) {
                     continue;
@@ -239,7 +239,7 @@ final class BCMathFuzzTest extends TestCase
                         "#%d %s(%s)%s\n    native:   %s\n    polyfill: %s",
                         $i,
                         $function,
-                        implode(', ', array_map(self::describe(...), $args)),
+                        implode(', ', array_map($this->describe(...), $args)),
                         $defaultScale === null ? '' : " with bcscale({$defaultScale})",
                         $native,
                         $actual,
@@ -271,7 +271,7 @@ final class BCMathFuzzTest extends TestCase
     /**
      * Run $call and describe its return value, exception and warnings as a string.
      */
-    private static function outcome(callable $call): string
+    private function outcome(callable $call): string
     {
         $warnings = [];
         set_error_handler(static function (int $errno, string $message) use (&$warnings): bool {
@@ -300,7 +300,7 @@ final class BCMathFuzzTest extends TestCase
      *
      * @param list<mixed> $args
      */
-    private static function knownIssue(string $function, array $args): ?string
+    private function knownIssue(string $function, array $args): ?string
     {
         $numbers = array_values(array_filter($args, is_string(...)));
         $scale = $args[array_key_last($args)] ?? null;
@@ -314,11 +314,11 @@ final class BCMathFuzzTest extends TestCase
             }
         }
 
-        if (is_int($scale) && $scale < 0 && !self::allWellFormed($numbers)) {
+        if (is_int($scale) && $scale < 0 && !$this->allWellFormed($numbers)) {
             return '#104 scale-error-precedence';
         }
 
-        if (!self::allWellFormed($numbers)) {
+        if (!$this->allWellFormed($numbers)) {
             return null;
         }
 
@@ -326,25 +326,25 @@ final class BCMathFuzzTest extends TestCase
             'bccomp' => count($args) === 2 ? '#105 comp-default-scale' : null,
             'bcfloor', 'bcceil', 'bcround' => $numbers[0] === '' ? '#104 round-empty-string' : null,
             'bcpow' => match (true) {
-                self::hasFraction($numbers[1]) => '#108 pow-fractional-exponent',
+                $this->hasFraction($numbers[1]) => '#108 pow-fractional-exponent',
                 PHP_VERSION_ID < 80300 && str_contains($numbers[1], '.') => '#110 zero-fraction-integer-before-php83',
-                PHP_VERSION_ID < 80400 && self::isZero($numbers[0]) && str_starts_with($numbers[1], '-') && !self::isZero($numbers[1]) => '#110 pow-negative-power-of-zero-before-php84',
-                self::isZero($numbers[1]) && !in_array($numbers[1], ['0', '-0', '-0.0'], true) => '#108 pow-zero-exponent',
+                PHP_VERSION_ID < 80400 && $this->isZero($numbers[0]) && str_starts_with($numbers[1], '-') && !$this->isZero($numbers[1]) => '#110 pow-negative-power-of-zero-before-php84',
+                $this->isZero($numbers[1]) && !in_array($numbers[1], ['0', '-0', '-0.0'], true) => '#108 pow-zero-exponent',
                 default => null,
             },
             'bcpowmod' => match (true) {
                 // x^e is computed in full for a negative base, which crashes the process
                 // with SIGFPE (GMP) for a large exponent.
-                str_starts_with($numbers[0], '-') && !self::isZero($numbers[0]) => '#106 powmod-negative-base',
-                self::anyOf($numbers, self::hasFraction(...)) => '#107 powmod-fractional-operand',
-                PHP_VERSION_ID < 80300 && self::anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => '#110 zero-fraction-integer-before-php83',
-                self::isZero($numbers[2]) => '#107 powmod-zero-modulus',
-                self::isZero($numbers[1]) => '#107 powmod-zero-exponent',
+                str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) => '#106 powmod-negative-base',
+                $this->anyOf($numbers, $this->hasFraction(...)) => '#107 powmod-fractional-operand',
+                PHP_VERSION_ID < 80300 && $this->anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => '#110 zero-fraction-integer-before-php83',
+                $this->isZero($numbers[2]) => '#107 powmod-zero-modulus',
+                $this->isZero($numbers[1]) => '#107 powmod-zero-exponent',
                 count($args) === 3 => '#105 powmod-default-scale',
                 default => null,
             },
             // Several bugs give wrong digits; only errors and zero are compared until they are fixed.
-            'bcsqrt' => !str_starts_with($numbers[0], '-') && !self::isZero($numbers[0]) ? '#109 sqrt-wrong-result' : null,
+            'bcsqrt' => !str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) ? '#109 sqrt-wrong-result' : null,
             default => null,
         };
     }
@@ -352,16 +352,16 @@ final class BCMathFuzzTest extends TestCase
     /**
      * @param list<string> $numbers
      */
-    private static function allWellFormed(array $numbers): bool
+    private function allWellFormed(array $numbers): bool
     {
-        return !self::anyOf($numbers, static fn (string $n): bool => preg_match('/^[+-]?\d*(\.\d*)?$/', $n) !== 1);
+        return !$this->anyOf($numbers, static fn (string $n): bool => preg_match('/^[+-]?\d*(\.\d*)?$/', $n) !== 1);
     }
 
     /**
      * @param list<string> $values
      * @param callable(string): bool $predicate
      */
-    private static function anyOf(array $values, callable $predicate): bool
+    private function anyOf(array $values, callable $predicate): bool
     {
         foreach ($values as $value) {
             if ($predicate($value)) {
@@ -372,17 +372,17 @@ final class BCMathFuzzTest extends TestCase
         return false;
     }
 
-    private static function hasFraction(string $number): bool
+    private function hasFraction(string $number): bool
     {
         return preg_match('/\.\d*[1-9]/', $number) === 1;
     }
 
-    private static function isZero(string $number): bool
+    private function isZero(string $number): bool
     {
         return preg_match('/^[+-]?0*(\.0*)?$/', $number) === 1;
     }
 
-    private static function describe(mixed $arg): string
+    private function describe(mixed $arg): string
     {
         if ($arg instanceof \UnitEnum) {
             return $arg::class.'::'.$arg->name;
@@ -554,7 +554,7 @@ final class BCMathFuzzTest extends TestCase
      * (preferred on PHP 8.4+), whose results then depend on the bcscale() that
      * this test changes, which never happens in production.
      */
-    private static function useEngineWithoutBcmath(): void
+    private function useEngineWithoutBcmath(): void
     {
         foreach ([['GMP', ['DefaultEngine']], ['PHP64', ['OpenSSL', 'DefaultEngine']], ['PHP32', ['OpenSSL', 'DefaultEngine']]] as [$main, $modexps]) {
             try {
@@ -568,7 +568,7 @@ final class BCMathFuzzTest extends TestCase
         self::fail('No phpseclib BigInteger engine without bcmath is available');
     }
 
-    private static function intFromEnv(string $name, int $default): int
+    private function intFromEnv(string $name, int $default): int
     {
         $value = getenv($name);
         if ($value === false || $value === '') {
