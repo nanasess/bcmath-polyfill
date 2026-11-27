@@ -107,9 +107,13 @@ abstract class BCMath
     /**
      * Read the initial scale from the bcmath.scale INI setting.
      *
-     * Like the native extension, a value outside 0..2147483647 is rejected and the
-     * default 0 is kept. Unlike the native extension, quantity suffixes such as "1k"
-     * are not supported and fall back to 0.
+     * The value is parsed like the native extension (zend_ini_parse_quantity()), so
+     * "010" is 8, "0x10" is 16 and "1k" is 1024. A value outside 0..2147483647 is
+     * rejected and the default 0 is kept. The native extension warns about an
+     * invalid value at startup; the polyfill reads it lazily, so it stays silent.
+     *
+     * ini_parse_quantity() is available on PHP 8.2+. On PHP 8.1 only plain decimal
+     * integers are accepted, and anything else falls back to 0.
      */
     private static function defaultScaleFromIni(): int
     {
@@ -121,11 +125,15 @@ abstract class BCMath
             return 0;
         }
 
-        $scale = filter_var(trim($value), FILTER_VALIDATE_INT, [
-            'options' => ['min_range' => 0, 'max_range' => 2147483647],
-        ]);
+        if (function_exists('ini_parse_quantity')) {
+            $scale = @ini_parse_quantity($value);
+        } elseif (preg_match('/^\s*\+?0*(\d{1,10})\s*$/D', $value, $matches) === 1) {
+            $scale = (int) $matches[1];
+        } else {
+            return 0;
+        }
 
-        return $scale === false ? 0 : $scale;
+        return $scale >= 0 && $scale <= 2147483647 ? $scale : 0;
     }
 
     /**

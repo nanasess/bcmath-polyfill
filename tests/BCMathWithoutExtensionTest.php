@@ -241,7 +241,7 @@ final class BCMathWithoutExtensionTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string, string}>
+     * @return iterable<string, array{string, string, 2?: int}>
      */
     public static function provideScaleFromIniCases(): iterable
     {
@@ -249,11 +249,22 @@ final class BCMathWithoutExtensionTest extends TestCase
 
         yield 'zero' => ['0', '0 3 0'];
 
+        yield 'leading zero' => ['05', '5 3.00000 5'];
+
+        yield 'surrounding spaces' => [' 5 ', '5 3.00000 5'];
+
         yield 'negative is rejected' => ['-1', '0 3 0'];
 
         yield 'above INT_MAX is rejected' => ['2147483648', '0 3 0'];
 
         yield 'non-numeric is ignored' => ['abc', '0 3 0'];
+
+        // Parsed like the native extension (zend_ini_parse_quantity()), which needs ini_parse_quantity()
+        yield 'octal' => ['010', '8 3.00000000 8', 80200];
+
+        yield 'hexadecimal' => ['0x5', '5 3.00000 5', 80200];
+
+        yield 'trailing garbage' => ['3abc', '3 3.000 3', 80200];
     }
 
     /**
@@ -261,8 +272,12 @@ final class BCMathWithoutExtensionTest extends TestCase
      * even though ini_get('bcmath.scale') returns false without the extension.
      */
     #[DataProvider('provideScaleFromIniCases')]
-    public function testScaleFromIni(string $iniValue, string $expected): void
+    public function testScaleFromIni(string $iniValue, string $expected, int $minPhpVersionId = 0): void
     {
+        if (PHP_VERSION_ID < $minPhpVersionId) {
+            $this->markTestSkipped('ini_parse_quantity() requires PHP 8.2+');
+        }
+
         $autoload = __DIR__.'/../vendor/autoload.php';
         $code = 'require '.var_export($autoload, true).';'
             .'echo bcscale(), " ", bcadd("2", "1"), " ", bcscale(1);';

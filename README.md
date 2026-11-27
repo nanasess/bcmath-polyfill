@@ -212,7 +212,8 @@ While the polyfill is significantly slower than native bcmath:
 - **bcmath.scale INI setting is only read at startup**: When the native bcmath extension is not loaded, PHP does not register the `bcmath.scale` INI entry. The polyfill reads the value set in php.ini or with `-d bcmath.scale=N` (through `get_cfg_var()`) as the initial scale, but:
   - `ini_get('bcmath.scale')` returns `false`
   - `ini_set('bcmath.scale', ...)` won't work, and `bcscale()` does not update `ini_get('bcmath.scale')`
-  - Quantity suffixes such as `1k` are not supported (the scale falls back to 0)
+  - On PHP 8.2+, the value is parsed like the native extension (`010` is 8, `0x10` is 16, `1k` is 1024); on PHP 8.1 only decimal integers are accepted and anything else falls back to 0
+  - An invalid value does not raise the warning the native extension raises at startup
 - **Workaround**: Use `bcscale()` instead to change the scale at runtime
 - To get the current scale:
   - PHP >= 7.3.0: Use `bcscale()` without arguments
