@@ -1,0 +1,61 @@
+name: Fuzz
+on:
+    schedule:
+        # Every Monday at 03:00 JST
+        -   cron: '0 18 * * 0'
+    workflow_dispatch:
+        inputs:
+            iterations:
+                description: 'Iterations per test method'
+                default: '200000'
+                required: true
+            seed:
+                description: 'Base seed (empty: use the run ID)'
+                default: ''
+                required: false
+
+permissions:
+    contents: read #  to fetch code (actions/checkout)
+
+jobs:
+    fuzz:
+        name: Fuzz (PHP ${{ matrix.php-version }}, phpseclib ${{ matrix.phpseclib }})
+        timeout-minutes: 30
+        runs-on: ubuntu-latest
+        env:
+            # A different seed for every run, so that scheduled runs keep exploring new inputs.
+            BCMATH_FUZZ_SEED: ${{ inputs.seed || github.run_id }}
+            BCMATH_FUZZ_ITERATIONS: ${{ inputs.iterations || '200000' }}
+        steps:
+            -   name: Checkout
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            -   name: Setup PHP
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+                with:
+                    php-version: ${{ matrix.php-version }}
+                    extensions: bcmath
+            -   name: Require the native bcmath extension
+                # BCMathFuzzTest is skipped without the extension, which would let the job pass without comparing anything
+                run: |
+                    if ! php -r 'exit(extension_loaded("bcmath") ? 0 : 1);'; then
+                        echo "::error::The native bcmath extension is not loaded"
+                        exit 1
+                    fi
+            -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
+            -   name: Composer Install
+                run: composer install --no-interaction --no-cache
+            -   name: Fuzz
+                run: |
+                    echo "BCMATH_FUZZ_SEED=${BCMATH_FUZZ_SEED} BCMATH_FUZZ_ITERATIONS=${BCMATH_FUZZ_ITERATIONS}"
+                    vendor/bin/phpunit --group fuzz
+        strategy:
+            fail-fast: false
+            matrix:
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                phpseclib: ['^4.0']
+                include:
+                    -   php-version: '8.1'
+                        phpseclib: '^3.0'
+                    -   php-version: '8.5'
+                        phpseclib: '^3.0'

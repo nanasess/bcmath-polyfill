@@ -943,8 +943,9 @@ final class BCMathTest extends TestCase
         );
 
         // Correct calculation after fix
-        $wasPadded = strlen($numStr) % 2 !== 0;  // false for '56'
-        $integerLength = strlen($temp[0]) + ($wasPadded ? 1 : 0);  // 1 + 0 = 1
+        // The fixed code adds 1 to the integer length when it pads the digits to an even length.
+        // '56' already has an even length, so it is not padded and the integer length stays 1.
+        $integerLength = strlen($temp[0]);  // 1
         $correctDecStart = $integerLength / 2;  // 1/2 = 0.5
 
         $this->assertSame(0.5, $correctDecStart);
