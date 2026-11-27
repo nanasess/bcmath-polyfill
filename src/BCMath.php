@@ -291,7 +291,11 @@ abstract class BCMath
     private static function normalizeZeroResult(string $result): string
     {
         // Normalize -0.000 to 0.000
-        return preg_match('#^-0\.?0*$#', $result) ? substr($result, 1) : $result;
+        if ($result !== '' && $result[0] === '-' && strspn($result, '0.', 1) === strlen($result) - 1) {
+            return substr($result, 1);
+        }
+
+        return $result;
     }
 
     /**
@@ -367,29 +371,65 @@ abstract class BCMath
     }
 
     /**
-     * Prepare numbers for comparison with scale truncation.
+     * Compare two normalized numbers on their digit strings, without big integer arithmetic.
      *
-     * @return BigInteger[] Array containing [num1Big, num2Big]
+     * Fraction digits beyond $scale are ignored, so a number that is zero within
+     * the scale compares as zero whatever its sign ('-0.001' equals '0' at scale 2).
+     *
+     * @param string $num1 Number in the canonical form of self::normalizeNumber()
+     * @param string $num2 Number in the canonical form of self::normalizeNumber()
+     *
+     * @return int -1, 0 or 1
      */
-    private static function prepareForComparison(string $num1, string $num2, int $scale): array
+    private static function compareNormalized(string $num1, string $num2, int $scale): int
     {
-        // Parse decimal numbers
-        [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
-        [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
+        [$negative1, $integer1, $fraction1] = self::splitForComparison($num1, $scale);
+        [$negative2, $integer2, $fraction2] = self::splitForComparison($num2, $scale);
 
-        // Apply scale truncation and padding
-        $num1Dec = substr($num1Dec, 0, $scale);
-        $num2Dec = substr($num2Dec, 0, $scale);
+        if ($negative1 !== $negative2) {
+            return $negative1 ? -1 : 1;
+        }
 
-        // Pad decimal parts to the same length (scale)
-        $num1Dec = str_pad($num1Dec, $scale, '0', STR_PAD_RIGHT);
-        $num2Dec = str_pad($num2Dec, $scale, '0', STR_PAD_RIGHT);
+        // The integer parts have no leading zeros, so the longer one is larger. The
+        // fractions have no trailing zeros, so their byte order is their numeric order.
+        // Digit strings are compared with strcmp(), because <=> would compare them as
+        // numbers (and lose precision beyond a float).
+        $magnitude = strlen($integer1) <=> strlen($integer2);
+        if ($magnitude === 0) {
+            $magnitude = strcmp($integer1, $integer2) <=> 0;
+        }
+        if ($magnitude === 0) {
+            $magnitude = strcmp($fraction1, $fraction2) <=> 0;
+        }
 
-        // Convert to BigInteger for comparison
-        $num1Big = new BigInteger($num1Int.$num1Dec);
-        $num2Big = new BigInteger($num2Int.$num2Dec);
+        return $negative1 ? -$magnitude : $magnitude;
+    }
 
-        return [$num1Big, $num2Big];
+    /**
+     * Split a normalized number for self::compareNormalized().
+     *
+     * @param string $num Number in the canonical form of self::normalizeNumber()
+     *
+     * @return array{0: bool, 1: string, 2: string} whether the number is negative within
+     *                                               the scale, its integer digits, and its
+     *                                               fraction digits up to $scale without trailing zeros
+     */
+    private static function splitForComparison(string $num, int $scale): array
+    {
+        $negative = $num[0] === '-';
+        if ($negative) {
+            $num = substr($num, 1);
+        }
+
+        $point = strpos($num, '.');
+        if ($point === false) {
+            return [$negative, $num, ''];
+        }
+
+        $integer = substr($num, 0, $point);
+        $fraction = rtrim(substr($num, $point + 1, $scale), '0');
+
+        return [$negative && ($integer !== '0' || $fraction !== ''), $integer, $fraction];
     }
 
     /**
@@ -438,25 +478,32 @@ abstract class BCMath
      */
     public static function format(BigInteger $x, ?int $scale = null, int $pad = 0): string
     {
-        $sign = self::isNegative($x) ? '-' : '';
-        $x = str_replace('-', '', (string) $x);
-
-        if (strlen($x) !== $pad) {
-            $x = str_pad($x, $pad, '0', STR_PAD_LEFT);
-        }
-        $temp = $pad !== 0 ? substr_replace($x, '.', -$pad, 0) : $x;
-        $temp = explode('.', $temp);
-        if ($temp[0] === '') {
-            $temp[0] = '0';
-        }
-        if (isset($temp[1])) {
-            $temp[1] = substr($temp[1], 0, $scale);
-            $temp[1] = str_pad($temp[1], (int) $scale, '0');
-        } elseif ($scale) {
-            $temp[1] = str_repeat('0', $scale);
+        $digits = (string) $x;
+        $sign = '';
+        if ($digits[0] === '-') {
+            $sign = '-';
+            $digits = substr($digits, 1);
         }
 
-        return $sign.rtrim(implode('.', $temp), '.');
+        if ($pad <= 0) {
+            return $scale ? $sign.$digits.'.'.str_repeat('0', $scale) : $sign.$digits;
+        }
+
+        if (strlen($digits) <= $pad) {
+            // No integer digits: the integer part is zero
+            $integer = '0';
+            $fraction = str_pad($digits, $pad, '0', STR_PAD_LEFT);
+        } else {
+            $integer = substr($digits, 0, -$pad);
+            $fraction = substr($digits, -$pad);
+        }
+
+        // A null scale keeps every fraction digit
+        if ($scale !== null) {
+            $fraction = $pad > $scale ? substr($fraction, 0, $scale) : str_pad($fraction, $scale, '0');
+        }
+
+        return $fraction !== '' ? $sign.$integer.'.'.$fraction : $sign.$integer;
     }
 
     /**
@@ -464,7 +511,7 @@ abstract class BCMath
      */
     public static function isNegative(BigInteger $x): bool
     {
-        return $x->compare(new BigInteger()) < 0;
+        return $x->isNegative();
     }
 
     /**
@@ -537,13 +584,10 @@ abstract class BCMath
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
 
         // Phase 4: Calculation execution
-        $result = $num1Big->abs()->multiply($num2Big->abs());
-        $sign = ((self::isNegative($num1Big) ^ self::isNegative($num2Big)) !== 0) ? '-' : '';
+        $result = $num1Big->multiply($num2Big);
 
         // Phase 5: Result formatting
-        $formatted = $sign.self::format($result, $scale, 2 * $maxPad);
-
-        return self::normalizeZeroResult($formatted);
+        return self::formatFinalResult($result, $scale, 2 * $maxPad);
     }
 
     /**
@@ -656,11 +700,8 @@ abstract class BCMath
         // Phase 2: Argument validation and normalization
         [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bccomp');
 
-        // Phase 3: Number processing
-        [$num1Big, $num2Big] = self::prepareForComparison($num1, $num2, $scale);
-
-        // Phase 4: Calculation execution
-        return $num1Big->compare($num2Big);
+        // Phase 3: Comparison of the digit strings
+        return self::compareNormalized($num1, $num2, $scale);
     }
 
     /**
@@ -724,13 +765,21 @@ abstract class BCMath
         // Convert to BigInteger for calculation
         $baseBig = new BigInteger($baseParts[0].$baseParts[1]);
 
-        $baseIsNegative = self::isNegative($baseBig);
+        $baseIsNegative = $base[0] === '-';
         $baseBig = $baseBig->abs();
 
         // Phase 5: Calculation execution
+        // Square-and-multiply: about 2 * log2(exponent) multiplications instead of one
+        // per unit of the exponent. The exponent fits in an int (checked above).
         $r = new BigInteger(1);
-        for ($i = 0; $i < $absExponent; $i++) {
-            $r = $r->multiply($baseBig);
+        $square = $baseBig;
+        for ($n = (int) $absExponent; $n > 0; $n >>= 1) {
+            if (($n & 1) === 1) {
+                $r = $r->multiply($square);
+            }
+            if ($n > 1) {
+                $square = $square->multiply($square);
+            }
         }
 
         // Phase 5: Result formatting

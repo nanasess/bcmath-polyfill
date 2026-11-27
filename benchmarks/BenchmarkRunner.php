@@ -3,6 +3,7 @@
 namespace bcmath_compat\Benchmarks;
 
 use bcmath_compat\BCMath;
+use bcmath_compat\Math\BigInteger;
 
 class BenchmarkRunner
 {
@@ -11,10 +12,21 @@ class BenchmarkRunner
 
     private array $results = [];
     private bool $nativeAvailable;
+    private string $engine;
 
-    public function __construct()
+    /**
+     * @param null|string $engine phpseclib BigInteger engine to use for the polyfill
+     *                            (GMP, PHP64 or PHP32); null keeps phpseclib's default
+     */
+    public function __construct(?string $engine = null)
     {
         $this->nativeAvailable = extension_loaded('bcmath');
+
+        if ($engine !== null) {
+            // The modular exponentiation engines that do not use the bcmath extension
+            BigInteger::setEngine($engine, $engine === 'GMP' ? ['DefaultEngine'] : ['OpenSSL', 'DefaultEngine']);
+        }
+        $this->engine = BigInteger::getEngine()[0];
     }
 
     public function run(): void
@@ -84,6 +96,15 @@ class BenchmarkRunner
             }, function() use ($testCase) {
                 return BCMath::div($testCase['a'], $testCase['b'], $testCase['scale']);
             }, $testCase['name']);
+
+            // Comparison
+            $this->benchmark('bccomp', function() use ($testCase) {
+                if ($this->nativeAvailable) {
+                    return \bccomp($testCase['a'], $testCase['b'], $testCase['scale']);
+                }
+            }, function() use ($testCase) {
+                return BCMath::comp($testCase['a'], $testCase['b'], $testCase['scale']);
+            }, $testCase['name']);
         }
     }
 
@@ -94,6 +115,8 @@ class BenchmarkRunner
         $testCases = [
             ['name' => 'Power (small exponent)', 'base' => '2', 'exp' => '10', 'scale' => 0],
             ['name' => 'Power (large base)', 'base' => '12345', 'exp' => '5', 'scale' => 0],
+            ['name' => 'Power (compound interest)', 'base' => '1.05', 'exp' => '30', 'scale' => 10],
+            ['name' => 'Power (large exponent)', 'base' => '2', 'exp' => '1000', 'scale' => 0],
             ['name' => 'Square root', 'number' => '123456789', 'scale' => 10],
             ['name' => 'Modulo', 'a' => '1234567890', 'b' => '123', 'scale' => 0],
         ];
@@ -113,7 +136,7 @@ class BenchmarkRunner
         }
 
         // Square root
-        $sqrtCase = array_filter($testCases, fn($c) => isset($c['number']))[2];
+        $sqrtCase = current(array_filter($testCases, fn($c) => isset($c['number'])));
         $this->printSubSection($sqrtCase['name']);
 
         $this->benchmark('bcsqrt', function() use ($sqrtCase) {
@@ -125,7 +148,7 @@ class BenchmarkRunner
         }, $sqrtCase['name']);
 
         // Modulo
-        $modCase = array_filter($testCases, fn($c) => isset($c['a']) && isset($c['b']))[3];
+        $modCase = current(array_filter($testCases, fn($c) => isset($c['a']) && isset($c['b'])));
         $this->printSubSection($modCase['name']);
 
         $this->benchmark('bcmod', function() use ($modCase) {
@@ -160,6 +183,15 @@ class BenchmarkRunner
                 }
             }, function() use ($a, $b) {
                 return BCMath::add($a, $b);
+            }, $testCase['name']);
+
+            // Comparison
+            $this->benchmark('bccomp', function() use ($a, $b) {
+                if ($this->nativeAvailable) {
+                    return \bccomp($a, $b);
+                }
+            }, function() use ($a, $b) {
+                return BCMath::comp($a, $b);
             }, $testCase['name']);
 
             // Multiplication (with smaller numbers to avoid timeout)
@@ -277,6 +309,7 @@ class BenchmarkRunner
         echo "========================================\n";
         echo "Iterations per test: " . self::ITERATIONS . "\n";
         echo "Native BCMath: " . ($this->nativeAvailable ? 'Available' : 'Not Available') . "\n";
+        echo "BigInteger engine: " . $this->engine . "\n";
         echo "========================================\n\n";
     }
 

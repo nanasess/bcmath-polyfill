@@ -6,7 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use bcmath_compat\Benchmarks\BenchmarkRunner;
 
 // Parse command line arguments
-$options = getopt('f:o:h', ['format:', 'output:', 'help']);
+$options = getopt('f:o:e:h', ['format:', 'output:', 'engine:', 'help']);
 
 if (isset($options['h']) || isset($options['help'])) {
     showHelp();
@@ -15,9 +15,15 @@ if (isset($options['h']) || isset($options['help'])) {
 
 $format = $options['f'] ?? $options['format'] ?? null;
 $output = $options['o'] ?? $options['output'] ?? null;
+$engine = $options['e'] ?? $options['engine'] ?? null;
 
 // Create and run benchmark
-$benchmark = new BenchmarkRunner();
+try {
+    $benchmark = new BenchmarkRunner($engine);
+} catch (\Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+    exit(1);
+}
 $benchmark->run();
 
 // Export results if requested
@@ -47,6 +53,8 @@ Usage: php benchmarks/run-benchmarks.php [OPTIONS]
 Options:
   -f, --format FORMAT   Export results in specified format (json, csv, markdown)
   -o, --output FILE     Save results to file (instead of stdout)
+  -e, --engine ENGINE   phpseclib BigInteger engine for the polyfill (GMP, PHP64, PHP32).
+                        Use PHP64 to measure an environment without ext-gmp.
   -h, --help           Show this help message
 
 Examples:
@@ -61,6 +69,9 @@ Examples:
 
   # Export results as CSV
   php benchmarks/run-benchmarks.php -f csv -o results.csv
+
+  # Measure the pure-PHP engine, as on a system without ext-gmp
+  php benchmarks/run-benchmarks.php -e PHP64
 
 HELP;
 }

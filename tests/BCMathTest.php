@@ -2481,4 +2481,158 @@ final class BCMathTest extends TestCase
             BigInteger::setEngine($original[0], [$original[1]]);
         }
     }
+
+    /**
+     * bccomp() compares the digit strings without big integer arithmetic (#123).
+     *
+     * @return iterable<string, array{string, string, null|int, int}>
+     */
+    public static function provideCompOnDigitStringsCases(): iterable
+    {
+        // Digits beyond the scale are ignored
+        yield 'truncated fraction is equal' => ['1.239', '1.231', 2, 0];
+
+        yield 'difference within the scale' => ['1.239', '1.231', 3, 1];
+
+        yield 'scale 0 ignores the fraction' => ['1.9', '1.1', 0, 0];
+
+        // A number that is zero within the scale has no sign
+        yield 'negative below the scale equals zero' => ['-0.001', '0', 2, 0];
+
+        yield 'negative below the scale equals positive below the scale' => ['-0.001', '0.009', 2, 0];
+
+        yield 'negative within the scale is less than zero' => ['-0.01', '0', 2, -1];
+
+        yield 'zero is greater than a negative' => ['0', '-0.01', 2, 1];
+
+        // Trailing zeros and different fraction lengths
+        yield 'trailing zeros are equal' => ['1.50', '1.5', 5, 0];
+
+        yield 'shorter fraction is smaller' => ['1.5', '1.50001', 5, -1];
+
+        yield 'fractions compare digit by digit, not as integers' => ['0.5', '0.49', 2, 1];
+
+        yield 'leading zeros of the fraction count' => ['0.05', '0.5', 2, -1];
+
+        // Integer parts: more digits is larger, whatever the leading digit
+        yield 'more integer digits is larger' => ['100', '99', 0, 1];
+
+        yield 'leading zeros are not digits' => ['0099', '100', 0, -1];
+
+        yield 'negatives reverse the order' => ['-100', '-99', 0, -1];
+
+        yield 'negative is less than positive' => ['-1', '1', 0, -1];
+
+        yield 'same negative numbers' => ['-12.34', '-12.34', 2, 0];
+
+        yield 'negative fractions reverse the order' => ['-0.5', '-0.49', 2, -1];
+
+        // Beyond the precision of int and float
+        yield '30 digits differing in the last one' => ['123456789012345678901234567890', '123456789012345678901234567891', 0, -1];
+
+        yield 'fraction of 30 digits differing in the last one' => ['0.123456789012345678901234567891', '0.123456789012345678901234567890', 30, 1];
+
+        yield 'leading zeros are not compared as numbers' => ['010', '9', 0, 1];
+
+        // Forms accepted by the native extension
+        yield 'empty forms are zero' => ['.', '-', 3, 0];
+
+        yield 'plus sign' => ['+5', '5.000', 3, 0];
+
+        yield 'default scale' => ['1.5', '1.4', null, 0];
+    }
+
+    #[DataProvider('provideCompOnDigitStringsCases')]
+    public function testCompOnDigitStrings(string $num1, string $num2, ?int $scale, int $expected): void
+    {
+        $this->assertSame($expected, BCMath::comp($num1, $num2, $scale));
+        $this->assertSame($expected, BCMath::comp($num2, $num1, $scale) * -1);
+        $this->assertSame(bccomp($num1, $num2, $scale), BCMath::comp($num1, $num2, $scale)); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bcpow() uses square-and-multiply (#123): the result must not depend on the bits of the exponent.
+     *
+     * @return iterable<string, array{string, string, int}>
+     */
+    public static function providePowBySquaringCases(): iterable
+    {
+        foreach (['1', '2', '3', '4', '7', '8', '15', '16', '17', '31', '32', '33', '100', '255', '256', '1000'] as $exponent) {
+            yield "2 ** {$exponent}" => ['2', $exponent, 0];
+
+            yield "-3 ** {$exponent}" => ['-3', $exponent, 0];
+        }
+
+        yield '1.05 ** 30' => ['1.05', '30', 10];
+
+        yield '-1.5 ** 17' => ['-1.5', '17', 20];
+
+        yield '0.1 ** 40' => ['0.1', '40', 30];
+
+        yield '2 ** -10' => ['2', '-10', 15];
+
+        yield '-2 ** -11' => ['-2', '-11', 15];
+
+        yield '1.0001 ** 3000' => ['1.0001', '3000', 20];
+
+        yield '1.5 ** -33' => ['1.5', '-33', 25];
+    }
+
+    #[DataProvider('providePowBySquaringCases')]
+    public function testPowBySquaring(string $base, string $exponent, int $scale): void
+    {
+        $this->assertSame(bcpow($base, $exponent, $scale), BCMath::pow($base, $exponent, $scale)); // @phpstan-ignore-line argument.type
+    }
+
+    public function testPowBySquaringLargeExponentValue(): void
+    {
+        $this->assertSame(
+            '10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376',
+            BCMath::pow('2', '1000')
+        );
+    }
+
+    /**
+     * BCMath::format() places the decimal point and applies the scale.
+     *
+     * @return iterable<string, array{string, null|int, int, string}>
+     */
+    public static function provideFormatCases(): iterable
+    {
+        yield 'integer' => ['123', 0, 0, '123'];
+
+        yield 'integer with a scale' => ['123', 2, 0, '123.00'];
+
+        yield 'integer with a null scale' => ['123', null, 0, '123'];
+
+        yield 'decimal point inside' => ['12345', 2, 2, '123.45'];
+
+        yield 'fraction is truncated' => ['12345', 1, 3, '12.3'];
+
+        yield 'fraction is padded' => ['12345', 5, 2, '123.45000'];
+
+        yield 'scale 0 drops the fraction' => ['12345', 0, 2, '123'];
+
+        yield 'null scale keeps the fraction' => ['12345', null, 4, '1.2345'];
+
+        yield 'no integer digits' => ['45', 2, 2, '0.45'];
+
+        yield 'fewer digits than the pad' => ['5', 3, 3, '0.005'];
+
+        yield 'negative' => ['-12345', 2, 2, '-123.45'];
+
+        yield 'negative without integer digits' => ['-5', 3, 3, '-0.005'];
+
+        yield 'negative truncated to zero keeps its sign' => ['-5', 1, 3, '-0.0'];
+
+        yield 'zero' => ['0', 2, 2, '0.00'];
+
+        yield 'zero without pad' => ['0', 0, 0, '0'];
+    }
+
+    #[DataProvider('provideFormatCases')]
+    public function testFormat(string $digits, ?int $scale, int $pad, string $expected): void
+    {
+        $this->assertSame($expected, BCMath::format(new BigInteger($digits), $scale, $pad));
+    }
 }
