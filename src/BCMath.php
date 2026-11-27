@@ -66,8 +66,9 @@ abstract class BCMath
     /**
      * Validate and normalize two input numbers.
      *
-     * Converts non-numeric inputs to '0' to match bcmath behavior.
-     * This method implements Phase 1 of the standard 5-phase processing pattern.
+     * Returns both numbers in the canonical form of self::normalizeNumber().
+     * The scale must be validated before calling this, because the native
+     * extension reports an invalid scale before a malformed number.
      *
      * @return string[] Array containing normalized [$num1, $num2]
      *
@@ -75,10 +76,10 @@ abstract class BCMath
      */
     protected static function validateAndNormalizeInputs(string $num1, string $num2, string $function): array
     {
-        self::validateNumberString($num1, $function, 1, 'num1');
-        self::validateNumberString($num2, $function, 2, 'num2');
-
-        return [$num1, $num2];
+        return [
+            self::normalizeNumber($num1, $function, 1, 'num1'),
+            self::normalizeNumber($num2, $function, 2, 'num2'),
+        ];
     }
 
     /**
@@ -87,25 +88,62 @@ abstract class BCMath
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
      *
-     * **Limitation**: When the native bcmath extension is not loaded,
-     * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
-     * will return false. In this case, the polyfill defaults to scale 0.
-     * This means bcmath.scale INI settings (including in PHPT tests) are ignored
-     * when using the polyfill without the native extension.
+     * When the native bcmath extension is not loaded, PHP does not register the
+     * 'bcmath.scale' INI entry, so ini_get('bcmath.scale') returns false. The value
+     * given in php.ini or with -d is still readable through get_cfg_var(), so it is
+     * used as the initial scale. ini_set('bcmath.scale', ...) at runtime cannot be
+     * supported; use bcscale() instead.
      */
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
-            if (!isset(self::$scale)) {
-                // Note: ini_get('bcmath.scale') returns false when bcmath extension is not loaded
-                // This is expected behavior - the polyfill cannot access bcmath.scale INI settings
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
+            self::$scale ??= self::defaultScaleFromIni();
             $scale = self::$scale;
         }
 
         return $scale;
+    }
+
+    /**
+     * Read the initial scale from the bcmath.scale INI setting.
+     *
+     * The value is parsed like the native extension (zend_ini_parse_quantity()), so
+     * "010" is 8, "0x10" is 16 and "1k" is 1024. A value outside 0..2147483647 is
+     * rejected and the default 0 is kept. The native extension warns about an
+     * invalid value at startup; the polyfill reads it lazily, so it stays silent.
+     *
+     * ini_parse_quantity() is available on PHP 8.2+. On PHP 8.1 only plain decimal
+     * integers are accepted, and anything else falls back to 0.
+     */
+    private static function defaultScaleFromIni(): int
+    {
+        $value = ini_get('bcmath.scale');
+        if ($value === false) {
+            $value = get_cfg_var('bcmath.scale');
+        }
+        if (!is_string($value)) {
+            return 0;
+        }
+
+        if (function_exists('ini_parse_quantity')) {
+            $scale = @ini_parse_quantity($value);
+            // On PHP 8.1 PHPStan does not know this function and types the result as mixed,
+            // while on PHP 8.2+ it reports this guard as always-true. Keep it for 8.1.
+            if (!is_int($scale)) { // @phpstan-ignore function.alreadyNarrowedType
+                return 0;
+            }
+        } elseif (preg_match('/^\s*\+?0*(\d{1,10})\s*$/D', $value, $matches) === 1) {
+            $digits = $matches[1];
+            // Compare as strings before the (int) cast, which saturates to 2147483647 on 32-bit PHP
+            if (strlen($digits) === 10 && strcmp($digits, '2147483647') > 0) {
+                return 0;
+            }
+            $scale = (int) $digits;
+        } else {
+            return 0;
+        }
+
+        return $scale >= 0 && $scale <= 2147483647 ? $scale : 0;
     }
 
     /**
@@ -125,7 +163,18 @@ abstract class BCMath
     }
 
     /**
-     * Validate number string according to bcmath str2num rules.
+     * Validate a number argument and return it in canonical form.
+     *
+     * Accepts what the native extension accepts: an optional sign, integer
+     * digits and an optional decimal point followed by fraction digits, where
+     * either run of digits may be empty ('', '.', '-', '+.5' and '5.' are all
+     * valid). A NUL byte is rejected, although the native extension, which
+     * reads the argument as a C string, ignores anything from the first NUL on.
+     *
+     * The canonical form is '-'?(0|[1-9][0-9]*)('.'[0-9]+)?: the '+' sign and
+     * the leading zeros of the integer part are removed, an empty integer part
+     * becomes '0', and zero never has a '-' sign. The fraction digits are kept
+     * as given, including trailing zeros.
      *
      * @param string $num Number string to validate
      * @param string $function Function name for error message
@@ -134,41 +183,47 @@ abstract class BCMath
      *
      * @throws \ValueError if number is not well-formed
      */
-    private static function validateNumberString(string $num, string $function, int $argNumber, string $argName): void
+    private static function normalizeNumber(string $num, string $function, int $argNumber, string $argName): string
     {
-        // Empty string is valid (treated as '0')
-        if ($num === '') {
-            return;
-        }
-
-        // Check for common malformed patterns that should throw ValueError
-        $malformedPatterns = [
-            '/\s/',            // Any whitespace
-            '/[eE]/',          // Scientific notation
-            '/,/',             // Comma instead of decimal point
-            '/[^\d\-\+\.]/',   // Invalid characters
-            '/\..*\./',        // Multiple decimal points
-            '/[+-].*[+-]/',    // Multiple signs
-            '/[+-]$/',         // Sign at end without digits
-            '/^[+-]\./',       // Sign followed immediately by decimal (like "+.")
-        ];
-
-        foreach ($malformedPatterns as $pattern) {
-            if (preg_match($pattern, $num)) {
-                throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
-            }
-        }
-
-        // Check for special float values
-        $upperNum = strtoupper($num);
-        if (in_array($upperNum, ['INF', '-INF', 'INFINITY', '-INFINITY', 'NAN'], true)) {
+        if (preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/D', $num, $matches) !== 1) {
             throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
         }
 
-        // Additional validation: must be numeric after basic pattern checks
-        if (!is_numeric($num)) {
-            throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) is not well-formed");
+        $integer = ltrim($matches[2], '0');
+        if ($integer === '') {
+            $integer = '0';
         }
+        $fraction = $matches[3] ?? '';
+        $isZero = $integer === '0' && rtrim($fraction, '0') === '';
+        $sign = $matches[1] === '-' && !$isZero ? '-' : '';
+
+        return $sign.$integer.($fraction !== '' ? '.'.$fraction : '');
+    }
+
+    /**
+     * The integer value of a normalized number, which must not have a fractional part.
+     *
+     * A fraction of zeros is accepted, as by the native extension on PHP 8.3+
+     * (the polyfill follows PHP 8.4+ on every version, see #110).
+     *
+     * @param string $num Number in the canonical form of self::normalizeNumber()
+     * @param string $function Function name for error message
+     * @param int $argNumber Argument number for error message
+     * @param string $argName Argument name for error message
+     *
+     * @return string '-'?(0|[1-9][0-9]*), without '-' for zero
+     *
+     * @throws \ValueError if the number has a non-zero fractional part
+     */
+    private static function integerPart(string $num, string $function, int $argNumber, string $argName): string
+    {
+        [$integer, $fraction] = self::parseDecimalNumber($num);
+        if (rtrim($fraction, '0') !== '') {
+            throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) cannot have a fractional part");
+        }
+
+        // A normalized zero has no sign, so the sign of $integer is already right.
+        return $integer;
     }
 
     /**
@@ -288,20 +343,6 @@ abstract class BCMath
     }
 
     /**
-     * Check if a string starts with a negative sign after trimming whitespace.
-     *
-     * @param string $num The string to check
-     *
-     * @return bool True if the string starts with '-' after trimming, false otherwise
-     */
-    private static function startsWithNegativeSign(string $num): bool
-    {
-        $trimmed = ltrim($num);
-
-        return $trimmed !== '' && $trimmed[0] === '-';
-    }
-
-    /**
      * Check for division by zero and throw exception.
      *
      * @throws \DivisionByZeroError If divisor is zero
@@ -323,18 +364,6 @@ abstract class BCMath
         if (self::isZero($divisor)) {
             throw new \DivisionByZeroError(self::MODULO_BY_ZERO_MESSAGE);
         }
-    }
-
-    /**
-     * Resolve scale for comparison operations (defaults to 0).
-     */
-    private static function resolveScaleForComparison(?int $scale = null): int
-    {
-        if ($scale === null) {
-            $scale = 0; // comp uses 0 as default scale
-        }
-
-        return $scale;
     }
 
     /**
@@ -375,16 +404,7 @@ abstract class BCMath
      */
     private static function roundToInteger(string $num, string $functionName, string $mode): string
     {
-        self::validateNumberString($num, $functionName, 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError($functionName.'(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error($functionName.'(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
+        $num = self::normalizeNumber($num, $functionName, 1, 'num');
 
         return self::roundDigits($num, 0, $mode);
     }
@@ -400,12 +420,15 @@ abstract class BCMath
             throw new \ArgumentCountError('bcscale() expects at most 1 argument, '.func_num_args().' given');
         }
 
+        // Like the native bcscale(), return the scale before the change
+        $oldScale = self::resolveScale();
+
         if ($scale !== null) {
             self::validateScale($scale, 'bcscale', 1);
             self::$scale = $scale;
         }
 
-        return self::$scale;
+        return $oldScale;
     }
 
     /**
@@ -451,12 +474,12 @@ abstract class BCMath
      */
     public static function add(string $num1, string $num2, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcadd');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcadd', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcadd');
 
         // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
@@ -475,12 +498,12 @@ abstract class BCMath
      */
     public static function sub(string $num1, string $num2, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcsub');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcsub', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcsub');
 
         // Phase 3: Number processing
         [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
@@ -499,12 +522,12 @@ abstract class BCMath
      */
     public static function mul(string $num1, string $num2, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmul');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcmul', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmul');
 
         // Phase 3: Early zero check and number processing
         $earlyZero = self::checkEarlyZero($num1, $num2, $scale);
@@ -531,12 +554,12 @@ abstract class BCMath
      */
     public static function div(string $num1, string $num2, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdiv');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcdiv', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdiv');
 
         // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
@@ -563,12 +586,12 @@ abstract class BCMath
      */
     public static function mod(string $num1, string $num2, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmod');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcmod', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcmod');
 
         // Phase 3: Division by zero check and number processing
         self::checkModuloByZero($num2);
@@ -599,9 +622,9 @@ abstract class BCMath
     public static function divmod(string $num1, string $num2, ?int $scale = null): array
     {
         // Validate operands and scale under the bcdivmod() name for correct messages.
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdivmod');
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcdivmod', 3);
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdivmod');
         self::checkDivisionByZero($num2);
 
         // Divide once for the quotient, then derive the remainder as
@@ -626,12 +649,12 @@ abstract class BCMath
      */
     public static function comp(string $num1, string $num2, ?int $scale = null): int
     {
-        // Phase 1: Argument validation
-        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bccomp');
-
-        // Phase 2: Scale resolution and validation
-        $scale = self::resolveScaleForComparison($scale);
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
+        $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bccomp', 3);
+
+        // Phase 2: Argument validation and normalization
+        [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bccomp');
 
         // Phase 3: Number processing
         [$num1Big, $num2Big] = self::prepareForComparison($num1, $num2, $scale);
@@ -649,16 +672,16 @@ abstract class BCMath
      */
     public static function pow(string $base, string $exponent, ?int $scale = null): string
     {
-        // Phase 1: Argument validation
-        self::validateNumberString($base, 'bcpow', 1, 'num');
-        self::validateNumberString($exponent, 'bcpow', 2, 'exponent');
-
-        // Phase 2: Scale resolution and validation
+        // Phase 1: Scale resolution and validation (the native extension checks the scale first)
         $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcpow', 3);
 
+        // Phase 2: Argument validation and normalization
+        $base = self::normalizeNumber($base, 'bcpow', 1, 'num');
+        $exponent = self::integerPart(self::normalizeNumber($exponent, 'bcpow', 2, 'exponent'), 'bcpow', 2, 'exponent');
+
         // Phase 3: Early special case handling
-        if (in_array($exponent, [self::DEFAULT_NUMBER, '-0', '-0.0'], true)) {
+        if ($exponent === self::DEFAULT_NUMBER) {
             $result = '1';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -667,13 +690,18 @@ abstract class BCMath
             return $result;
         }
 
-        // Normalize inputs
-        [$base, $exponent] = self::validateAndNormalizeInputs($base, $exponent, 'bcpow');
+        // Validate exponent range before looking at the base, like the native extension.
+        // Its absolute value must fit in an int, so PHP_INT_MIN is rejected too.
+        $absExponent = ltrim($exponent, '-');
+        if (strlen($absExponent) > strlen((string) PHP_INT_MAX)
+            || (strlen($absExponent) === strlen((string) PHP_INT_MAX) && strcmp($absExponent, (string) PHP_INT_MAX) > 0)) {
+            throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
+        }
 
         // Handle special case: 0 to any power
         if (self::isZero($base)) {
             // Check for negative power of zero - PHP 8.4+ behavior
-            if (self::isNegative(new BigInteger($exponent))) {
+            if (str_starts_with($exponent, '-')) {
                 throw new \DivisionByZeroError('Negative power of zero');
             }
 
@@ -683,12 +711,6 @@ abstract class BCMath
             }
 
             return $result;
-        }
-
-        // Validate exponent range
-        $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (self::comp($exponent, (string) PHP_INT_MAX) > 0 || self::comp($exponent, (string) $min) < 0) {
-            throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
         // Phase 4: Number processing
@@ -707,8 +729,6 @@ abstract class BCMath
 
         // Phase 5: Calculation execution
         $r = new BigInteger(1);
-        $exponentBig = new BigInteger($exponent);
-        $absExponent = self::isNegative($exponentBig) ? substr($exponent, 1) : $exponent;
         for ($i = 0; $i < $absExponent; $i++) {
             $r = $r->multiply($baseBig);
         }
@@ -728,20 +748,9 @@ abstract class BCMath
 
         // Determine if we should apply negative sign
         // For negative base: negative sign only if exponent is odd integer
-        if ($baseIsNegative) {
-            // Check if exponent is an odd integer
-            $exponentIsOddInteger = false;
-            if (!str_contains($exponent, '.') || ($dotPos = strpos($exponent, '.')) !== false && rtrim(substr($exponent, $dotPos), '0') === '.') {
-                $exponentInt = (int) $exponent;
-                $exponentIsOddInteger = ($exponentInt % 2 !== 0);
-            }
-
-            // Apply negative sign only if:
-            // 1. Exponent is odd integer
-            // 2. Result is not effectively zero
-            if ($exponentIsOddInteger && !self::isZero($result)) {
-                $result = '-'.$result;
-            }
+        // A negative base gives a negative result for an odd exponent, unless the result is zero.
+        if ($baseIsNegative && self::lastDigitValue($absExponent) % 2 === 1 && !self::isZero($result)) {
+            $result = '-'.$result;
         }
 
         return $result;
@@ -751,7 +760,8 @@ abstract class BCMath
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
      * @throws \ArgumentCountError When more than 4 arguments provided
-     * @throws \ValueError When exponent is negative or modulus is zero
+     * @throws \ValueError When an argument has a fractional part or the exponent is negative
+     * @throws \DivisionByZeroError When the modulus is zero
      */
     public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
@@ -760,65 +770,42 @@ abstract class BCMath
             throw new \ArgumentCountError('bcpowmod() expects at most 4 arguments, '.func_num_args().' given');
         }
 
-        self::validateNumberString($base, 'bcpowmod', 1, 'num');
-        self::validateNumberString($exponent, 'bcpowmod', 2, 'exponent');
-        self::validateNumberString($modulus, 'bcpowmod', 3, 'modulus');
-
-        $scale ??= 0;
+        // The native extension checks the scale before the numbers.
+        $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcpowmod', 4);
 
-        // Phase 3: Number processing and validation
-        // Extract integer parts and apply security measures
-        $baseParts = explode('.', $base, 2);
-        $baseInt = $baseParts[0] === '' ? '0' : $baseParts[0];
-        if (self::startsWithNegativeSign($baseInt)) {
-            $baseInt = ltrim($baseInt);
-        }
+        $base = self::normalizeNumber($base, 'bcpowmod', 1, 'num');
+        $exponent = self::normalizeNumber($exponent, 'bcpowmod', 2, 'exponent');
+        $modulus = self::normalizeNumber($modulus, 'bcpowmod', 3, 'modulus');
 
-        $exponentParts = explode('.', $exponent, 2);
-        $exponentInt = $exponentParts[0] === '' ? '0' : $exponentParts[0];
-        if (self::startsWithNegativeSign($exponentInt)) {
-            $exponentInt = ltrim($exponentInt);
-
+        // The native extension checks the arguments in order: each must be an
+        // integer, the exponent must not be negative and the modulus not zero.
+        $baseInt = self::integerPart($base, 'bcpowmod', 1, 'num');
+        $exponentInt = self::integerPart($exponent, 'bcpowmod', 2, 'exponent');
+        if (str_starts_with($exponentInt, '-')) {
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
-
-        $modulusParts = explode('.', $modulus, 2);
-        $modulusInt = $modulusParts[0] === '' ? '0' : $modulusParts[0];
-        if (self::startsWithNegativeSign($modulusInt)) {
-            $modulusInt = ltrim($modulusInt);
-        }
-        if ($modulusInt === '0') {
-            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
-        }
-        if ($exponentInt === self::DEFAULT_NUMBER) {
-            return $scale !== 0
-                ? '1.'.str_repeat('0', $scale)
-                : '1';
+        $modulusInt = self::integerPart($modulus, 'bcpowmod', 3, 'modulus');
+        if ($modulusInt === self::DEFAULT_NUMBER) {
+            throw new \DivisionByZeroError(self::MODULO_BY_ZERO_MESSAGE);
         }
 
         // Phase 4: Calculation execution
-        $x = new BigInteger($baseInt);
-        $e = new BigInteger($exponentInt);
-        $n = new BigInteger($modulusInt);
-
-        // For negative base, use bcmath-compatible approach
-        if (self::isNegative($x)) {
-            // Calculate x^e first, then take modulus
-            // This preserves bcmath's negative modulus behavior
-            $power = $x->pow($e);
-            [$quotient, $remainder] = $power->divide($n);
-
-            // bcmath returns negative remainder for negative dividend
-            // Convert positive remainder to negative if original was negative
-            if ($power->isNegative() && !$remainder->equals(new BigInteger(0)) && !$remainder->isNegative()) {
-                $remainder = $remainder->subtract($n);
-            }
-
-            $z = $remainder;
+        // The result is |x|^e mod |n|, with the sign of x^e (the remainder of a
+        // truncated division), so the sign of the modulus does not matter.
+        // Anything mod ±1 is 0, even for a zero exponent.
+        if (ltrim($modulusInt, '-') === '1') {
+            $z = self::DEFAULT_NUMBER;
+        } elseif ($exponentInt === self::DEFAULT_NUMBER) {
+            $z = '1';
         } else {
-            // For positive base, use efficient powMod
-            $z = $x->powMod($e, $n);
+            $x = new BigInteger($baseInt);
+            $e = new BigInteger($exponentInt);
+            $n = new BigInteger(ltrim($modulusInt, '-'));
+            $z = (string) $x->abs()->powMod($e, $n);
+            if ($x->isNegative() && $e->isOdd() && $z !== self::DEFAULT_NUMBER) {
+                $z = '-'.$z;
+            }
         }
 
         // Phase 5: Result formatting
@@ -830,153 +817,61 @@ abstract class BCMath
     /**
      * Get the square root of an arbitrary precision number.
      *
-     * @throws \ValueError if inputs are not well-formed
+     * The result is truncated to $scale digits, like the native extension:
+     * floor(sqrt(num) * 10^scale) / 10^scale.
+     *
+     * @throws \ValueError if inputs are not well-formed or the number is negative
      */
     public static function sqrt(string $num, ?int $scale = null): string
     {
-        // the following is based off of the following URL:
-        // https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Decimal_(base_10)
-
-        // Argument validation
-        self::validateNumberString($num, 'bcsqrt', 1, 'num');
-
-        // Use default scale if not provided (needed for early zero return)
-        if ($scale === null) {
-            if (!isset(self::$scale)) {
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
-            $scale = self::$scale;
-        }
+        // The native extension checks the scale before the number.
+        $scale = self::resolveScale($scale);
         self::validateScale($scale, 'bcsqrt', 2);
 
-        // Check for negative numbers (except negative zero)
-        if (self::startsWithNegativeSign($num) && !self::isZero($num)) {
+        $num = self::normalizeNumber($num, 'bcsqrt', 1, 'num');
+
+        // A normalized zero has no sign, so any '-' means a negative number.
+        if (str_starts_with($num, '-')) {
             throw new \ValueError('bcsqrt(): Argument #1 ($num) must be greater than or equal to 0');
         }
 
-        // Handle zero case early (including negative zero)
-        if (self::isZero($num)) {
-            return $scale !== 0 ? '0.'.str_repeat('0', $scale) : '0';
+        // With num = D / 10^f, floor(sqrt(num) * 10^scale) = floor(sqrt(D * 10^(2 * scale - f))).
+        // When 2 * scale < f, dropping the extra digits of D does not change the result,
+        // because floor(sqrt(floor(x))) = floor(sqrt(x)).
+        [$integer, $fraction] = self::parseDecimalNumber($num);
+        $digits = $integer.$fraction;
+        $shift = 2 * $scale - strlen($fraction);
+        $digits = $shift >= 0 ? $digits.str_repeat('0', $shift) : substr($digits, 0, $shift);
+
+        $root = self::integerSquareRoot(new BigInteger($digits === '' ? '0' : $digits));
+
+        return self::format($root, $scale, $scale);
+    }
+
+    /**
+     * floor(sqrt(n)) for a non-negative integer, by Newton's method.
+     */
+    private static function integerSquareRoot(BigInteger $n): BigInteger
+    {
+        $one = new BigInteger(1);
+        if ($n->compare($one) <= 0) {
+            return $n;
         }
 
-        $temp = explode('.', $num);
-        $integerPart = $temp[0];
-        $decimalPart = $temp[1] ?? '';
-
-        // Special handling for numbers < 1
-        $leadingZeroPairs = 0;
-        $skipIntegerPart = false;
-        if ($integerPart === '0' && $decimalPart !== '') {
-            $skipIntegerPart = true;
-            // Count leading zeros in decimal part
-            $leadingZeros = strspn($decimalPart, '0');
-            // For decimals < 1, each pair of leading zeros in the input produces one leading zero in the result.
-            $leadingZeroPairs = (int) floor($leadingZeros / 2);
-
-            // Now we need to create proper pairs from the decimal part
-            // If odd number of leading zeros, the last zero pairs with first non-zero digit
-            if ($leadingZeros % 2 === 1) {
-                // Skip the paired zeros, keep the odd zero with remaining digits
-                $decimalPart = substr($decimalPart, $leadingZeros - 1);
-            } else {
-                // Skip all the leading zeros as they're all paired
-                $decimalPart = substr($decimalPart, $leadingZeros);
-            }
-
-            // Now pad the decimal part if needed
-            if (strlen($decimalPart) % 2 !== 0) {
-                $decimalPart .= '0';
-            }
-
-            // For numbers < 1, we only process the decimal part
-            $numStr = $decimalPart;
-        } else {
-            // For numbers >= 1, process normally
-            // Pad integer part on the left if odd length
-            if (strlen($integerPart) % 2 !== 0) {
-                $integerPart = '0'.$integerPart;
-            }
-
-            // Pad decimal part on the right if odd length
-            if (strlen($decimalPart) % 2 !== 0) {
-                $decimalPart .= '0';
-            }
-
-            // Create combined string
-            $numStr = $integerPart.$decimalPart;
-        }
-
-        // Calculate how many digits the integer part of the result should have
-        // For numbers >= 1: ceil(n/2) where n is the number of integer digits
-        // For numbers < 1: 0 (the result will also be < 1)
-        $integerResultDigits = ($temp[0] === '0') ? 0 : (int) ceil(strlen($temp[0]) / 2);
-
-        // Create array of digit pairs
-        $parts = str_split($numStr, 2);
-        $parts = array_map(intval(...), $parts);
-
-        $i = 0;
-        $p = 0; // for the first step, p = 0
-        $c = $parts[$i];
-        $result = '';
-        $digitCount = 0; // Track how many result digits we've generated
-
+        // Start from a power of ten that is at least sqrt(n). From above, Newton's
+        // method decreases monotonically to floor(sqrt(n)) and then stops decreasing.
+        $x = new BigInteger('1'.str_repeat('0', intdiv(strlen((string) $n) + 1, 2)));
         while (true) {
-            // determine the greatest digit x such that x(20p+x) <= c
-            for ($x = 1; $x <= 10; $x++) {
-                if ($x * (20 * $p + $x) > $c) {
-                    $x--;
-
-                    break;
-                }
+            [$quotient] = $n->divide($x);
+            // Halve with a shift, not divide(): with phpseclib's PHP64 engine, a quotient
+            // returned by divide() gives a wrong result when it is used as a divisor
+            // (seen with phpseclib 3.0.47 and 4.0.4).
+            $y = $x->add($quotient)->bitwise_rightShift(1);
+            if ($y->compare($x) >= 0) {
+                return $x;
             }
-            $result .= $x;
-            $digitCount++;
-
-            // Add decimal point after we've generated all integer digits
-            if ($digitCount === $integerResultDigits && $scale > 0) {
-                $result .= '.';
-            }
-
-            $y = $x * (20 * $p + $x);
-            $p = 10 * $p + $x;
-            $c = 100 * ($c - $y);
-            if (isset($parts[++$i])) {
-                $c += $parts[$i];
-            }
-
-            // Check if we should stop
-            $decimalDigits = $digitCount - $integerResultDigits;
-            if ((!$c && $digitCount >= $integerResultDigits) || ($decimalDigits >= $scale && $scale >= 0)) {
-                break;
-            }
+            $x = $y;
         }
-
-        // For numbers < 1, format the result properly
-        if ($integerResultDigits === 0) {
-            // If scale is 0 and result would be < 1, return '0'
-            if ($scale === 0) {
-                return '0';
-            }
-
-            if ($leadingZeroPairs > 0) {
-                // Result should be 0.{leadingZeroPairs zeros}{result}
-                $result = '0.'.str_repeat('0', $leadingZeroPairs).$result;
-            } else {
-                // No leading zeros, but still < 1, so add '0.' prefix
-                $result = '0.'.$result;
-            }
-        }
-
-        $result = explode('.', $result);
-        if (isset($result[1])) {
-            $result[1] = str_pad($result[1], $scale, '0');
-        } elseif ($scale) {
-            $result[1] = str_repeat('0', $scale);
-        }
-
-        return implode('.', $result);
     }
 
     /**
@@ -1024,16 +919,7 @@ abstract class BCMath
             );
         }
 
-        self::validateNumberString($num, 'bcround', 1, 'num');
-
-        if (!is_numeric($num)) {
-            if (version_compare(PHP_VERSION, '8.4', '>=')) {
-                throw new \ValueError('bcround(): Argument #1 ($num) is not well-formed');
-            }
-            trigger_error('bcround(): Argument #1 ($num) is not well-formed', E_USER_WARNING);
-
-            return '0';
-        }
+        $num = self::normalizeNumber($num, 'bcround', 1, 'num');
 
         return self::roundDigits($num, $precision, self::convertRoundingMode($mode));
     }
