@@ -228,6 +228,7 @@ On PHP 8.1-8.3 this differs from the native extension of that version in a few c
 | `bcpow('0', '-2', 2)` | `'0.00'` | `'0.00'` | `DivisionByZeroError` (Negative power of zero) |
 | `bcpow('2', '3.000')` | `ValueError` (cannot have a fractional part) | `'8'` | `'8'` |
 | `bcpowmod('5', '3', '7.000')` | `ValueError` (cannot have a fractional part) | `'6'` | `'6'` |
+| `bcpowmod('5', '0', '-1')` | `'1'` on 8.1, `'0'` on 8.2 | `'0'` | `'0'` |
 
 ## 🔄 Key Differences from phpseclib/bcmath_compat and symfony/polyfill-php84
 

@@ -365,24 +365,18 @@ final class BCMathFuzzTest extends TestCase
 
         return match ($function) {
             'bcpow' => match (true) {
-                $this->hasFraction($numbers[1]) => '#108 pow-fractional-exponent',
                 // Intended differences, not bugs (#110): the polyfill follows PHP 8.4+ on every version.
                 // The native extension before 8.3 rejects an integer with a zero fractional part
                 // ('3.000'), and before 8.4 returns 0 for a negative power of zero.
-                PHP_VERSION_ID < 80300 && str_contains($numbers[1], '.') => 'intended (#110) zero-fraction-integer-before-php83',
+                PHP_VERSION_ID < 80300 && str_contains($numbers[1], '.') && !$this->hasFraction($numbers[1]) => 'intended (#110) zero-fraction-integer-before-php83',
                 PHP_VERSION_ID < 80400 && $this->isZero($numbers[0]) && str_starts_with($numbers[1], '-') && !$this->isZero($numbers[1]) => 'intended (#110) pow-negative-power-of-zero-before-php84',
-                $this->isZero($numbers[1]) && !in_array($numbers[1], ['0', '-0', '-0.0'], true) => '#108 pow-zero-exponent',
                 default => null,
             },
             'bcpowmod' => match (true) {
-                // x^e is computed in full for a negative base, which crashes the process
-                // with SIGFPE (GMP) for a large exponent.
-                str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) => '#106 powmod-negative-base',
-                $this->anyOf($numbers, $this->hasFraction(...)) => '#107 powmod-fractional-operand',
-                // Intended difference (#110): see bcpow above.
+                // Intended differences (#110): see bcpow above. The native extension of PHP 8.1
+                // also returns 1 instead of 0 for a zero exponent and a modulus of -1.
                 PHP_VERSION_ID < 80300 && $this->anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => 'intended (#110) zero-fraction-integer-before-php83',
-                $this->isZero($numbers[2]) => '#107 powmod-zero-modulus',
-                $this->isZero($numbers[1]) => '#107 powmod-zero-exponent',
+                PHP_VERSION_ID < 80200 && $this->isZero($numbers[1]) && preg_match('/^-0*1$/', $numbers[2]) === 1 => 'intended (#110) powmod-unit-modulus-before-php82',
                 default => null,
             },
             // Several bugs give wrong digits; only errors and zero are compared until they are fixed.
@@ -540,7 +534,7 @@ final class BCMathFuzzTest extends TestCase
     private function modulus(): string
     {
         if ($this->chance(10)) {
-            return $this->pick(['1', '-1', '2', '-2', '0']);
+            return $this->pick(['1', '-1', '2', '-2', '0', '00', '-0']);
         }
 
         return $this->integer(maxDigits: 25, allowNegative: true);

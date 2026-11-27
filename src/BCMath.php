@@ -164,6 +164,32 @@ abstract class BCMath
     }
 
     /**
+     * The integer value of a normalized number, which must not have a fractional part.
+     *
+     * A fraction of zeros is accepted, as by the native extension on PHP 8.3+
+     * (the polyfill follows PHP 8.4+ on every version, see #110).
+     *
+     * @param string $num Number in the canonical form of self::normalizeNumber()
+     * @param string $function Function name for error message
+     * @param int $argNumber Argument number for error message
+     * @param string $argName Argument name for error message
+     *
+     * @return string '-'?(0|[1-9][0-9]*), without '-' for zero
+     *
+     * @throws \ValueError if the number has a non-zero fractional part
+     */
+    private static function integerPart(string $num, string $function, int $argNumber, string $argName): string
+    {
+        [$integer, $fraction] = self::parseDecimalNumber($num);
+        if (rtrim($fraction, '0') !== '') {
+            throw new \ValueError("{$function}(): Argument #{$argNumber} (\${$argName}) cannot have a fractional part");
+        }
+
+        // A normalized zero has no sign, so the sign of $integer is already right.
+        return $integer;
+    }
+
+    /**
      * Parse a decimal number into integer and fractional parts.
      *
      * Handles numbers without decimal points by adding empty fractional part.
@@ -626,11 +652,10 @@ abstract class BCMath
 
         // Phase 2: Argument validation and normalization
         $base = self::normalizeNumber($base, 'bcpow', 1, 'num');
-        $exponent = self::normalizeNumber($exponent, 'bcpow', 2, 'exponent');
+        $exponent = self::integerPart(self::normalizeNumber($exponent, 'bcpow', 2, 'exponent'), 'bcpow', 2, 'exponent');
 
         // Phase 3: Early special case handling
-        // Normalization turns '-0' and '-0.0' into '0' and '0.0'.
-        if (in_array($exponent, [self::DEFAULT_NUMBER, '0.0'], true)) {
+        if ($exponent === self::DEFAULT_NUMBER) {
             $result = '1';
             if ($scale !== 0) {
                 $result .= '.'.str_repeat('0', $scale);
@@ -639,10 +664,18 @@ abstract class BCMath
             return $result;
         }
 
+        // Validate exponent range before looking at the base, like the native extension.
+        // Its absolute value must fit in an int, so PHP_INT_MIN is rejected too.
+        $absExponent = ltrim($exponent, '-');
+        if (strlen($absExponent) > strlen((string) PHP_INT_MAX)
+            || (strlen($absExponent) === strlen((string) PHP_INT_MAX) && strcmp($absExponent, (string) PHP_INT_MAX) > 0)) {
+            throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
+        }
+
         // Handle special case: 0 to any power
         if (self::isZero($base)) {
             // Check for negative power of zero - PHP 8.4+ behavior
-            if (self::isNegative(new BigInteger($exponent))) {
+            if (str_starts_with($exponent, '-')) {
                 throw new \DivisionByZeroError('Negative power of zero');
             }
 
@@ -652,12 +685,6 @@ abstract class BCMath
             }
 
             return $result;
-        }
-
-        // Validate exponent range
-        $min = defined('PHP_INT_MIN') ? PHP_INT_MIN : ~PHP_INT_MAX;
-        if (self::comp($exponent, (string) PHP_INT_MAX) > 0 || self::comp($exponent, (string) $min) < 0) {
-            throw new \ValueError('bcpow(): Argument #2 ($exponent) is too large');
         }
 
         // Phase 4: Number processing
@@ -676,8 +703,6 @@ abstract class BCMath
 
         // Phase 5: Calculation execution
         $r = new BigInteger(1);
-        $exponentBig = new BigInteger($exponent);
-        $absExponent = self::isNegative($exponentBig) ? substr($exponent, 1) : $exponent;
         for ($i = 0; $i < $absExponent; $i++) {
             $r = $r->multiply($baseBig);
         }
@@ -697,20 +722,9 @@ abstract class BCMath
 
         // Determine if we should apply negative sign
         // For negative base: negative sign only if exponent is odd integer
-        if ($baseIsNegative) {
-            // Check if exponent is an odd integer
-            $exponentIsOddInteger = false;
-            if (!str_contains($exponent, '.') || ($dotPos = strpos($exponent, '.')) !== false && rtrim(substr($exponent, $dotPos), '0') === '.') {
-                $exponentInt = (int) $exponent;
-                $exponentIsOddInteger = ($exponentInt % 2 !== 0);
-            }
-
-            // Apply negative sign only if:
-            // 1. Exponent is odd integer
-            // 2. Result is not effectively zero
-            if ($exponentIsOddInteger && !self::isZero($result)) {
-                $result = '-'.$result;
-            }
+        // A negative base gives a negative result for an odd exponent, unless the result is zero.
+        if ($baseIsNegative && self::lastDigitValue($absExponent) % 2 === 1 && !self::isZero($result)) {
+            $result = '-'.$result;
         }
 
         return $result;
@@ -720,7 +734,8 @@ abstract class BCMath
      * Raise an arbitrary precision number to another, reduced by a specified modulus.
      *
      * @throws \ArgumentCountError When more than 4 arguments provided
-     * @throws \ValueError When exponent is negative or modulus is zero
+     * @throws \ValueError When an argument has a fractional part or the exponent is negative
+     * @throws \DivisionByZeroError When the modulus is zero
      */
     public static function powmod(string $base, string $exponent, string $modulus, ?int $scale = null): string
     {
@@ -737,58 +752,34 @@ abstract class BCMath
         $exponent = self::normalizeNumber($exponent, 'bcpowmod', 2, 'exponent');
         $modulus = self::normalizeNumber($modulus, 'bcpowmod', 3, 'modulus');
 
-        // Phase 3: Number processing and validation
-        // Extract integer parts and apply security measures
-        $baseParts = explode('.', $base, 2);
-        $baseInt = $baseParts[0] === '' ? '0' : $baseParts[0];
-        if (self::startsWithNegativeSign($baseInt)) {
-            $baseInt = ltrim($baseInt);
-        }
-
-        $exponentParts = explode('.', $exponent, 2);
-        $exponentInt = $exponentParts[0] === '' ? '0' : $exponentParts[0];
-        if (self::startsWithNegativeSign($exponentInt)) {
-            $exponentInt = ltrim($exponentInt);
-
+        // The native extension checks the arguments in order: each must be an
+        // integer, the exponent must not be negative and the modulus not zero.
+        $baseInt = self::integerPart($base, 'bcpowmod', 1, 'num');
+        $exponentInt = self::integerPart($exponent, 'bcpowmod', 2, 'exponent');
+        if (str_starts_with($exponentInt, '-')) {
             throw new \ValueError('bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0');
         }
-
-        $modulusParts = explode('.', $modulus, 2);
-        $modulusInt = $modulusParts[0] === '' ? '0' : $modulusParts[0];
-        if (self::startsWithNegativeSign($modulusInt)) {
-            $modulusInt = ltrim($modulusInt);
-        }
-        if ($modulusInt === '0') {
-            throw new \ValueError('bcpowmod(): Argument #3 ($modulus) cannot be zero');
-        }
-        if ($exponentInt === self::DEFAULT_NUMBER) {
-            return $scale !== 0
-                ? '1.'.str_repeat('0', $scale)
-                : '1';
+        $modulusInt = self::integerPart($modulus, 'bcpowmod', 3, 'modulus');
+        if ($modulusInt === self::DEFAULT_NUMBER) {
+            throw new \DivisionByZeroError(self::MODULO_BY_ZERO_MESSAGE);
         }
 
         // Phase 4: Calculation execution
-        $x = new BigInteger($baseInt);
-        $e = new BigInteger($exponentInt);
-        $n = new BigInteger($modulusInt);
-
-        // For negative base, use bcmath-compatible approach
-        if (self::isNegative($x)) {
-            // Calculate x^e first, then take modulus
-            // This preserves bcmath's negative modulus behavior
-            $power = $x->pow($e);
-            [$quotient, $remainder] = $power->divide($n);
-
-            // bcmath returns negative remainder for negative dividend
-            // Convert positive remainder to negative if original was negative
-            if ($power->isNegative() && !$remainder->equals(new BigInteger(0)) && !$remainder->isNegative()) {
-                $remainder = $remainder->subtract($n);
-            }
-
-            $z = $remainder;
+        // The result is |x|^e mod |n|, with the sign of x^e (the remainder of a
+        // truncated division), so the sign of the modulus does not matter.
+        // Anything mod ±1 is 0, even for a zero exponent.
+        if (ltrim($modulusInt, '-') === '1') {
+            $z = self::DEFAULT_NUMBER;
+        } elseif ($exponentInt === self::DEFAULT_NUMBER) {
+            $z = '1';
         } else {
-            // For positive base, use efficient powMod
-            $z = $x->powMod($e, $n);
+            $x = new BigInteger($baseInt);
+            $e = new BigInteger($exponentInt);
+            $n = new BigInteger(ltrim($modulusInt, '-'));
+            $z = (string) $x->abs()->powMod($e, $n);
+            if ($x->isNegative() && $e->isOdd() && $z !== self::DEFAULT_NUMBER) {
+                $z = '-'.$z;
+            }
         }
 
         // Phase 5: Result formatting
