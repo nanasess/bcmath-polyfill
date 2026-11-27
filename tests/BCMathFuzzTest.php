@@ -379,11 +379,6 @@ final class BCMathFuzzTest extends TestCase
                 PHP_VERSION_ID < 80200 && $this->isZero($numbers[1]) && preg_match('/^-0*1$/', $numbers[2]) === 1 => 'intended (#110) powmod-unit-modulus-before-php82',
                 default => null,
             },
-            // Several bugs give wrong digits; only errors and zero are compared until they are fixed.
-            // A negative scale is rejected before the square root is computed, so it is still compared.
-            'bcsqrt' => !str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) && ($args[1] ?? 0) >= 0
-                ? '#109 sqrt-wrong-result'
-                : null,
             default => null,
         };
     }

@@ -3,6 +3,7 @@
 // declare(strict_types=1);
 
 use bcmath_compat\BCMath;
+use bcmath_compat\Math\BigInteger;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhp;
@@ -2381,5 +2382,63 @@ final class BCMathTest extends TestCase
         $this->expectExceptionMessage($message);
 
         BCMath::$method(...$args); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bcsqrt() results that differed from the native extension (#109).
+     *
+     * @return iterable<string, array{string, int, string}>
+     */
+    public static function provideSqrtResultsCases(): iterable
+    {
+        // Precision: digits beyond about 18 were wrong
+        yield "sqrt('2', 40)" => ['2', 40, '1.4142135623730950488016887242096980785696'];
+
+        // The remainder became zero before all the input digits were read
+        yield "sqrt('9.0035224160128699', 5)" => ['9.0035224160128699', 5, '3.00058'];
+
+        // Numbers below 1 got more digits than the scale
+        yield "sqrt('0.0019', 1)" => ['0.0019', 1, '0.0'];
+
+        yield "sqrt('0.0001', 2)" => ['0.0001', 2, '0.01'];
+
+        yield "sqrt('0.25', 1)" => ['0.25', 1, '0.5'];
+
+        // Leading zeros of the integer part were kept
+        yield "sqrt('095', 2)" => ['095', 2, '9.74'];
+
+        // Truncated, not rounded
+        yield "sqrt('99', 0)" => ['99', 0, '9'];
+
+        yield "sqrt('8', 3)" => ['8', 3, '2.828'];
+
+        yield "sqrt('1e200', 0)" => ['1'.str_repeat('0', 200), 0, '1'.str_repeat('0', 100)];
+
+        yield "sqrt('16.000', 0)" => ['16.000', 0, '4'];
+    }
+
+    #[DataProvider('provideSqrtResultsCases')]
+    public function testSqrtResults(string $num, int $scale, string $expected): void
+    {
+        $this->assertSame($expected, BCMath::sqrt($num, $scale));
+    }
+
+    /**
+     * bcsqrt() with phpseclib's PHP64 engine, which is used when GMP is not available.
+     *
+     * With this engine, a quotient returned by BigInteger::divide() gives a wrong
+     * result when it is used as a divisor, so the square root must not do that.
+     */
+    public function testSqrtWithPhp64Engine(): void
+    {
+        $original = BigInteger::getEngine();
+
+        try {
+            BigInteger::setEngine('PHP64');
+            $this->assertSame('1.41421356237309504880168872420969807856967187537694', BCMath::sqrt('2', 50));
+            $this->assertSame('11111.11110499999999887499999', BCMath::sqrt('123456789.987654321', 23));
+        } finally {
+            BigInteger::setEngine($original[0], [$original[1]]);
+        }
     }
 }

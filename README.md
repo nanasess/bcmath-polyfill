@@ -289,7 +289,7 @@ vendor/bin/phpunit --group without-bcmath
 
 ### Differential Fuzzing
 
-`tests/BCMathFuzzTest.php` compares the functions with the native bcmath extension on random inputs (the extension is required). `bcscale()` itself is not compared, and `bcdivmod()`, `bcfloor()`, `bcceil()` and `bcround()` are skipped on PHP versions whose extension does not have them. Until #109 is fixed, `bcsqrt()` is only compared for zero and for inputs that raise an error. It runs with a fixed seed as part of the normal test suite, and with more iterations and a new seed every week in the `Fuzz` workflow.
+`tests/BCMathFuzzTest.php` compares the functions with the native bcmath extension on random inputs (the extension is required). `bcscale()` itself is not compared, and `bcdivmod()`, `bcfloor()`, `bcceil()` and `bcround()` are skipped on PHP versions whose extension does not have them. It runs with a fixed seed as part of the normal test suite, and with more iterations and a new seed every week in the `Fuzz` workflow.
 
 ```bash
 # Run with another seed and more iterations
