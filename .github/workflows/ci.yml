@@ -51,10 +51,12 @@ jobs:
             -   name: Checkout
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             -   name: Setup PHP
-                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
                 with:
                     php-version: ${{ matrix.php-version }}
             -   name: Pin phpseclib ${{ matrix.phpseclib }}
+                # On Windows the default shell runs composer through cmd, which drops the "^" of the constraint
+                shell: bash
                 run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install
                 run: composer install --no-interaction --no-cache
@@ -64,7 +66,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 phpseclib: ['^4.0']
                 include:
                     # phpseclib 3 is still supported; cover both ends of the PHP range on Linux
@@ -72,7 +74,7 @@ jobs:
                         php-version: '8.1'
                         phpseclib: '^3.0'
                     -   os: ubuntu-latest
-                        php-version: '8.5'
+                        php-version: '8.6'
                         phpseclib: '^3.0'
 
     tests-without-bcmath:
@@ -84,7 +86,7 @@ jobs:
             -   name: Checkout
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             -   name: Setup PHP
-                uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+                uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
                 with:
                     php-version: ${{ matrix.php-version }}
                     extensions: :bcmath # ubuntu only
@@ -97,7 +99,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 phpseclib: ['^3.0', '^4.0']
 
     docker-phpt-tests:
@@ -112,18 +114,25 @@ jobs:
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
                 with:
                     repository: php/php-src
+                    # Use the tests of the same PHP version; master tracks the next development version
+                    ref: PHP-${{ matrix.php-version }}
                     path: php-src
             -   name: Build Docker test image
                 run: docker build -f Dockerfile.test-without-bcmath --build-arg PHP_VERSION=${{ matrix.php-version }} -t bcmath-phpt-test:${{ matrix.php-version }} .
             -   name: Run Docker-based PHPT tests
                 run: |
-                  # scale_ini test skipped: bcmath.scale INI setting ignored without native extension
-                  # gh20006 test skipped: requires BcMath\Number OOP API (not supported by polyfill)
-                  # bcround_precision_bounds test skipped: requires BcMath\Number OOP API (not supported by polyfill)
-                  # bc_is_zero_for_scale_clamp test skipped: requires BcMath\Number OOP API (not supported by polyfill)
-                  # bcround directional modes + bcdivmod are now implemented, so those phpt tests no longer need skipping.
-                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,bcmul_check_overflow,bug78878,bcpow_error1,bcpow_error2,bcpow_error3,bcpowmod_error,bcpowmod_with_mod_1,bcpowmod_zero_modulus,bcscale_variation003,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp
+                  # gh15968, gh16262, gh20006, bcround_precision_bounds, bc_is_zero_for_scale_clamp: require the BcMath\Number class (not supported by polyfill)
+                  # bcscale_variation003: expects bcscale() to update ini_get('bcmath.scale'), which cannot be done without the native extension
+                  # bcmul_check_overflow: multiplies numbers of up to 131072 digits and times out, since the Docker image has no GMP and phpseclib falls back to a slow engine
+                  # gh17398: php-src expects a "Hard memory limit" fatal error, which differs from the polyfill's "Allowed memory size" error
+                  # extra-skip: tests of PHP 8.3 that expect the pre-8.4 behavior (see "Behavior Follows PHP 8.4+" in README.md)
+                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip gh15968,gh16262,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp,bcscale_variation003,bcmul_check_overflow,gh17398${{ matrix.extra-skip }}
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
+                include:
+                    # The polyfill follows PHP 8.4+, so bcpow of PHP-8.3 expects a different result for 0 ** -15
+                    # (0 instead of DivisionByZeroError)
+                    -   php-version: '8.3'
+                        extra-skip: ',bcpow'

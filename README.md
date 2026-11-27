@@ -18,7 +18,7 @@
 
 - ✅ Complete bcmath extension polyfill for PHP 8.1+
 - ✅ Supports all PHP 8.4+ bcmath functions including `bcfloor()`, `bcceil()`, `bcround()`, and `bcdivmod()`
-- ✅ PHP 8.5 compatibility tested and verified
+- ✅ PHP 8.5 and 8.6 compatibility tested and verified
 - ✅ Zero dependencies in production (uses phpseclib for arbitrary precision math)
 - ✅ Seamless fallback when bcmath extension is not available
 - ✅ 100% compatible with native bcmath functions
@@ -192,7 +192,7 @@ Automatically runs when PRs are merged to main:
 #### 3. Manual Benchmarks
 Trigger via GitHub Actions UI:
 - Customizable iteration count
-- Multi-PHP version testing (8.1, 8.2, 8.3, 8.4, 8.5)
+- Multi-PHP version testing (8.1, 8.2, 8.3, 8.4, 8.5, 8.6)
 - Results saved as artifacts
 
 ### Performance Considerations
@@ -209,15 +209,26 @@ While the polyfill is significantly slower than native bcmath:
 - Recommended approach: Don't check for the extension, just use the functions
 
 ### Configuration Options
-- **bcmath.scale INI setting is ignored**: When the native bcmath extension is not loaded, PHP does not recognize the `bcmath.scale` INI setting. This means:
+- **bcmath.scale INI setting is only read at startup**: When the native bcmath extension is not loaded, PHP does not register the `bcmath.scale` INI entry. The polyfill reads the value set in php.ini or with `-d bcmath.scale=N` (through `get_cfg_var()`) as the initial scale, but:
   - `ini_get('bcmath.scale')` returns `false`
-  - `ini_set('bcmath.scale', ...)` won't work
-  - INI settings in php.ini or PHPT tests are ignored
-  - The polyfill defaults to scale 0 when no explicit scale is provided
-- **Workaround**: Use `bcscale()` instead to set the scale globally
+  - `ini_set('bcmath.scale', ...)` won't work, and `bcscale()` does not update `ini_get('bcmath.scale')`
+  - On PHP 8.2+, the value is parsed like the native extension (`010` is 8, `0x10` is 16, `1k` is 1024); on PHP 8.1 only decimal integers are accepted and anything else falls back to 0
+  - An invalid value does not raise the warning the native extension raises at startup
+- **Workaround**: Use `bcscale()` instead to change the scale at runtime
 - To get the current scale:
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
+
+### Behavior Follows PHP 8.4+
+The polyfill behaves like the native bcmath extension of PHP 8.4 and later on every PHP version it supports.
+On PHP 8.1-8.3 this differs from the native extension of that version in a few cases (#110):
+
+| Call | Native PHP 8.1 / 8.2 | Native PHP 8.3 | Native PHP 8.4+ and the polyfill |
+|---|---|---|---|
+| `bcpow('0', '-2', 2)` | `'0.00'` | `'0.00'` | `DivisionByZeroError` (Negative power of zero) |
+| `bcpow('2', '3.000')` | `ValueError` (cannot have a fractional part) | `'8'` | `'8'` |
+| `bcpowmod('5', '3', '7.000')` | `ValueError` (cannot have a fractional part) | `'6'` | `'6'` |
+| `bcpowmod('5', '0', '-1')` | `'1'` on 8.1, `'0'` on 8.2 | `'0'` | `'0'` |
 
 ## 🔄 Key Differences from phpseclib/bcmath_compat and symfony/polyfill-php84
 
@@ -239,7 +250,7 @@ including the PHP 8.4 additions — for environments **with or without** the ext
 | Extra dependency                               | phpseclib                      | none                            | phpseclib                                |
 | **PHP 8.2+ deprecations**                      | ⚠️ Warnings                    | ✅ Fixed                        | ✅ Fixed                                 |
 | **Active maintenance**                         | ❌ Limited                     | ✅ Active                       | ✅ Active                                |
-| **CI/CD (PHP versions)**                       | GitHub Actions (8.1, 8.2, 8.3) | 7.2+                            | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5) |
+| **CI/CD (PHP versions)**                       | GitHub Actions (8.1, 8.2, 8.3) | 7.2+                            | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5, 8.6) |
 
 > When `bcmath-polyfill` and `symfony/polyfill-php84` are installed together on an environment that has
 > the bcmath extension and runs PHP 8.2/8.3, both declare `bcceil()`/`bcfloor()`/`bcround()` and whichever
@@ -276,6 +287,20 @@ vendor/bin/phpunit
 vendor/bin/phpunit --group without-bcmath
 ```
 
+### Differential Fuzzing
+
+`tests/BCMathFuzzTest.php` compares the functions with the native bcmath extension on random inputs (the extension is required). `bcscale()` itself is not compared, and `bcdivmod()`, `bcfloor()`, `bcceil()` and `bcround()` are skipped on PHP versions whose extension does not have them. It runs with a fixed seed as part of the normal test suite, and with more iterations and a new seed every week in the `Fuzz` workflow.
+
+```bash
+# Run with another seed and more iterations
+BCMATH_FUZZ_SEED=12345 BCMATH_FUZZ_ITERATIONS=100000 vendor/bin/phpunit --group fuzz
+
+# Print every case before it runs (to find an input that crashes or hangs)
+BCMATH_FUZZ_TRACE=1 vendor/bin/phpunit --filter 'BCMathFuzzTest::testPowmod'
+```
+
+A failure prints the seed, the arguments, and both results. Known differences are skipped by `knownIssue()` in the test, each with the issue that tracks it. The rules marked `intended` are not bugs: on PHP 8.1-8.3 the polyfill follows PHP 8.4+ (see [Behavior Follows PHP 8.4+](#behavior-follows-php-84)).
+
 ### Docker-based PHPT Testing
 
 This project includes comprehensive Docker-based testing using official PHP core bcmath tests to ensure 100% compatibility:
@@ -307,7 +332,7 @@ docker run --rm bcmath-phpt-test --help
 - `--help, -h` - Show usage information
 
 #### Supported PHP Versions
-- PHP 8.1, 8.2, 8.3, 8.4, 8.5
+- PHP 8.1, 8.2, 8.3, 8.4, 8.5, 8.6
 
 The Docker PHPT tests automatically run on GitHub Actions CI across all supported PHP versions to ensure comprehensive compatibility with the official PHP core bcmath test suite.
 
