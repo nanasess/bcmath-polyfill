@@ -88,25 +88,62 @@ abstract class BCMath
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
      *
-     * **Limitation**: When the native bcmath extension is not loaded,
-     * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
-     * will return false. In this case, the polyfill defaults to scale 0.
-     * This means bcmath.scale INI settings (including in PHPT tests) are ignored
-     * when using the polyfill without the native extension.
+     * When the native bcmath extension is not loaded, PHP does not register the
+     * 'bcmath.scale' INI entry, so ini_get('bcmath.scale') returns false. The value
+     * given in php.ini or with -d is still readable through get_cfg_var(), so it is
+     * used as the initial scale. ini_set('bcmath.scale', ...) at runtime cannot be
+     * supported; use bcscale() instead.
      */
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
-            if (!isset(self::$scale)) {
-                // Note: ini_get('bcmath.scale') returns false when bcmath extension is not loaded
-                // This is expected behavior - the polyfill cannot access bcmath.scale INI settings
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
-            }
+            self::$scale ??= self::defaultScaleFromIni();
             $scale = self::$scale;
         }
 
         return $scale;
+    }
+
+    /**
+     * Read the initial scale from the bcmath.scale INI setting.
+     *
+     * The value is parsed like the native extension (zend_ini_parse_quantity()), so
+     * "010" is 8, "0x10" is 16 and "1k" is 1024. A value outside 0..2147483647 is
+     * rejected and the default 0 is kept. The native extension warns about an
+     * invalid value at startup; the polyfill reads it lazily, so it stays silent.
+     *
+     * ini_parse_quantity() is available on PHP 8.2+. On PHP 8.1 only plain decimal
+     * integers are accepted, and anything else falls back to 0.
+     */
+    private static function defaultScaleFromIni(): int
+    {
+        $value = ini_get('bcmath.scale');
+        if ($value === false) {
+            $value = get_cfg_var('bcmath.scale');
+        }
+        if (!is_string($value)) {
+            return 0;
+        }
+
+        if (function_exists('ini_parse_quantity')) {
+            $scale = @ini_parse_quantity($value);
+            // On PHP 8.1 PHPStan does not know this function and types the result as mixed,
+            // while on PHP 8.2+ it reports this guard as always-true. Keep it for 8.1.
+            if (!is_int($scale)) { // @phpstan-ignore function.alreadyNarrowedType
+                return 0;
+            }
+        } elseif (preg_match('/^\s*\+?0*(\d{1,10})\s*$/D', $value, $matches) === 1) {
+            $digits = $matches[1];
+            // Compare as strings before the (int) cast, which saturates to 2147483647 on 32-bit PHP
+            if (strlen($digits) === 10 && strcmp($digits, '2147483647') > 0) {
+                return 0;
+            }
+            $scale = (int) $digits;
+        } else {
+            return 0;
+        }
+
+        return $scale >= 0 && $scale <= 2147483647 ? $scale : 0;
     }
 
     /**
@@ -383,12 +420,15 @@ abstract class BCMath
             throw new \ArgumentCountError('bcscale() expects at most 1 argument, '.func_num_args().' given');
         }
 
+        // Like the native bcscale(), return the scale before the change
+        $oldScale = self::resolveScale();
+
         if ($scale !== null) {
             self::validateScale($scale, 'bcscale', 1);
             self::$scale = $scale;
         }
 
-        return self::$scale;
+        return $oldScale;
     }
 
     /**
