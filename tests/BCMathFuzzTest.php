@@ -427,8 +427,9 @@ final class BCMathFuzzTest extends TestCase
 
     /**
      * A decimal number string, biased towards the boundaries where bugs have been found:
-     * zero and negative zero, leading and trailing zeros, carries (runs of 9) and values
-     * that become zero after truncation to the scale.
+     * zero and negative zero, leading and trailing zeros, carries (runs of 9), values
+     * that become zero after truncation to the scale, and numbers around the digit
+     * limit of the PHP integer fast path.
      */
     private function number(int $maxIntDigits = 40, int $maxFracDigits = 40): string
     {
@@ -444,6 +445,10 @@ final class BCMathFuzzTest extends TestCase
                 // Forms with an empty run of digits, which the extension reads as written
                 '.', '-', '+', '-.', '+.', '5.', '-5.', '+.5',
             ]);
+        }
+
+        if ($this->chance(15)) {
+            return $this->nearIntLimit($maxIntDigits, $maxFracDigits);
         }
 
         $roll = mt_rand(1, 100);
@@ -550,6 +555,25 @@ final class BCMathFuzzTest extends TestCase
             $roll <= 98 => mt_rand(7, $maxLarge),
             default => -1,
         };
+    }
+
+    /**
+     * A number with about as many significant digits as the polyfill computes with PHP
+     * integers: 9 on 32-bit PHP and 18 on 64-bit PHP (BCMath::INT_DIGITS). A product
+     * of two numbers is computed that way when their digits add up to the limit, so
+     * about half of the limit is generated too.
+     */
+    private function nearIntLimit(int $maxIntDigits, int $maxFracDigits): string
+    {
+        $total = $this->pick([4, 5, 8, 9, 10, 17, 18, 19, 20]);
+        $fracLength = mt_rand(0, min($total, $maxFracDigits));
+        $intLength = min($total - $fracLength, $maxIntDigits);
+
+        // A non-zero leading digit, so that every digit is significant
+        $int = $intLength > 0 ? mt_rand(1, 9).$this->digits($intLength - 1) : '0';
+        $frac = $this->digits($fracLength);
+
+        return ($this->chance(40) ? '-' : '').$int.($frac === '' ? '' : '.'.$frac);
     }
 
     /**
