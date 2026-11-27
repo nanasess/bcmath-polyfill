@@ -97,9 +97,7 @@ abstract class BCMath
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
-            if (!isset(self::$scale)) {
-                self::$scale = self::defaultScaleFromIni();
-            }
+            self::$scale ??= self::defaultScaleFromIni();
             $scale = self::$scale;
         }
 

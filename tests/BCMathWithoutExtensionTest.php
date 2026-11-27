@@ -263,7 +263,7 @@ final class BCMathWithoutExtensionTest extends TestCase
     #[DataProvider('provideScaleFromIniCases')]
     public function testScaleFromIni(string $iniValue, string $expected): void
     {
-        $autoload = dirname(__DIR__).'/vendor/autoload.php';
+        $autoload = __DIR__.'/../vendor/autoload.php';
         $code = 'require '.var_export($autoload, true).';'
             .'echo bcscale(), " ", bcadd("2", "1"), " ", bcscale(1);';
         $command = escapeshellarg(PHP_BINARY)
