@@ -27,7 +27,8 @@ use PHPUnit\Framework\TestCase;
  *
  * The generators also produce inputs with known differences. Those cases are
  * skipped by knownIssue(), which names the issue that tracks each difference;
- * remove a rule there when its issue is fixed.
+ * remove a rule there when its issue is fixed. Rules marked "intended" are
+ * differences the polyfill keeps on purpose (it follows PHP 8.4+, see #110).
  *
  * @see https://github.com/nanasess/bcmath-polyfill/issues/102
  *
@@ -349,7 +350,8 @@ final class BCMathFuzzTest extends TestCase
      *
      * Cases with a known difference are skipped before either implementation
      * is called, because some of them crash the process. Remove a rule when its
-     * issue is fixed so that the fuzzer covers those inputs again.
+     * issue is fixed so that the fuzzer covers those inputs again. Rules marked
+     * "intended" stay: on PHP 8.1-8.3 the polyfill follows PHP 8.4+ on purpose (#110).
      *
      * @param list<mixed> $args
      */
@@ -380,8 +382,11 @@ final class BCMathFuzzTest extends TestCase
             'bcfloor', 'bcceil', 'bcround' => $numbers[0] === '' ? '#104 round-empty-string' : null,
             'bcpow' => match (true) {
                 $this->hasFraction($numbers[1]) => '#108 pow-fractional-exponent',
-                PHP_VERSION_ID < 80300 && str_contains($numbers[1], '.') => '#110 zero-fraction-integer-before-php83',
-                PHP_VERSION_ID < 80400 && $this->isZero($numbers[0]) && str_starts_with($numbers[1], '-') && !$this->isZero($numbers[1]) => '#110 pow-negative-power-of-zero-before-php84',
+                // Intended differences, not bugs (#110): the polyfill follows PHP 8.4+ on every version.
+                // The native extension before 8.3 rejects an integer with a zero fractional part
+                // ('3.000'), and before 8.4 returns 0 for a negative power of zero.
+                PHP_VERSION_ID < 80300 && str_contains($numbers[1], '.') => 'intended (#110) zero-fraction-integer-before-php83',
+                PHP_VERSION_ID < 80400 && $this->isZero($numbers[0]) && str_starts_with($numbers[1], '-') && !$this->isZero($numbers[1]) => 'intended (#110) pow-negative-power-of-zero-before-php84',
                 $this->isZero($numbers[1]) && !in_array($numbers[1], ['0', '-0', '-0.0'], true) => '#108 pow-zero-exponent',
                 default => null,
             },
@@ -390,7 +395,8 @@ final class BCMathFuzzTest extends TestCase
                 // with SIGFPE (GMP) for a large exponent.
                 str_starts_with($numbers[0], '-') && !$this->isZero($numbers[0]) => '#106 powmod-negative-base',
                 $this->anyOf($numbers, $this->hasFraction(...)) => '#107 powmod-fractional-operand',
-                PHP_VERSION_ID < 80300 && $this->anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => '#110 zero-fraction-integer-before-php83',
+                // Intended difference (#110): see bcpow above.
+                PHP_VERSION_ID < 80300 && $this->anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => 'intended (#110) zero-fraction-integer-before-php83',
                 $this->isZero($numbers[2]) => '#107 powmod-zero-modulus',
                 $this->isZero($numbers[1]) => '#107 powmod-zero-exponent',
                 count($args) === 3 => '#105 powmod-default-scale',

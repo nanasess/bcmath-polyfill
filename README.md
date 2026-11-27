@@ -219,6 +219,16 @@ While the polyfill is significantly slower than native bcmath:
   - PHP >= 7.3.0: Use `bcscale()` without arguments
   - PHP < 7.3.0: Use `max(0, strlen(bcadd('0', '0')) - 2)`
 
+### Behavior Follows PHP 8.4+
+The polyfill behaves like the native bcmath extension of PHP 8.4 and later on every PHP version it supports.
+On PHP 8.1-8.3 this differs from the native extension of that version in a few cases (#110):
+
+| Call | Native PHP 8.1 / 8.2 | Native PHP 8.3 | Native PHP 8.4+ and the polyfill |
+|---|---|---|---|
+| `bcpow('0', '-2', 2)` | `'0.00'` | `'0.00'` | `DivisionByZeroError` (Negative power of zero) |
+| `bcpow('2', '3.000')` | `ValueError` (cannot have a fractional part) | `'8'` | `'8'` |
+| `bcpowmod('5', '3', '7.000')` | `ValueError` (cannot have a fractional part) | `'6'` | `'6'` |
+
 ## 🔄 Key Differences from phpseclib/bcmath_compat and symfony/polyfill-php84
 
 The three libraries target different goals. `phpseclib/bcmath_compat` is the classic pre-8.4 polyfill.
@@ -288,7 +298,7 @@ BCMATH_FUZZ_SEED=12345 BCMATH_FUZZ_ITERATIONS=100000 vendor/bin/phpunit --group 
 BCMATH_FUZZ_TRACE=1 vendor/bin/phpunit --filter 'BCMathFuzzTest::testPowmod'
 ```
 
-A failure prints the seed, the arguments, and both results. Known differences are skipped by `knownIssue()` in the test, each with the issue that tracks it.
+A failure prints the seed, the arguments, and both results. Known differences are skipped by `knownIssue()` in the test, each with the issue that tracks it. The rules marked `intended` are not bugs: on PHP 8.1-8.3 the polyfill follows PHP 8.4+ (see [Behavior Follows PHP 8.4+](#behavior-follows-php-84)).
 
 ### Docker-based PHPT Testing
 
