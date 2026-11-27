@@ -1152,12 +1152,12 @@ final class BCMathTest extends TestCase
             $this->assertStringContainsString('must be greater than or equal to 0', $e->getMessage());
         }
 
-        // Test zero modulus (should throw ValueError)
+        // Test zero modulus (should throw DivisionByZeroError, like the native extension)
         try {
             BCMath::powmod('2', '1', '0', 2);
-            $this->fail('Expected ValueError for zero modulus');
-        } catch (\ValueError $e) {
-            $this->assertStringContainsString('cannot be zero', $e->getMessage());
+            $this->fail('Expected DivisionByZeroError for zero modulus');
+        } catch (\DivisionByZeroError $e) {
+            $this->assertSame('Modulo by zero', $e->getMessage());
         }
 
         // Test malformed inputs
@@ -2269,5 +2269,117 @@ final class BCMathTest extends TestCase
         } finally {
             $property->setValue(null, $original);
         }
+    }
+
+    /**
+     * bcpow() and bcpowmod() results that differed from the native extension (#106, #107, #108).
+     *
+     * @return iterable<string, array{string, list<int|string>, string}>
+     */
+    public static function providePowAndPowmodResultsCases(): iterable
+    {
+        // #106: a negative base takes the sign of x^e, whatever the sign of the modulus
+        yield "powmod('-2', '3', '-7')" => ['powmod', ['-2', '3', '-7'], '-1'];
+
+        yield "powmod('-999', '5', '-6861')" => ['powmod', ['-999', '5', '-6861'], '-4584'];
+
+        yield "powmod('-2', '3', '7', 2)" => ['powmod', ['-2', '3', '7', 2], '-1.00'];
+
+        yield "powmod('-2', '2', '7')" => ['powmod', ['-2', '2', '7'], '4'];
+
+        yield "powmod('-7', '3', '7')" => ['powmod', ['-7', '3', '7'], '0'];
+
+        yield "powmod('2', '3', '-7')" => ['powmod', ['2', '3', '-7'], '1'];
+
+        // x^e used to be computed in full, which crashed the process with SIGFPE (GMP)
+        yield "powmod('-999', '4897977738825', '-6861')" => ['powmod', ['-999', '4897977738825', '-6861'], '-2010'];
+
+        // #107: a zero exponent, and a modulus of ±1
+        yield "powmod('5', '-0', '7')" => ['powmod', ['5', '-0', '7'], '1'];
+
+        yield "powmod('0', '0', '7', 1)" => ['powmod', ['0', '0', '7', 1], '1.0'];
+
+        yield "powmod('5', '0', '1', 2)" => ['powmod', ['5', '0', '1', 2], '0.00'];
+
+        yield "powmod('5', '0', '-1')" => ['powmod', ['5', '0', '-1'], '0'];
+
+        yield "powmod('5', '1', '1', 3)" => ['powmod', ['5', '1', '1', 3], '0.000'];
+
+        // #108: a zero exponent with a fractional part
+        yield "pow('0', '0.0', 2)" => ['pow', ['0', '0.0', 2], '1.00'];
+
+        yield "pow('0', '-0.00', 1)" => ['pow', ['0', '-0.00', 1], '1.0'];
+
+        yield "pow('5', '0.000')" => ['pow', ['5', '0.000'], '1'];
+
+        yield "pow('-2', '3.0')" => ['pow', ['-2', '3.0'], '-8'];
+
+        yield "pow('-0.5', '3', 5)" => ['pow', ['-0.5', '3', 5], '-0.12500'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('providePowAndPowmodResultsCases')]
+    public function testPowAndPowmodResults(string $method, array $args, string $expected): void
+    {
+        $this->assertSame($expected, BCMath::$method(...$args)); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bcpow() and bcpowmod() errors that differed from the native extension (#107, #108).
+     *
+     * The native extension checks the arguments in order, so the first bad one is reported.
+     *
+     * @return iterable<string, array{string, list<int|string>, class-string<\Throwable>, string}>
+     */
+    public static function providePowAndPowmodErrorsCases(): iterable
+    {
+        // #108
+        yield "pow('2', '1.5')" => ['pow', ['2', '1.5', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        yield "pow('0', '-2.5')" => ['pow', ['0', '-2.5'], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        // The exponent range is checked before the base, and PHP_INT_MIN is out of range
+        yield "pow('0', '9223372036854775808')" => ['pow', ['0', '9223372036854775808', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) is too large'];
+
+        yield "pow('0', '-9223372036854775808')" => ['pow', ['0', '-9223372036854775808', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) is too large'];
+
+        yield "pow('2', '9223372036854775808.5')" => ['pow', ['2', '9223372036854775808.5'], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        // #107: fractional operands
+        yield "powmod('5.5', '3', '7')" => ['powmod', ['5.5', '3', '7'], \ValueError::class, 'bcpowmod(): Argument #1 ($num) cannot have a fractional part'];
+
+        yield "powmod('5', '3.5', '7')" => ['powmod', ['5', '3.5', '7'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        yield "powmod('5', '3', '7.5')" => ['powmod', ['5', '3', '7.5'], \ValueError::class, 'bcpowmod(): Argument #3 ($modulus) cannot have a fractional part'];
+
+        yield "powmod('5', '3', '-0.5')" => ['powmod', ['5', '3', '-0.5'], \ValueError::class, 'bcpowmod(): Argument #3 ($modulus) cannot have a fractional part'];
+
+        yield "powmod('5.5', '3.5', '7.5')" => ['powmod', ['5.5', '3.5', '7.5'], \ValueError::class, 'bcpowmod(): Argument #1 ($num) cannot have a fractional part'];
+
+        yield "powmod('5', '-3', '7.5')" => ['powmod', ['5', '-3', '7.5'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0'];
+
+        // #107: a zero modulus, in any form
+        yield "powmod('5', '3', '0')" => ['powmod', ['5', '3', '0'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '3', '00')" => ['powmod', ['5', '3', '00'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '3', '-0.0')" => ['powmod', ['5', '3', '-0.0'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '-3', '0')" => ['powmod', ['5', '-3', '0'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     * @param class-string<\Throwable> $exception
+     */
+    #[DataProvider('providePowAndPowmodErrorsCases')]
+    public function testPowAndPowmodErrors(string $method, array $args, string $exception, string $message): void
+    {
+        $this->expectException($exception);
+        $this->expectExceptionMessage($message);
+
+        BCMath::$method(...$args); // @phpstan-ignore-line argument.type
     }
 }
