@@ -127,6 +127,11 @@ abstract class BCMath
 
         if (function_exists('ini_parse_quantity')) {
             $scale = @ini_parse_quantity($value);
+            // On PHP 8.1 PHPStan does not know this function and types the result as mixed,
+            // while on PHP 8.2+ it reports this guard as always-true. Keep it for 8.1.
+            if (!is_int($scale)) { // @phpstan-ignore function.alreadyNarrowedType
+                return 0;
+            }
         } elseif (preg_match('/^\s*\+?0*(\d{1,10})\s*$/D', $value, $matches) === 1) {
             $scale = (int) $matches[1];
         } else {
