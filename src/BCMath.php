@@ -88,25 +88,46 @@ abstract class BCMath
      * Implements Phase 2 of the standard 5-phase processing pattern.
      * Uses bcmath.scale INI setting as fallback when no scale is provided.
      *
-     * **Limitation**: When the native bcmath extension is not loaded,
-     * PHP does not recognize the 'bcmath.scale' INI setting, so ini_get('bcmath.scale')
-     * will return false. In this case, the polyfill defaults to scale 0.
-     * This means bcmath.scale INI settings (including in PHPT tests) are ignored
-     * when using the polyfill without the native extension.
+     * When the native bcmath extension is not loaded, PHP does not register the
+     * 'bcmath.scale' INI entry, so ini_get('bcmath.scale') returns false. The value
+     * given in php.ini or with -d is still readable through get_cfg_var(), so it is
+     * used as the initial scale. ini_set('bcmath.scale', ...) at runtime cannot be
+     * supported; use bcscale() instead.
      */
     protected static function resolveScale(?int $scale = null): int
     {
         if ($scale === null) {
             if (!isset(self::$scale)) {
-                // Note: ini_get('bcmath.scale') returns false when bcmath extension is not loaded
-                // This is expected behavior - the polyfill cannot access bcmath.scale INI settings
-                $defaultScale = ini_get('bcmath.scale');
-                self::$scale = $defaultScale !== false ? max((int) $defaultScale, 0) : 0;
+                self::$scale = self::defaultScaleFromIni();
             }
             $scale = self::$scale;
         }
 
         return $scale;
+    }
+
+    /**
+     * Read the initial scale from the bcmath.scale INI setting.
+     *
+     * Like the native extension, a value outside 0..2147483647 is rejected and the
+     * default 0 is kept. Unlike the native extension, quantity suffixes such as "1k"
+     * are not supported and fall back to 0.
+     */
+    private static function defaultScaleFromIni(): int
+    {
+        $value = ini_get('bcmath.scale');
+        if ($value === false) {
+            $value = get_cfg_var('bcmath.scale');
+        }
+        if (!is_string($value)) {
+            return 0;
+        }
+
+        $scale = filter_var(trim($value), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 0, 'max_range' => 2147483647],
+        ]);
+
+        return $scale === false ? 0 : $scale;
     }
 
     /**
@@ -383,12 +404,15 @@ abstract class BCMath
             throw new \ArgumentCountError('bcscale() expects at most 1 argument, '.func_num_args().' given');
         }
 
+        // Like the native bcscale(), return the scale before the change
+        $oldScale = self::resolveScale();
+
         if ($scale !== null) {
             self::validateScale($scale, 'bcscale', 1);
             self::$scale = $scale;
         }
 
-        return self::$scale;
+        return $oldScale;
     }
 
     /**

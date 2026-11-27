@@ -1,6 +1,7 @@
 <?php
 
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -237,6 +238,44 @@ final class BCMathWithoutExtensionTest extends TestCase
 
         // Reset scale
         bcscale(0);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideScaleFromIniCases(): iterable
+    {
+        yield 'valid' => ['5', '5 3.00000 5'];
+
+        yield 'zero' => ['0', '0 3 0'];
+
+        yield 'negative is rejected' => ['-1', '0 3 0'];
+
+        yield 'above INT_MAX is rejected' => ['2147483648', '0 3 0'];
+
+        yield 'non-numeric is ignored' => ['abc', '0 3 0'];
+    }
+
+    /**
+     * The bcmath.scale INI setting given with -d is used as the initial scale,
+     * even though ini_get('bcmath.scale') returns false without the extension.
+     */
+    #[DataProvider('provideScaleFromIniCases')]
+    public function testScaleFromIni(string $iniValue, string $expected): void
+    {
+        $autoload = dirname(__DIR__).'/vendor/autoload.php';
+        $code = 'require '.var_export($autoload, true).';'
+            .'echo bcscale(), " ", bcadd("2", "1"), " ", bcscale(1);';
+        $command = escapeshellarg(PHP_BINARY)
+            .' -d '.escapeshellarg('bcmath.scale='.$iniValue)
+            .' -r '.escapeshellarg($code);
+
+        $output = [];
+        $status = null;
+        exec($command.' 2>&1', $output, $status);
+
+        $this->assertSame(0, $status, implode("\n", $output));
+        $this->assertSame($expected, implode("\n", $output));
     }
 
     public function testEdgeCases(): void

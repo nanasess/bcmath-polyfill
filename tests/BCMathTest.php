@@ -1108,6 +1108,27 @@ final class BCMathTest extends TestCase
     }
 
     /**
+     * bcscale() used as a setter returns the scale before the change, like the native one.
+     */
+    public function testBcscaleSetterReturnsOldScale(): void
+    {
+        $originalScale = BCMath::scale();
+        $originalNativeScale = bcscale();
+
+        try {
+            BCMath::scale(0);
+            bcscale(0);
+            $this->assertSame(bcscale(3), BCMath::scale(3));
+            $this->assertSame(3, BCMath::scale(7));
+            $this->assertSame(bcscale(7), 3);
+            $this->assertSame(7, BCMath::scale());
+        } finally {
+            BCMath::scale($originalScale);
+            bcscale($originalNativeScale);
+        }
+    }
+
+    /**
      * Test special ValueError cases for bcpow().
      * Tests exponent range validation and special cases.
      */
