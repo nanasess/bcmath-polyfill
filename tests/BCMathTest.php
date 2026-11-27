@@ -3,6 +3,7 @@
 // declare(strict_types=1);
 
 use bcmath_compat\BCMath;
+use bcmath_compat\Math\BigInteger;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RequiresPhp;
@@ -943,8 +944,9 @@ final class BCMathTest extends TestCase
         );
 
         // Correct calculation after fix
-        $wasPadded = strlen($numStr) % 2 !== 0;  // false for '56'
-        $integerLength = strlen($temp[0]) + ($wasPadded ? 1 : 0);  // 1 + 0 = 1
+        // The fixed code adds 1 to the integer length when it pads the digits to an even length.
+        // '56' already has an even length, so it is not padded and the integer length stays 1.
+        $integerLength = strlen($temp[0]);  // 1
         $correctDecStart = $integerLength / 2;  // 1/2 = 0.5
 
         $this->assertSame(0.5, $correctDecStart);
@@ -1106,6 +1108,27 @@ final class BCMathTest extends TestCase
     }
 
     /**
+     * bcscale() used as a setter returns the scale before the change, like the native one.
+     */
+    public function testBcscaleSetterReturnsOldScale(): void
+    {
+        $originalScale = BCMath::scale();
+        $originalNativeScale = bcscale();
+
+        try {
+            BCMath::scale(0);
+            bcscale(0);
+            $this->assertSame(bcscale(3), BCMath::scale(3));
+            $this->assertSame(3, BCMath::scale(7));
+            $this->assertSame(bcscale(7), 3);
+            $this->assertSame(7, BCMath::scale());
+        } finally {
+            BCMath::scale($originalScale);
+            bcscale($originalNativeScale);
+        }
+    }
+
+    /**
      * Test special ValueError cases for bcpow().
      * Tests exponent range validation and special cases.
      */
@@ -1151,12 +1174,12 @@ final class BCMathTest extends TestCase
             $this->assertStringContainsString('must be greater than or equal to 0', $e->getMessage());
         }
 
-        // Test zero modulus (should throw ValueError)
+        // Test zero modulus (should throw DivisionByZeroError, like the native extension)
         try {
             BCMath::powmod('2', '1', '0', 2);
-            $this->fail('Expected ValueError for zero modulus');
-        } catch (\ValueError $e) {
-            $this->assertStringContainsString('cannot be zero', $e->getMessage());
+            $this->fail('Expected DivisionByZeroError for zero modulus');
+        } catch (\DivisionByZeroError $e) {
+            $this->assertSame('Modulo by zero', $e->getMessage());
         }
 
         // Test malformed inputs
@@ -2146,5 +2169,316 @@ final class BCMathTest extends TestCase
         $this->expectExceptionMessage('Division by zero');
 
         BCMath::divmod('1', '0');
+    }
+
+    /**
+     * Numbers in the forms that the native extension accepts (#103, #104).
+     *
+     * @return iterable<string, array{string, list<int|string>, int|string}>
+     */
+    public static function provideAcceptedNumberFormsCases(): iterable
+    {
+        // #103: a leading '+' was read as zero
+        yield "add('+5')" => ['add', ['+5', '1', 2], '6.00'];
+
+        yield "mul('+2.5')" => ['mul', ['+2.5', '2', 1], '5.0'];
+
+        yield "div('+4')" => ['div', ['1', '+4', 2], '0.25'];
+
+        yield "mod('+7')" => ['mod', ['+7', '+4'], '3'];
+
+        yield "comp('+1')" => ['comp', ['+1', '1'], 0];
+
+        yield "sqrt('+4')" => ['sqrt', ['+4', 1], '2.0'];
+
+        yield "pow('+2')" => ['pow', ['+2', '+3'], '8'];
+
+        yield "powmod('+5')" => ['powmod', ['+5', '+3', '+7'], '6'];
+
+        yield "floor('+1.5')" => ['floor', ['+1.5'], '1'];
+
+        yield "round('+1.25')" => ['round', ['+1.25', 1], '1.3'];
+
+        // #104: a sign directly followed by the decimal point
+        yield "add('-.5')" => ['add', ['-.5', '1', 2], '0.50'];
+
+        yield "add('+.5')" => ['add', ['+.5', '0', 1], '0.5'];
+
+        yield "floor('-.5')" => ['floor', ['-.5'], '-1'];
+
+        // #104: an empty run of digits on either side of the decimal point
+        yield "add('5.')" => ['add', ['5.', '1'], '6'];
+
+        yield "add('-5.')" => ['add', ['-5.', '0', 1], '-5.0'];
+
+        yield "add('.')" => ['add', ['.', '1'], '1'];
+
+        yield "add('-')" => ['add', ['-', '1'], '1'];
+
+        yield "add('+.')" => ['add', ['+.', '1'], '1'];
+
+        // #104: the empty string is zero for bcfloor(), bcceil() and bcround() too
+        yield "floor('')" => ['floor', [''], '0'];
+
+        yield "ceil('')" => ['ceil', [''], '0'];
+
+        yield "round('')" => ['round', ['', 2], '0.00'];
+
+        // Leading zeros and the sign of zero
+        yield "add('007.50')" => ['add', ['007.50', '0', 2], '7.50'];
+
+        yield "sqrt('-0')" => ['sqrt', ['-0', 2], '0.00'];
+
+        yield "powmod('-0' exponent)" => ['powmod', ['5', '-0', '7'], '1'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('provideAcceptedNumberFormsCases')]
+    public function testAcceptedNumberForms(string $method, array $args, int|string $expected): void
+    {
+        $this->assertSame($expected, BCMath::$method(...$args)); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * The native extension reports an invalid scale before a malformed number (#104).
+     *
+     * @return iterable<string, array{string, list<int|string>, string}>
+     */
+    public static function provideScaleErrorPrecedenceCases(): iterable
+    {
+        foreach (['add', 'sub', 'mul', 'div', 'mod', 'comp'] as $method) {
+            yield $method => [$method, ['abc', '1', -1], "bc{$method}(): Argument #3 (\$scale) must be between 0 and 2147483647"];
+        }
+
+        yield 'divmod' => ['divmod', ['abc', '1', -1], 'bcdivmod(): Argument #3 ($scale) must be between 0 and 2147483647'];
+
+        yield 'pow' => ['pow', ['abc', '1', -1], 'bcpow(): Argument #3 ($scale) must be between 0 and 2147483647'];
+
+        yield 'powmod' => ['powmod', ['abc', '1', '2', -1], 'bcpowmod(): Argument #4 ($scale) must be between 0 and 2147483647'];
+
+        yield 'sqrt' => ['sqrt', ['abc', -1], 'bcsqrt(): Argument #2 ($scale) must be between 0 and 2147483647'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('provideScaleErrorPrecedenceCases')]
+    public function testScaleErrorPrecedence(string $method, array $args, string $message): void
+    {
+        $this->expectException(\ValueError::class);
+        $this->expectExceptionMessage($message);
+
+        BCMath::$method(...$args); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bccomp() and bcpowmod() use the default scale when the scale is omitted (#105).
+     */
+    public function testCompAndPowmodUseDefaultScale(): void
+    {
+        $property = new \ReflectionProperty(BCMath::class, 'scale');
+        $original = $property->getValue();
+
+        try {
+            BCMath::scale(7);
+            $this->assertSame(1, BCMath::comp('0.5', '0'));
+            $this->assertSame(0, BCMath::comp('0.00000001', '0'));
+
+            BCMath::scale(9);
+            $this->assertSame('331776.000000000', BCMath::powmod('24', '4', '2256945666040'));
+        } finally {
+            $property->setValue(null, $original);
+        }
+    }
+
+    /**
+     * bcpow() and bcpowmod() results that differed from the native extension (#106, #107, #108).
+     *
+     * @return iterable<string, array{string, list<int|string>, string}>
+     */
+    public static function providePowAndPowmodResultsCases(): iterable
+    {
+        // #106: a negative base takes the sign of x^e, whatever the sign of the modulus
+        yield "powmod('-2', '3', '-7')" => ['powmod', ['-2', '3', '-7'], '-1'];
+
+        yield "powmod('-999', '5', '-6861')" => ['powmod', ['-999', '5', '-6861'], '-4584'];
+
+        yield "powmod('-2', '3', '7', 2)" => ['powmod', ['-2', '3', '7', 2], '-1.00'];
+
+        yield "powmod('-2', '2', '7')" => ['powmod', ['-2', '2', '7'], '4'];
+
+        yield "powmod('-7', '3', '7')" => ['powmod', ['-7', '3', '7'], '0'];
+
+        yield "powmod('2', '3', '-7')" => ['powmod', ['2', '3', '-7'], '1'];
+
+        // x^e used to be computed in full, which crashed the process with SIGFPE (GMP)
+        yield "powmod('-999', '4897977738825', '-6861')" => ['powmod', ['-999', '4897977738825', '-6861'], '-2010'];
+
+        // #107: a zero exponent, and a modulus of ±1
+        yield "powmod('5', '-0', '7')" => ['powmod', ['5', '-0', '7'], '1'];
+
+        yield "powmod('0', '0', '7', 1)" => ['powmod', ['0', '0', '7', 1], '1.0'];
+
+        yield "powmod('5', '0', '1', 2)" => ['powmod', ['5', '0', '1', 2], '0.00'];
+
+        yield "powmod('5', '0', '-1')" => ['powmod', ['5', '0', '-1'], '0'];
+
+        yield "powmod('5', '1', '1', 3)" => ['powmod', ['5', '1', '1', 3], '0.000'];
+
+        // #108: a zero exponent with a fractional part
+        yield "pow('0', '0.0', 2)" => ['pow', ['0', '0.0', 2], '1.00'];
+
+        yield "pow('0', '-0.00', 1)" => ['pow', ['0', '-0.00', 1], '1.0'];
+
+        yield "pow('5', '0.000')" => ['pow', ['5', '0.000'], '1'];
+
+        yield "pow('-2', '3.0')" => ['pow', ['-2', '3.0'], '-8'];
+
+        yield "pow('-0.5', '3', 5)" => ['pow', ['-0.5', '3', 5], '-0.12500'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('providePowAndPowmodResultsCases')]
+    public function testPowAndPowmodResults(string $method, array $args, string $expected): void
+    {
+        $this->assertSame($expected, BCMath::$method(...$args)); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bcpow() and bcpowmod() errors that differed from the native extension (#107, #108).
+     *
+     * The native extension checks the arguments in order, so the first bad one is reported.
+     *
+     * @return iterable<string, array{string, list<int|string>, class-string<\Throwable>, string}>
+     */
+    public static function providePowAndPowmodErrorsCases(): iterable
+    {
+        // #108
+        yield "pow('2', '1.5')" => ['pow', ['2', '1.5', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        yield "pow('0', '-2.5')" => ['pow', ['0', '-2.5'], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        // The exponent range is checked before the base, and PHP_INT_MIN is out of range
+        yield "pow('0', '9223372036854775808')" => ['pow', ['0', '9223372036854775808', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) is too large'];
+
+        yield "pow('0', '-9223372036854775808')" => ['pow', ['0', '-9223372036854775808', 2], \ValueError::class, 'bcpow(): Argument #2 ($exponent) is too large'];
+
+        yield "pow('2', '9223372036854775808.5')" => ['pow', ['2', '9223372036854775808.5'], \ValueError::class, 'bcpow(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        // #107: fractional operands
+        yield "powmod('5.5', '3', '7')" => ['powmod', ['5.5', '3', '7'], \ValueError::class, 'bcpowmod(): Argument #1 ($num) cannot have a fractional part'];
+
+        yield "powmod('5', '3.5', '7')" => ['powmod', ['5', '3.5', '7'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) cannot have a fractional part'];
+
+        yield "powmod('5', '3', '7.5')" => ['powmod', ['5', '3', '7.5'], \ValueError::class, 'bcpowmod(): Argument #3 ($modulus) cannot have a fractional part'];
+
+        yield "powmod('5', '3', '-0.5')" => ['powmod', ['5', '3', '-0.5'], \ValueError::class, 'bcpowmod(): Argument #3 ($modulus) cannot have a fractional part'];
+
+        yield "powmod('5.5', '3.5', '7.5')" => ['powmod', ['5.5', '3.5', '7.5'], \ValueError::class, 'bcpowmod(): Argument #1 ($num) cannot have a fractional part'];
+
+        yield "powmod('5', '-3', '7.5')" => ['powmod', ['5', '-3', '7.5'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0'];
+
+        // #107: a zero modulus, in any form
+        yield "powmod('5', '3', '0')" => ['powmod', ['5', '3', '0'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '3', '00')" => ['powmod', ['5', '3', '00'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '3', '-0.0')" => ['powmod', ['5', '3', '-0.0'], \DivisionByZeroError::class, 'Modulo by zero'];
+
+        yield "powmod('5', '-3', '0')" => ['powmod', ['5', '-3', '0'], \ValueError::class, 'bcpowmod(): Argument #2 ($exponent) must be greater than or equal to 0'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     * @param class-string<\Throwable> $exception
+     */
+    #[DataProvider('providePowAndPowmodErrorsCases')]
+    public function testPowAndPowmodErrors(string $method, array $args, string $exception, string $message): void
+    {
+        $this->expectException($exception);
+        $this->expectExceptionMessage($message);
+
+        BCMath::$method(...$args); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bcsqrt() results that differed from the native extension (#109).
+     *
+     * @return iterable<string, array{string, int, string}>
+     */
+    public static function provideSqrtResultsCases(): iterable
+    {
+        // Precision: digits beyond about 18 were wrong
+        yield "sqrt('2', 40)" => ['2', 40, '1.4142135623730950488016887242096980785696'];
+
+        // The remainder became zero before all the input digits were read
+        yield "sqrt('9.0035224160128699', 5)" => ['9.0035224160128699', 5, '3.00058'];
+
+        // Numbers below 1 got more digits than the scale
+        yield "sqrt('0.0019', 1)" => ['0.0019', 1, '0.0'];
+
+        yield "sqrt('0.0001', 2)" => ['0.0001', 2, '0.01'];
+
+        yield "sqrt('0.25', 1)" => ['0.25', 1, '0.5'];
+
+        // Leading zeros of the integer part were kept
+        yield "sqrt('095', 2)" => ['095', 2, '9.74'];
+
+        // Truncated, not rounded
+        yield "sqrt('99', 0)" => ['99', 0, '9'];
+
+        yield "sqrt('8', 3)" => ['8', 3, '2.828'];
+
+        yield "sqrt('1e200', 0)" => ['1'.str_repeat('0', 200), 0, '1'.str_repeat('0', 100)];
+
+        yield "sqrt('16.000', 0)" => ['16.000', 0, '4'];
+    }
+
+    #[DataProvider('provideSqrtResultsCases')]
+    public function testSqrtResults(string $num, int $scale, string $expected): void
+    {
+        $this->assertSame($expected, BCMath::sqrt($num, $scale));
+    }
+
+    /**
+     * The phpseclib engines that do not use GMP or bcmath.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function provideSqrtWithEngineWithoutGmpCases(): iterable
+    {
+        yield 'PHP64' => ['PHP64'];
+
+        yield 'PHP32' => ['PHP32'];
+    }
+
+    /**
+     * bcsqrt() with phpseclib's pure PHP engines, which are used when GMP is not
+     * available: PHP64 on 64-bit PHP and PHP32 on 32-bit PHP.
+     *
+     * With the PHP64 engine, a quotient returned by BigInteger::divide() gives a
+     * wrong result when it is used as a divisor, so the square root must not do that.
+     */
+    #[DataProvider('provideSqrtWithEngineWithoutGmpCases')]
+    public function testSqrtWithEngineWithoutGmp(string $engine): void
+    {
+        $original = BigInteger::getEngine();
+
+        try {
+            try {
+                BigInteger::setEngine($engine);
+            } catch (\Exception $e) {
+                // PHP64 is not available on 32-bit PHP, nor on Windows with JIT enabled.
+                $this->markTestSkipped("The {$engine} engine is not available: {$e->getMessage()}");
+            }
+            $this->assertSame('1.41421356237309504880168872420969807856967187537694', BCMath::sqrt('2', 50));
+            $this->assertSame('11111.11110499999999887499999', BCMath::sqrt('123456789.987654321', 23));
+        } finally {
+            BigInteger::setEngine($original[0], [$original[1]]);
+        }
     }
 }
