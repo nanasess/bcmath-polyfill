@@ -2148,4 +2148,126 @@ final class BCMathTest extends TestCase
 
         BCMath::divmod('1', '0');
     }
+
+    /**
+     * Numbers in the forms that the native extension accepts (#103, #104).
+     *
+     * @return iterable<string, array{string, list<int|string>, int|string}>
+     */
+    public static function provideAcceptedNumberFormsCases(): iterable
+    {
+        // #103: a leading '+' was read as zero
+        yield "add('+5')" => ['add', ['+5', '1', 2], '6.00'];
+
+        yield "mul('+2.5')" => ['mul', ['+2.5', '2', 1], '5.0'];
+
+        yield "div('+4')" => ['div', ['1', '+4', 2], '0.25'];
+
+        yield "mod('+7')" => ['mod', ['+7', '+4'], '3'];
+
+        yield "comp('+1')" => ['comp', ['+1', '1'], 0];
+
+        yield "sqrt('+4')" => ['sqrt', ['+4', 1], '2.0'];
+
+        yield "pow('+2')" => ['pow', ['+2', '+3'], '8'];
+
+        yield "powmod('+5')" => ['powmod', ['+5', '+3', '+7'], '6'];
+
+        yield "floor('+1.5')" => ['floor', ['+1.5'], '1'];
+
+        yield "round('+1.25')" => ['round', ['+1.25', 1], '1.3'];
+
+        // #104: a sign directly followed by the decimal point
+        yield "add('-.5')" => ['add', ['-.5', '1', 2], '0.50'];
+
+        yield "add('+.5')" => ['add', ['+.5', '0', 1], '0.5'];
+
+        yield "floor('-.5')" => ['floor', ['-.5'], '-1'];
+
+        // #104: an empty run of digits on either side of the decimal point
+        yield "add('5.')" => ['add', ['5.', '1'], '6'];
+
+        yield "add('-5.')" => ['add', ['-5.', '0', 1], '-5.0'];
+
+        yield "add('.')" => ['add', ['.', '1'], '1'];
+
+        yield "add('-')" => ['add', ['-', '1'], '1'];
+
+        yield "add('+.')" => ['add', ['+.', '1'], '1'];
+
+        // #104: the empty string is zero for bcfloor(), bcceil() and bcround() too
+        yield "floor('')" => ['floor', [''], '0'];
+
+        yield "ceil('')" => ['ceil', [''], '0'];
+
+        yield "round('')" => ['round', ['', 2], '0.00'];
+
+        // Leading zeros and the sign of zero
+        yield "add('007.50')" => ['add', ['007.50', '0', 2], '7.50'];
+
+        yield "sqrt('-0')" => ['sqrt', ['-0', 2], '0.00'];
+
+        yield "powmod('-0' exponent)" => ['powmod', ['5', '-0', '7'], '1'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('provideAcceptedNumberFormsCases')]
+    public function testAcceptedNumberForms(string $method, array $args, int|string $expected): void
+    {
+        $this->assertSame($expected, BCMath::$method(...$args)); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * The native extension reports an invalid scale before a malformed number (#104).
+     *
+     * @return iterable<string, array{string, list<int|string>, string}>
+     */
+    public static function provideScaleErrorPrecedenceCases(): iterable
+    {
+        foreach (['add', 'sub', 'mul', 'div', 'mod', 'comp'] as $method) {
+            yield $method => [$method, ['abc', '1', -1], "bc{$method}(): Argument #3 (\$scale) must be between 0 and 2147483647"];
+        }
+
+        yield 'divmod' => ['divmod', ['abc', '1', -1], 'bcdivmod(): Argument #3 ($scale) must be between 0 and 2147483647'];
+
+        yield 'pow' => ['pow', ['abc', '1', -1], 'bcpow(): Argument #3 ($scale) must be between 0 and 2147483647'];
+
+        yield 'powmod' => ['powmod', ['abc', '1', '2', -1], 'bcpowmod(): Argument #4 ($scale) must be between 0 and 2147483647'];
+
+        yield 'sqrt' => ['sqrt', ['abc', -1], 'bcsqrt(): Argument #2 ($scale) must be between 0 and 2147483647'];
+    }
+
+    /**
+     * @param list<int|string> $args
+     */
+    #[DataProvider('provideScaleErrorPrecedenceCases')]
+    public function testScaleErrorPrecedence(string $method, array $args, string $message): void
+    {
+        $this->expectException(\ValueError::class);
+        $this->expectExceptionMessage($message);
+
+        BCMath::$method(...$args); // @phpstan-ignore-line argument.type
+    }
+
+    /**
+     * bccomp() and bcpowmod() use the default scale when the scale is omitted (#105).
+     */
+    public function testCompAndPowmodUseDefaultScale(): void
+    {
+        $property = new \ReflectionProperty(BCMath::class, 'scale');
+        $original = $property->getValue();
+
+        try {
+            BCMath::scale(7);
+            $this->assertSame(1, BCMath::comp('0.5', '0'));
+            $this->assertSame(0, BCMath::comp('0.00000001', '0'));
+
+            BCMath::scale(9);
+            $this->assertSame('331776.000000000', BCMath::powmod('24', '4', '2256945666040'));
+        } finally {
+            $property->setValue(null, $original);
+        }
+    }
 }

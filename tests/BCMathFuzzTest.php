@@ -358,28 +358,12 @@ final class BCMathFuzzTest extends TestCase
     private function knownIssue(string $function, array $args): ?string
     {
         $numbers = array_values(array_filter($args, is_string(...)));
-        $scale = $args[array_key_last($args)] ?? null;
-
-        foreach ($numbers as $number) {
-            if (str_starts_with($number, '+')) {
-                return '#103 plus-sign';
-            }
-            if (str_starts_with($number, '-.')) {
-                return '#104 negative-without-integer-part';
-            }
-        }
-
-        if (is_int($scale) && $scale < 0 && !$this->allWellFormed($numbers)) {
-            return '#104 scale-error-precedence';
-        }
 
         if (!$this->allWellFormed($numbers)) {
             return null;
         }
 
         return match ($function) {
-            'bccomp' => count($args) === 2 ? '#105 comp-default-scale' : null,
-            'bcfloor', 'bcceil', 'bcround' => $numbers[0] === '' ? '#104 round-empty-string' : null,
             'bcpow' => match (true) {
                 $this->hasFraction($numbers[1]) => '#108 pow-fractional-exponent',
                 // Intended differences, not bugs (#110): the polyfill follows PHP 8.4+ on every version.
@@ -399,7 +383,6 @@ final class BCMathFuzzTest extends TestCase
                 PHP_VERSION_ID < 80300 && $this->anyOf($numbers, static fn (string $n): bool => str_contains($n, '.')) => 'intended (#110) zero-fraction-integer-before-php83',
                 $this->isZero($numbers[2]) => '#107 powmod-zero-modulus',
                 $this->isZero($numbers[1]) => '#107 powmod-zero-exponent',
-                count($args) === 3 => '#105 powmod-default-scale',
                 default => null,
             },
             // Several bugs give wrong digits; only errors and zero are compared until they are fixed.
@@ -469,6 +452,8 @@ final class BCMathFuzzTest extends TestCase
                 '0', '-0', '0.0', '-0.0', '0.000', '-0.000', '', '1', '-1', '0.5', '-0.5',
                 '0.0000005', '-0.0000005', '9.9999999', '-9.9999999', '00012.3400', '-00012.3400',
                 '.5',
+                // Forms with an empty run of digits, which the extension reads as written
+                '.', '-', '+', '-.', '+.', '5.', '-5.', '+.5',
             ]);
         }
 
