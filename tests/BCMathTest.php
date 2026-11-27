@@ -2707,4 +2707,96 @@ final class BCMathTest extends TestCase
     {
         $this->assertSame($expected, BCMath::$method(...$args));
     }
+
+    /**
+     * Large numbers, which bcadd()/bcsub() compute on the digit strings in chunks of
+     * 18 digits (9 on 32-bit PHP), and the other functions with GMP or phpseclib (#123).
+     * The expected values are from the native extension.
+     *
+     * @return iterable<string, array{string, list<int|string>, list<string>|string}>
+     */
+    public static function provideLargeNumbersCases(): iterable
+    {
+        yield 'carry out of the top chunk' => ['add', ['999999999999999999999999999999999999', '1', 0], '1000000000000000000000000000000000000'];
+
+        yield 'carry across every chunk' => ['add', ['999999999999999999999999999999999999999999999999999999', '1', 0], '1000000000000000000000000000000000000000000000000000000'];
+
+        yield 'carry from the lower chunk only' => ['add', ['100000000000000000999999999999999999', '1', 0], '100000000000000001000000000000000000'];
+
+        yield '19 and 37 digits' => ['add', ['1999999999999999999', '1999999999999999999999999999999999999', 0], '2000000000000000001999999999999999998'];
+
+        yield 'borrow across every chunk' => ['sub', ['1000000000000000000000000000000000000000000000000000000', '1', 0], '999999999999999999999999999999999999999999999999999999'];
+
+        yield 'borrow leaves leading zeros' => ['sub', ['1000000000000000000000000000000000000', '999999999999999999999999999999999999', 0], '1'];
+
+        yield 'equal magnitudes with different signs' => ['add', ['-999999999999999999999999999999999999', '999999999999999999999999999999999999', 0], '0'];
+
+        yield 'smaller minus larger is negative' => ['sub', ['9999999999999999991', '19999999999999999990', 0], '-9999999999999999999'];
+
+        yield 'negative plus larger positive' => ['add', ['-999999999999999999999999999999999999', '1000000000000000000000000000000000000', 0], '1'];
+
+        yield 'both negative' => ['sub', ['-999999999999999999999999999999999999', '999999999999999999999999999999999999', 0], '-1999999999999999999999999999999999998'];
+
+        yield 'fractions across chunks' => ['add', ['0.999999999999999999999999999999999999', '0.000000000000000000000000000000000001', 36], '1.000000000000000000000000000000000000'];
+
+        yield 'fraction carry into the integer part' => ['add', ['99999999999999999999.99999999999999999', '0.00000000000000001', 17], '100000000000000000000.00000000000000000'];
+
+        yield 'negative result truncated to zero has no sign' => ['sub', ['0.999999999999999999999999999999999999', '1', 2], '0.00'];
+
+        yield 'large product' => ['mul', ['999999999999999999999999999999999999', '-999999999999999999999999999999999999', 0], '-999999999999999999999999999999999998000000000000000000000000000000000001'];
+
+        yield 'large quotient truncated towards zero' => ['div', ['-999999999999999999999999999999999999', '7', 3], '-142857142857142857142857142857142857.000'];
+
+        yield 'large remainder has the sign of the dividend' => ['mod', ['-999999999999999999999999999999999999', '1000000000000000000007', 0], '-999993000000000000006'];
+
+        yield 'large divmod' => ['divmod', ['-999999999999999999999999999999999999.5', '123456789012345678901', 2], ['-8100000072900000', '-81901900008117099999.50']];
+
+        yield 'large power' => ['pow', ['123456789012345678901', '7', 0], '437124189926872542861205770743869208183166231440864585375336124442980414545219966035103050142112461478274743420429998813769760918357344162301'];
+
+        yield 'negative power of a large base' => ['pow', ['-1234567890123.45', '-3', 50], '-0.00000000000000000000000000000000000053144101434891'];
+
+        yield 'square root of a large number' => ['sqrt', ['999999999999999999999999999999999999999999999999999999999999999999999999', 5], '999999999999999999999999999999999999.99999'];
+    }
+
+    /**
+     * @param list<int|string>    $args
+     * @param list<string>|string $expected
+     */
+    #[DataProvider('provideLargeNumbersCases')]
+    public function testLargeNumbers(string $method, array $args, array|string $expected): void
+    {
+        foreach ($this->enginesWithoutBcmath() as $engine) {
+            $original = BigInteger::getEngine();
+
+            try {
+                BigInteger::setEngine($engine, $engine === 'GMP' ? ['DefaultEngine'] : ['OpenSSL', 'DefaultEngine']);
+                $this->assertSame($expected, BCMath::$method(...$args), "with the {$engine} engine"); // @phpstan-ignore-line argument.type
+            } finally {
+                BigInteger::setEngine($original[0], [$original[1]]);
+            }
+        }
+    }
+
+    /**
+     * The phpseclib engines that compute without the bcmath extension.
+     *
+     * @return list<string>
+     */
+    private function enginesWithoutBcmath(): array
+    {
+        $engines = [];
+        foreach (['GMP', \PHP_INT_SIZE >= 8 ? 'PHP64' : 'PHP32'] as $engine) {
+            $original = BigInteger::getEngine();
+
+            try {
+                BigInteger::setEngine($engine);
+                $engines[] = $engine;
+            } catch (\Exception) {
+            } finally {
+                BigInteger::setEngine($original[0], [$original[1]]);
+            }
+        }
+
+        return $engines;
+    }
 }
