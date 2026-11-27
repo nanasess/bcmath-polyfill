@@ -54,6 +54,11 @@ jobs:
                 uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
                 with:
                     php-version: ${{ matrix.php-version }}
+            -   name: Show whether GMP is loaded
+                # The polyfill calls GMP directly when it is loaded, and phpseclib's pure-PHP engine otherwise
+                shell: bash
+                run: |
+                  php -r 'echo "gmp: ", extension_loaded("gmp") ? "loaded" : "not loaded", PHP_EOL;'
             -   name: Pin phpseclib ${{ matrix.phpseclib }}
                 # On Windows the default shell runs composer through cmd, which drops the "^" of the constraint
                 shell: bash
@@ -90,6 +95,10 @@ jobs:
                 with:
                     php-version: ${{ matrix.php-version }}
                     extensions: :bcmath # ubuntu only
+            -   name: Show whether GMP is loaded
+                # The polyfill calls GMP directly when it is loaded, and phpseclib's pure-PHP engine otherwise
+                run: |
+                  php -r 'echo "gmp: ", extension_loaded("gmp") ? "loaded" : "not loaded", PHP_EOL;'
             -   name: Pin phpseclib ${{ matrix.phpseclib }}
                 run: composer require --no-update --no-interaction 'phpseclib/phpseclib:${{ matrix.phpseclib }}'
             -   name: Composer Install

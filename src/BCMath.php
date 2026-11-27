@@ -60,6 +60,18 @@ abstract class BCMath
      */
     private const INT_DIGITS = \PHP_INT_SIZE >= 8 ? 18 : 9;
 
+    /** 10^INT_DIGITS, the base of the chunks in self::addMagnitudes() and self::subtractMagnitudes(). */
+    private const INT_BASE = \PHP_INT_SIZE >= 8 ? 1000000000000000000 : 1000000000;
+
+    /**
+     * bcpow() calls gmp_pow() only for results of at most this many digits (about 415 MB).
+     *
+     * GMP aborts the process when a number exceeds its size limit, which cannot be caught.
+     * Larger results are left to phpseclib, which runs out of memory_limit like the native
+     * extension.
+     */
+    private const GMP_POW_MAX_DIGITS = 1000000000;
+
     /**
      * Canonical rounding-mode tokens shared by the string-digit rounding core.
      * They mirror the names of PHP 8.4's RoundingMode enum cases.
@@ -309,6 +321,182 @@ abstract class BCMath
     {
         return self::significantDigits($digits1) <= self::INT_DIGITS
             && self::significantDigits($digits2) <= self::INT_DIGITS;
+    }
+
+    /**
+     * Whether phpseclib computes with the GMP extension, so that GMP can be called directly.
+     *
+     * The engine is looked up on every call, because BigInteger::setEngine() can change it.
+     * Without GMP, the calculations go through phpseclib's BigInteger.
+     */
+    private static function usesGmp(): bool
+    {
+        return BigInteger::getEngine()[0] === 'GMP';
+    }
+
+    /**
+     * The sum of two signed digit strings, computed on the digit strings.
+     *
+     * Converting a decimal string to a binary big integer and back costs much more
+     * than the addition itself, above all without GMP, so the digits are added in
+     * chunks of INT_DIGITS digits with PHP integers.
+     *
+     * @param string $a '-'?[0-9]+, leading zeros allowed
+     * @param string $b '-'?[0-9]+, leading zeros allowed
+     *
+     * @return string '-'?(0|[1-9][0-9]*), without '-' for zero
+     */
+    private static function addDigits(string $a, string $b): string
+    {
+        $negative = $a[0] === '-';
+        $negativeB = $b[0] === '-';
+        $a = ltrim($a, '-0');
+        $b = ltrim($b, '-0');
+
+        if ($negative === $negativeB) {
+            $magnitude = self::addMagnitudes($a, $b);
+        } else {
+            // Different signs: subtract the smaller magnitude from the larger one,
+            // and take the sign of the larger one.
+            $order = strlen($a) <=> strlen($b);
+            if ($order === 0) {
+                $order = strcmp($a, $b) <=> 0;
+            }
+            if ($order === 0) {
+                return self::DEFAULT_NUMBER;
+            }
+            if ($order < 0) {
+                [$a, $b] = [$b, $a];
+                $negative = $negativeB;
+            }
+            $magnitude = self::subtractMagnitudes($a, $b);
+        }
+
+        return $negative && $magnitude !== self::DEFAULT_NUMBER ? '-'.$magnitude : $magnitude;
+    }
+
+    /**
+     * $a + $b for unsigned digit strings without leading zeros ('' is zero).
+     */
+    private static function addMagnitudes(string $a, string $b): string
+    {
+        [$a, $b, $length] = self::padToChunks($a, $b);
+        $chunks = [];
+        $carry = 0;
+        for ($i = $length - self::INT_DIGITS; $i >= 0; $i -= self::INT_DIGITS) {
+            // At most 2 * 10^18 - 1, which fits in an int (2 * 10^9 - 1 on 32-bit PHP)
+            $sum = (int) substr($a, $i, self::INT_DIGITS) + (int) substr($b, $i, self::INT_DIGITS) + $carry;
+            $carry = $sum >= self::INT_BASE ? 1 : 0;
+            $chunks[] = str_pad((string) ($sum - $carry * self::INT_BASE), self::INT_DIGITS, '0', STR_PAD_LEFT);
+        }
+        if ($carry === 1) {
+            $chunks[] = '1';
+        }
+
+        return self::joinChunks($chunks);
+    }
+
+    /**
+     * $a - $b for unsigned digit strings without leading zeros, where $a >= $b.
+     */
+    private static function subtractMagnitudes(string $a, string $b): string
+    {
+        [$a, $b, $length] = self::padToChunks($a, $b);
+        $chunks = [];
+        $borrow = 0;
+        for ($i = $length - self::INT_DIGITS; $i >= 0; $i -= self::INT_DIGITS) {
+            $difference = (int) substr($a, $i, self::INT_DIGITS) - (int) substr($b, $i, self::INT_DIGITS) - $borrow;
+            $borrow = $difference < 0 ? 1 : 0;
+            $chunks[] = str_pad((string) ($difference + $borrow * self::INT_BASE), self::INT_DIGITS, '0', STR_PAD_LEFT);
+        }
+
+        return self::joinChunks($chunks);
+    }
+
+    /**
+     * Left-pad two digit strings to the same length, a multiple of INT_DIGITS.
+     *
+     * @return array{0: string, 1: string, 2: int} the padded strings and their length
+     */
+    private static function padToChunks(string $a, string $b): array
+    {
+        $length = intdiv(max(strlen($a), strlen($b)) + self::INT_DIGITS - 1, self::INT_DIGITS) * self::INT_DIGITS;
+
+        return [
+            str_pad($a, $length, '0', STR_PAD_LEFT),
+            str_pad($b, $length, '0', STR_PAD_LEFT),
+            $length,
+        ];
+    }
+
+    /**
+     * Join chunks collected from the least significant one, without leading zeros.
+     *
+     * @param list<string> $chunks
+     */
+    private static function joinChunks(array $chunks): string
+    {
+        $digits = ltrim(implode('', array_reverse($chunks)), '0');
+
+        return $digits === '' ? self::DEFAULT_NUMBER : $digits;
+    }
+
+    /**
+     * The product of two signed digit strings.
+     *
+     * @return string '-'?[0-9]+
+     */
+    private static function multiplyDigits(string $a, string $b): string
+    {
+        if (self::usesGmp()) {
+            return gmp_strval(gmp_mul(gmp_init($a, 10), gmp_init($b, 10)));
+        }
+
+        return (string) (new BigInteger($a))->multiply(new BigInteger($b));
+    }
+
+    /**
+     * The quotient of two signed digit strings, truncated towards zero like the native
+     * extension. $b must not be zero.
+     *
+     * @return string '-'?[0-9]+
+     */
+    private static function quotientDigits(string $a, string $b): string
+    {
+        if (self::usesGmp()) {
+            return gmp_strval(gmp_div_q(gmp_init($a, 10), gmp_init($b, 10), GMP_ROUND_ZERO));
+        }
+
+        [$quotient] = (new BigInteger($a))->divide(new BigInteger($b));
+
+        return (string) $quotient;
+    }
+
+    /**
+     * The quotient truncated towards zero and the remainder, which has the sign of
+     * $a, of two signed digit strings, like the native extension. $b must not be zero.
+     *
+     * @return array{0: string, 1: string} '-'?[0-9]+ each
+     */
+    private static function divideDigits(string $a, string $b): array
+    {
+        if (self::usesGmp()) {
+            $num1 = gmp_init($a, 10);
+            $num2 = gmp_init($b, 10);
+
+            return [
+                gmp_strval(gmp_div_q($num1, $num2, GMP_ROUND_ZERO)),
+                gmp_strval(gmp_div_r($num1, $num2, GMP_ROUND_ZERO)),
+            ];
+        }
+
+        // phpseclib's divide() returns a non-negative remainder, so it is derived from the
+        // quotient as a - b * quotient to get the sign of the dividend.
+        $num1Big = new BigInteger($a);
+        $num2Big = new BigInteger($b);
+        [$quotient] = $num1Big->divide($num2Big);
+
+        return [(string) $quotient, (string) $num1Big->subtract($num2Big->multiply($quotient))];
     }
 
     /**
@@ -588,14 +776,12 @@ abstract class BCMath
         if (self::fitsIntSum($digits1, $digits2)) {
             return self::formatDigitsResult((int) $digits1 + (int) $digits2, $scale, $maxPad);
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
-        $result = $num1Big->add($num2Big);
+        $result = self::addDigits($digits1, $digits2);
 
         // Phase 5: Result formatting
-        return self::formatFinalResult($result, $scale, $maxPad);
+        return self::formatDigitsResult($result, $scale, $maxPad);
     }
 
     /**
@@ -617,14 +803,13 @@ abstract class BCMath
         if (self::fitsIntSum($digits1, $digits2)) {
             return self::formatDigitsResult((int) $digits1 - (int) $digits2, $scale, $maxPad);
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
-        $result = $num1Big->subtract($num2Big);
+        $negated = $digits2[0] === '-' ? substr($digits2, 1) : '-'.$digits2;
+        $result = self::addDigits($digits1, $negated);
 
         // Phase 5: Result formatting
-        return self::formatFinalResult($result, $scale, $maxPad);
+        return self::formatDigitsResult($result, $scale, $maxPad);
     }
 
     /**
@@ -650,14 +835,12 @@ abstract class BCMath
         if (self::significantDigits($digits1) + self::significantDigits($digits2) <= self::INT_DIGITS) {
             return self::formatDigitsResult((int) $digits1 * (int) $digits2, $scale, 2 * $maxPad);
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
-        $result = $num1Big->multiply($num2Big);
+        $result = self::multiplyDigits($digits1, $digits2);
 
         // Phase 5: Result formatting
-        return self::formatFinalResult($result, $scale, 2 * $maxPad);
+        return self::formatDigitsResult($result, $scale, 2 * $maxPad);
     }
 
     /**
@@ -686,18 +869,12 @@ abstract class BCMath
 
             return self::formatDigitsResult($quotient, $scale, $scale);
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
-        $temp = '1'.str_repeat('0', $scale);
-        $temp = new BigInteger($temp);
-        [$quotient] = $num1Big->multiply($temp)->divide($num2Big);
+        $quotient = self::quotientDigits($digits1.str_repeat('0', $scale), $digits2);
 
         // Phase 5: Result formatting
-        $formatted = self::format($quotient, $scale, $scale);
-
-        return self::normalizeZeroResult($formatted);
+        return self::formatDigitsResult($quotient, $scale, $scale);
     }
 
     /**
@@ -724,16 +901,12 @@ abstract class BCMath
         if (self::fitsIntSum($digits1, $digits2)) {
             return self::formatDigitsResult((int) $digits1 % (int) $digits2, $scale, $maxPad);
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
-        [$quotient] = $num1Big->divide($num2Big);
-        $remainder = $num2Big->multiply($quotient);
-        $result = $num1Big->subtract($remainder);
+        [, $remainder] = self::divideDigits($digits1, $digits2);
 
         // Phase 5: Result formatting
-        return self::formatFinalResult($result, $scale, $maxPad);
+        return self::formatDigitsResult($remainder, $scale, $maxPad);
     }
 
     /**
@@ -757,11 +930,8 @@ abstract class BCMath
         [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcdivmod');
         self::checkDivisionByZero($num2);
 
-        // Divide once for the quotient, then derive the remainder as
-        // num1 - num2 * quotient. This avoids the second division that separate
-        // div()/mod() calls would perform, and matches bcmod()'s truncated
-        // remainder convention (phpseclib's divide() returns a non-negative
-        // remainder, which differs for negative operands).
+        // Divide once for both the quotient and the remainder, which avoids the second
+        // division that separate div()/mod() calls would perform.
         [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
         if (self::fitsIntSum($digits1, $digits2)) {
             return [
@@ -769,14 +939,11 @@ abstract class BCMath
                 self::formatDigitsResult((int) $digits1 % (int) $digits2, $scale, $maxPad),
             ];
         }
-        $num1Big = new BigInteger($digits1);
-        $num2Big = new BigInteger($digits2);
-        [$quotient] = $num1Big->divide($num2Big);
-        $remainder = $num1Big->subtract($num2Big->multiply($quotient));
+        [$quotient, $remainder] = self::divideDigits($digits1, $digits2);
 
         return [
-            self::normalizeZeroResult(self::format($quotient, 0, 0)),
-            self::formatFinalResult($remainder, $scale, $maxPad),
+            self::formatDigitsResult($quotient, 0),
+            self::formatDigitsResult($remainder, $scale, $maxPad),
         ];
     }
 
@@ -856,38 +1023,23 @@ abstract class BCMath
         $maxPad = strlen($baseParts[1]);
         $baseParts[1] = str_pad($baseParts[1], $maxPad, '0');
 
-        // Convert to BigInteger for calculation
-        $baseBig = new BigInteger($baseParts[0].$baseParts[1]);
-
         $baseIsNegative = $base[0] === '-';
-        $baseBig = $baseBig->abs();
+        $baseDigits = ltrim($baseParts[0], '-').$baseParts[1];
 
         // Phase 5: Calculation execution
-        // Square-and-multiply: about 2 * log2(exponent) multiplications instead of one
-        // per unit of the exponent. The exponent fits in an int (checked above).
-        $r = new BigInteger(1);
-        $square = $baseBig;
-        for ($n = (int) $absExponent; $n > 0; $n >>= 1) {
-            if (($n & 1) === 1) {
-                $r = $r->multiply($square);
-            }
-            if ($n > 1) {
-                $square = $square->multiply($square);
-            }
-        }
+        // The exponent fits in an int (checked above).
+        $r = self::powerDigits($baseDigits, (int) $absExponent);
 
         // Phase 5: Result formatting
         if ($exponent < 0) {
-            $temp = '1'.str_repeat('0', $scale + $maxPad * (int) $absExponent);
-            $temp = new BigInteger($temp);
-            [$r] = $temp->divide($r);
+            $r = self::quotientDigits('1'.str_repeat('0', $scale + $maxPad * (int) $absExponent), $r);
             $finalPad = $scale;
         } else {
             $finalPad = $maxPad * (int) $absExponent;
         }
 
         // Format the result first
-        $result = self::format($r, $scale, $finalPad);
+        $result = self::formatDigits($r, $scale, $finalPad);
 
         // Determine if we should apply negative sign
         // For negative base: negative sign only if exponent is odd integer
@@ -897,6 +1049,33 @@ abstract class BCMath
         }
 
         return $result;
+    }
+
+    /**
+     * $base ** $exponent for an unsigned digit string and a positive exponent.
+     *
+     * @return string [0-9]+
+     */
+    private static function powerDigits(string $base, int $exponent): string
+    {
+        if (self::usesGmp() && (float) strlen($base) * $exponent <= self::GMP_POW_MAX_DIGITS) {
+            return gmp_strval(gmp_pow(gmp_init($base, 10), $exponent));
+        }
+
+        // Square-and-multiply: about 2 * log2(exponent) multiplications instead of one
+        // per unit of the exponent.
+        $r = new BigInteger(1);
+        $square = new BigInteger($base);
+        for ($n = $exponent; $n > 0; $n >>= 1) {
+            if (($n & 1) === 1) {
+                $r = $r->multiply($square);
+            }
+            if ($n > 1) {
+                $square = $square->multiply($square);
+            }
+        }
+
+        return (string) $r;
     }
 
     /**
@@ -986,9 +1165,12 @@ abstract class BCMath
         $shift = 2 * $scale - strlen($fraction);
         $digits = $shift >= 0 ? $digits.str_repeat('0', $shift) : substr($digits, 0, $shift);
 
-        $root = self::integerSquareRoot(new BigInteger($digits === '' ? '0' : $digits));
+        $digits = $digits === '' ? self::DEFAULT_NUMBER : $digits;
+        $root = self::usesGmp()
+            ? gmp_strval(gmp_sqrt(gmp_init($digits, 10)))
+            : (string) self::integerSquareRoot(new BigInteger($digits));
 
-        return self::format($root, $scale, $scale);
+        return self::formatDigits($root, $scale, $scale);
     }
 
     /**

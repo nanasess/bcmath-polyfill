@@ -55,13 +55,20 @@ final class BCMathFuzzTest extends TestCase
     /** @var string[] */
     private array $originalEngine;
 
+    /**
+     * The phpseclib engines without bcmath that the cases alternate between.
+     *
+     * @var list<array{0: string, 1: list<string>}>
+     */
+    private array $engines;
+
     protected function setUp(): void
     {
         $this->seed = $this->intFromEnv('BCMATH_FUZZ_SEED', self::DEFAULT_SEED);
         $this->iterations = max(1, $this->intFromEnv('BCMATH_FUZZ_ITERATIONS', self::DEFAULT_ITERATIONS));
         $this->trace = $this->intFromEnv('BCMATH_FUZZ_TRACE', 0) !== 0;
         $this->originalEngine = BigInteger::getEngine();
-        $this->useEngineWithoutBcmath();
+        $this->engines = $this->enginesWithoutBcmath();
         mt_srand($this->seed);
     }
 
@@ -240,6 +247,11 @@ final class BCMathFuzzTest extends TestCase
 
         try {
             for ($i = 0; $i < $this->iterations; $i++) {
+                // The polyfill calls GMP directly when phpseclib uses it, and phpseclib's
+                // BigInteger otherwise, so the cases alternate between the engines.
+                [$main, $modexps] = $this->engines[$i % count($this->engines)];
+                BigInteger::setEngine($main, $modexps);
+
                 $args = $generate();
                 $defaultScale = null;
                 if ($args !== [] && $args[count($args) - 1] === null) {
@@ -281,11 +293,12 @@ final class BCMathFuzzTest extends TestCase
                 $count++;
                 if (count($mismatches) < self::MAX_REPORTED) {
                     $mismatches[] = sprintf(
-                        "#%d %s(%s)%s\n    native:   %s\n    polyfill: %s",
+                        "#%d %s(%s)%s on the %s engine\n    native:   %s\n    polyfill: %s",
                         $i,
                         $function,
                         implode(', ', array_map($this->describe(...), $args)),
                         $defaultScale === null ? '' : " with bcscale({$defaultScale})",
+                        $main,
                         $native,
                         $actual,
                     );
@@ -635,25 +648,39 @@ final class BCMathFuzzTest extends TestCase
     }
 
     /**
-     * Make phpseclib compute without the bcmath extension.
+     * The phpseclib engines that compute without the bcmath extension: GMP when it is
+     * available, and the pure-PHP engine for the platform (PHP64, or PHP32).
      *
      * The polyfill only runs where bcmath is missing, but this test needs the
      * extension as the reference. Without GMP, phpseclib picks its BCMath engine
      * (preferred on PHP 8.4+), whose results then depend on the bcscale() that
      * this test changes, which never happens in production.
+     *
+     * @return list<array{0: string, 1: list<string>}>
      */
-    private function useEngineWithoutBcmath(): void
+    private function enginesWithoutBcmath(): array
     {
-        foreach ([['GMP', ['DefaultEngine']], ['PHP64', ['OpenSSL', 'DefaultEngine']], ['PHP32', ['OpenSSL', 'DefaultEngine']]] as [$main, $modexps]) {
-            try {
-                BigInteger::setEngine($main, $modexps);
+        $engines = [];
+        foreach ([['GMP'], ['PHP64', 'PHP32']] as $candidates) {
+            foreach ($candidates as $main) {
+                $modexps = $main === 'GMP' ? ['DefaultEngine'] : ['OpenSSL', 'DefaultEngine'];
 
-                return;
-            } catch (\Exception) {
+                try {
+                    BigInteger::setEngine($main, $modexps);
+                } catch (\Exception) {
+                    continue;
+                }
+                $engines[] = [$main, $modexps];
+
+                break;
             }
         }
 
-        self::fail('No phpseclib BigInteger engine without bcmath is available');
+        if ($engines === []) {
+            self::fail('No phpseclib BigInteger engine without bcmath is available');
+        }
+
+        return $engines;
     }
 
     private function intFromEnv(string $name, int $default): int
