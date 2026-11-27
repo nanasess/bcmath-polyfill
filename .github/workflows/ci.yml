@@ -66,7 +66,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-latest, macos-latest]
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 phpseclib: ['^4.0']
                 include:
                     # phpseclib 3 is still supported; cover both ends of the PHP range on Linux
@@ -74,7 +74,7 @@ jobs:
                         php-version: '8.1'
                         phpseclib: '^3.0'
                     -   os: ubuntu-latest
-                        php-version: '8.5'
+                        php-version: '8.6'
                         phpseclib: '^3.0'
 
     tests-without-bcmath:
@@ -99,7 +99,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 phpseclib: ['^3.0', '^4.0']
 
     docker-phpt-tests:
@@ -114,6 +114,8 @@ jobs:
                 uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
                 with:
                     repository: php/php-src
+                    # Use the tests of the same PHP version; master tracks the next development version
+                    ref: PHP-${{ matrix.php-version }}
                     path: php-src
             -   name: Build Docker test image
                 run: docker build -f Dockerfile.test-without-bcmath --build-arg PHP_VERSION=${{ matrix.php-version }} -t bcmath-phpt-test:${{ matrix.php-version }} .
@@ -125,8 +127,17 @@ jobs:
                   # bc_is_zero_for_scale_clamp test skipped: requires BcMath\Number OOP API (not supported by polyfill)
                   # gh17398 test skipped: php-src now expects a "Hard memory limit" fatal error, which differs from the polyfill's "Allowed memory size" error
                   # bcround directional modes + bcdivmod are now implemented, so those phpt tests no longer need skipping.
-                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,bcmul_check_overflow,bug78878,bcscale_variation003,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp,gh17398
+                  # extra-skip: tests of PHP 8.1-8.3 that expect the pre-8.4 behavior (see "Behavior Follows PHP 8.4+" in README.md)
+                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip bug54598,bug72093,bug75178,gh15968,gh16262,scale_ini,bcmul_check_overflow,bug78878,bcscale_variation003,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp,gh17398${{ matrix.extra-skip }}
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
+                include:
+                    # The polyfill follows PHP 8.4+, so these php-src tests of older branches expect different results
+                    -   php-version: '8.1'
+                        extra-skip: ',bcadd_variation001'
+                    -   php-version: '8.2'
+                        extra-skip: ',bcadd_variation001'
+                    -   php-version: '8.3'
+                        extra-skip: ',bcpow'

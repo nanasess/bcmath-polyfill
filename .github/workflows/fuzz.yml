@@ -52,10 +52,10 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5']
+                php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 phpseclib: ['^4.0']
                 include:
                     -   php-version: '8.1'
                         phpseclib: '^3.0'
-                    -   php-version: '8.5'
+                    -   php-version: '8.6'
                         phpseclib: '^3.0'

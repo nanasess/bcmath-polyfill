@@ -18,7 +18,7 @@
 
 - ✅ Complete bcmath extension polyfill for PHP 8.1+
 - ✅ Supports all PHP 8.4+ bcmath functions including `bcfloor()`, `bcceil()`, `bcround()`, and `bcdivmod()`
-- ✅ PHP 8.5 compatibility tested and verified
+- ✅ PHP 8.5 and 8.6 compatibility tested and verified
 - ✅ Zero dependencies in production (uses phpseclib for arbitrary precision math)
 - ✅ Seamless fallback when bcmath extension is not available
 - ✅ 100% compatible with native bcmath functions
@@ -192,7 +192,7 @@ Automatically runs when PRs are merged to main:
 #### 3. Manual Benchmarks
 Trigger via GitHub Actions UI:
 - Customizable iteration count
-- Multi-PHP version testing (8.1, 8.2, 8.3, 8.4, 8.5)
+- Multi-PHP version testing (8.1, 8.2, 8.3, 8.4, 8.5, 8.6)
 - Results saved as artifacts
 
 ### Performance Considerations
@@ -250,7 +250,7 @@ including the PHP 8.4 additions — for environments **with or without** the ext
 | Extra dependency                               | phpseclib                      | none                            | phpseclib                                |
 | **PHP 8.2+ deprecations**                      | ⚠️ Warnings                    | ✅ Fixed                        | ✅ Fixed                                 |
 | **Active maintenance**                         | ❌ Limited                     | ✅ Active                       | ✅ Active                                |
-| **CI/CD (PHP versions)**                       | GitHub Actions (8.1, 8.2, 8.3) | 7.2+                            | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5) |
+| **CI/CD (PHP versions)**                       | GitHub Actions (8.1, 8.2, 8.3) | 7.2+                            | GitHub Actions (8.1, 8.2, 8.3, 8.4, 8.5, 8.6) |
 
 > When `bcmath-polyfill` and `symfony/polyfill-php84` are installed together on an environment that has
 > the bcmath extension and runs PHP 8.2/8.3, both declare `bcceil()`/`bcfloor()`/`bcround()` and whichever
@@ -332,7 +332,7 @@ docker run --rm bcmath-phpt-test --help
 - `--help, -h` - Show usage information
 
 #### Supported PHP Versions
-- PHP 8.1, 8.2, 8.3, 8.4, 8.5
+- PHP 8.1, 8.2, 8.3, 8.4, 8.5, 8.6
 
 The Docker PHPT tests automatically run on GitHub Actions CI across all supported PHP versions to ensure comprehensive compatibility with the official PHP core bcmath test suite.
 
