@@ -2635,4 +2635,76 @@ final class BCMathTest extends TestCase
     {
         $this->assertSame($expected, BCMath::format(new BigInteger($digits), $scale, $pad));
     }
+
+    /**
+     * Results around the limit of the PHP integer fast path (#123).
+     *
+     * On 64-bit PHP, operands of up to 18 significant digits (a product or a scaled
+     * dividend of up to 18 digits in total) are computed with PHP integers, and
+     * larger ones with BigInteger. The expected values are from the native extension.
+     *
+     * @return iterable<string, array{string, array{string, string, int}, list<string>|string}>
+     */
+    public static function provideIntFastPathBoundaryCases(): iterable
+    {
+        yield '18 digits each, largest sum on the int path' => ['add', ['999999999999999999', '999999999999999999', 0], '1999999999999999998'];
+
+        yield '19 digits, BigInteger path' => ['add', ['9999999999999999999', '1', 0], '10000000000000000000'];
+
+        yield 'PHP_INT_MAX plus one' => ['add', ['9223372036854775807', '1', 0], '9223372036854775808'];
+
+        yield 'PHP_INT_MIN minus one' => ['sub', ['-9223372036854775808', '1', 0], '-9223372036854775809'];
+
+        yield 'fraction digits count towards the limit' => ['add', ['99999999.9999999999', '0.0000000001', 10], '100000000.0000000000'];
+
+        yield '18 digits with a fraction' => ['sub', ['-99999999.9999999999', '99999999.9999999999', 10], '-199999999.9999999998'];
+
+        yield 'scale truncates the sum' => ['add', ['1.23456', '1', 2], '2.23'];
+
+        yield 'negative sum truncated to zero has no sign' => ['add', ['-0.001', '0', 2], '0.00'];
+
+        yield '9 by 9 digits, largest product on the int path' => ['mul', ['999999999', '999999999', 0], '999999998000000001'];
+
+        yield '9 by 10 digits, BigInteger path' => ['mul', ['999999999', '9999999999', 0], '9999999989000000001'];
+
+        yield 'product of fractions' => ['mul', ['-0.000000001', '0.000000001', 20], '-0.00000000000000000100'];
+
+        yield 'negative product truncated to zero has no sign' => ['mul', ['-0.01', '0.01', 3], '0.000'];
+
+        yield 'dividend digits plus scale is 18' => ['div', ['99999999', '3', 10], '33333333.0000000000'];
+
+        yield 'dividend digits plus scale is 19' => ['div', ['99999999', '3', 11], '33333333.00000000000'];
+
+        yield 'division truncates towards zero' => ['div', ['-7', '2', 0], '-3'];
+
+        yield 'negative divisor' => ['div', ['7', '-2', 0], '-3'];
+
+        yield 'negative quotient truncated to zero has no sign' => ['div', ['-0.001', '3', 2], '0.00'];
+
+        yield '18-digit divisor' => ['div', ['1', '999999999999999999', 18], '0.000000000000000001'];
+
+        yield 'remainder has the sign of the dividend' => ['mod', ['-7', '2', 0], '-1'];
+
+        yield 'negative modulus' => ['mod', ['7', '-2', 0], '1'];
+
+        yield 'remainder with a fraction' => ['mod', ['-7.5', '2', 1], '-1.5'];
+
+        yield '18-digit dividend' => ['mod', ['999999999999999999', '1000000007', 0], '48'];
+
+        yield '19-digit dividend, BigInteger path' => ['mod', ['9999999999999999999', '1000000007', 0], '489'];
+
+        yield 'divmod truncates the quotient' => ['divmod', ['-7', '2', 0], ['-3', '-1']];
+
+        yield 'divmod with a fraction' => ['divmod', ['7.5', '-2', 2], ['-3', '1.50']];
+    }
+
+    /**
+     * @param array{string, string, int} $args
+     * @param list<string>|string        $expected
+     */
+    #[DataProvider('provideIntFastPathBoundaryCases')]
+    public function testIntFastPathBoundary(string $method, array $args, array|string $expected): void
+    {
+        $this->assertSame($expected, BCMath::$method(...$args));
+    }
 }

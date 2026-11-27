@@ -51,6 +51,16 @@ abstract class BCMath
     private const MODULO_BY_ZERO_MESSAGE = 'Modulo by zero';
 
     /**
+     * Operands of at most this many significant digits are computed with PHP integers.
+     *
+     * The sum of two such numbers is below 2 * 10^18 on 64-bit PHP (2 * 10^9 on 32-bit),
+     * so it cannot overflow PHP_INT_MAX (about 9.2 * 10^18, or 2.1 * 10^9). A product
+     * or a scaled dividend is computed this way only when its operands have at most
+     * this many digits in total.
+     */
+    private const INT_DIGITS = \PHP_INT_SIZE >= 8 ? 18 : 9;
+
+    /**
      * Canonical rounding-mode tokens shared by the string-digit rounding core.
      * They mirror the names of PHP 8.4's RoundingMode enum cases.
      */
@@ -253,20 +263,52 @@ abstract class BCMath
      */
     protected static function prepareBigIntegerInputs(string $num1, string $num2): array
     {
-        // Parse decimal numbers
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+
+        return [new BigInteger($digits1), new BigInteger($digits2), $maxPad];
+    }
+
+    /**
+     * Scale two numbers to integers with the same number of fraction digits.
+     *
+     * The fractional parts are padded to equal length and the decimal point is
+     * removed, so '1.5' and '-0.25' become '150' and '-025' with a pad of 2.
+     *
+     * @param string $num1 Number in the canonical form of self::normalizeNumber()
+     * @param string $num2 Number in the canonical form of self::normalizeNumber()
+     *
+     * @return array{0: string, 1: string, 2: int} the two signed digit strings, which
+     *                                             may have leading zeros, and the pad
+     */
+    private static function prepareDigitInputs(string $num1, string $num2): array
+    {
         [$num1Int, $num1Dec] = self::parseDecimalNumber($num1);
         [$num2Int, $num2Dec] = self::parseDecimalNumber($num2);
 
-        // Pad decimal parts to same length
         $maxPad = max(strlen($num1Dec), strlen($num2Dec));
-        $num1Dec = str_pad($num1Dec, $maxPad, '0');
-        $num2Dec = str_pad($num2Dec, $maxPad, '0');
 
-        // Convert to BigInteger for calculation
-        $num1Big = new BigInteger($num1Int.$num1Dec);
-        $num2Big = new BigInteger($num2Int.$num2Dec);
+        return [
+            $num1Int.str_pad($num1Dec, $maxPad, '0'),
+            $num2Int.str_pad($num2Dec, $maxPad, '0'),
+            $maxPad,
+        ];
+    }
 
-        return [$num1Big, $num2Big, $maxPad];
+    /**
+     * The number of significant digits of a signed digit string from self::prepareDigitInputs().
+     */
+    private static function significantDigits(string $digits): int
+    {
+        return strlen(ltrim($digits, '-0'));
+    }
+
+    /**
+     * Whether both digit strings can be added or subtracted as PHP integers.
+     */
+    private static function fitsIntSum(string $digits1, string $digits2): bool
+    {
+        return self::significantDigits($digits1) <= self::INT_DIGITS
+            && self::significantDigits($digits2) <= self::INT_DIGITS;
     }
 
     /**
@@ -277,9 +319,15 @@ abstract class BCMath
      */
     protected static function formatFinalResult(BigInteger $result, int $scale, int $pad = 0): string
     {
-        $formatted = self::format($result, $scale, $pad);
+        return self::formatDigitsResult((string) $result, $scale, $pad);
+    }
 
-        return self::normalizeZeroResult($formatted);
+    /**
+     * Like self::formatFinalResult(), for a signed digit string or a PHP integer.
+     */
+    private static function formatDigitsResult(int|string $digits, int $scale, int $pad = 0): string
+    {
+        return self::normalizeZeroResult(self::formatDigits((string) $digits, $scale, $pad));
     }
 
     /**
@@ -478,7 +526,14 @@ abstract class BCMath
      */
     public static function format(BigInteger $x, ?int $scale = null, int $pad = 0): string
     {
-        $digits = (string) $x;
+        return self::formatDigits((string) $x, $scale, $pad);
+    }
+
+    /**
+     * Like self::format(), for a signed digit string ('-'?[0-9]+).
+     */
+    private static function formatDigits(string $digits, ?int $scale = null, int $pad = 0): string
+    {
         $sign = '';
         if ($digits[0] === '-') {
             $sign = '-';
@@ -529,7 +584,12 @@ abstract class BCMath
         [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcadd');
 
         // Phase 3: Number processing
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+        if (self::fitsIntSum($digits1, $digits2)) {
+            return self::formatDigitsResult((int) $digits1 + (int) $digits2, $scale, $maxPad);
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
         $result = $num1Big->add($num2Big);
@@ -553,7 +613,12 @@ abstract class BCMath
         [$num1, $num2] = self::validateAndNormalizeInputs($num1, $num2, 'bcsub');
 
         // Phase 3: Number processing
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+        if (self::fitsIntSum($digits1, $digits2)) {
+            return self::formatDigitsResult((int) $digits1 - (int) $digits2, $scale, $maxPad);
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
         $result = $num1Big->subtract($num2Big);
@@ -581,7 +646,12 @@ abstract class BCMath
         if ($earlyZero !== null) {
             return $earlyZero;
         }
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+        if (self::significantDigits($digits1) + self::significantDigits($digits2) <= self::INT_DIGITS) {
+            return self::formatDigitsResult((int) $digits1 * (int) $digits2, $scale, 2 * $maxPad);
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
         $result = $num1Big->multiply($num2Big);
@@ -607,7 +677,17 @@ abstract class BCMath
 
         // Phase 3: Division by zero check and number processing
         self::checkDivisionByZero($num2);
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2] = self::prepareDigitInputs($num1, $num2);
+        // The dividend is multiplied by 10^scale, so it gets $scale more digits.
+        // intdiv() truncates towards zero, like the native extension.
+        if (self::significantDigits($digits1) + $scale <= self::INT_DIGITS
+            && self::significantDigits($digits2) <= self::INT_DIGITS) {
+            $quotient = intdiv((int) ($digits1.str_repeat('0', $scale)), (int) $digits2);
+
+            return self::formatDigitsResult($quotient, $scale, $scale);
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
         $temp = '1'.str_repeat('0', $scale);
@@ -639,7 +719,13 @@ abstract class BCMath
 
         // Phase 3: Division by zero check and number processing
         self::checkModuloByZero($num2);
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+        // PHP's % is the remainder of a truncated division, with the sign of the dividend
+        if (self::fitsIntSum($digits1, $digits2)) {
+            return self::formatDigitsResult((int) $digits1 % (int) $digits2, $scale, $maxPad);
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
 
         // Phase 4: Calculation execution
         [$quotient] = $num1Big->divide($num2Big);
@@ -676,7 +762,15 @@ abstract class BCMath
         // div()/mod() calls would perform, and matches bcmod()'s truncated
         // remainder convention (phpseclib's divide() returns a non-negative
         // remainder, which differs for negative operands).
-        [$num1Big, $num2Big, $maxPad] = self::prepareBigIntegerInputs($num1, $num2);
+        [$digits1, $digits2, $maxPad] = self::prepareDigitInputs($num1, $num2);
+        if (self::fitsIntSum($digits1, $digits2)) {
+            return [
+                self::formatDigitsResult(intdiv((int) $digits1, (int) $digits2), 0),
+                self::formatDigitsResult((int) $digits1 % (int) $digits2, $scale, $maxPad),
+            ];
+        }
+        $num1Big = new BigInteger($digits1);
+        $num2Big = new BigInteger($digits2);
         [$quotient] = $num1Big->divide($num2Big);
         $remainder = $num1Big->subtract($num2Big->multiply($quotient));
 
