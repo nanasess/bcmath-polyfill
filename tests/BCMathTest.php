@@ -2424,17 +2424,36 @@ final class BCMathTest extends TestCase
     }
 
     /**
-     * bcsqrt() with phpseclib's PHP64 engine, which is used when GMP is not available.
+     * The phpseclib engines that do not use GMP or bcmath.
      *
-     * With this engine, a quotient returned by BigInteger::divide() gives a wrong
-     * result when it is used as a divisor, so the square root must not do that.
+     * @return iterable<string, array{string}>
      */
-    public function testSqrtWithPhp64Engine(): void
+    public static function provideSqrtWithEngineWithoutGmpCases(): iterable
+    {
+        yield 'PHP64' => ['PHP64'];
+
+        yield 'PHP32' => ['PHP32'];
+    }
+
+    /**
+     * bcsqrt() with phpseclib's pure PHP engines, which are used when GMP is not
+     * available: PHP64 on 64-bit PHP and PHP32 on 32-bit PHP.
+     *
+     * With the PHP64 engine, a quotient returned by BigInteger::divide() gives a
+     * wrong result when it is used as a divisor, so the square root must not do that.
+     */
+    #[DataProvider('provideSqrtWithEngineWithoutGmpCases')]
+    public function testSqrtWithEngineWithoutGmp(string $engine): void
     {
         $original = BigInteger::getEngine();
 
         try {
-            BigInteger::setEngine('PHP64');
+            try {
+                BigInteger::setEngine($engine);
+            } catch (\Exception $e) {
+                // PHP64 is not available on 32-bit PHP, nor on Windows with JIT enabled.
+                $this->markTestSkipped("The {$engine} engine is not available: {$e->getMessage()}");
+            }
             $this->assertSame('1.41421356237309504880168872420969807856967187537694', BCMath::sqrt('2', 50));
             $this->assertSame('11111.11110499999999887499999', BCMath::sqrt('123456789.987654321', 23));
         } finally {
