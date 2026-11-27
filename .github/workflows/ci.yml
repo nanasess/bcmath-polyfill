@@ -117,6 +117,20 @@ jobs:
                     # Use the tests of the same PHP version; master tracks the next development version
                     ref: PHP-${{ matrix.php-version }}
                     path: php-src
+            -   name: Checkout php-src tests that expect the PHP 8.4+ behavior
+                if: matrix.phpt-override-files
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                    repository: php/php-src
+                    ref: PHP-8.4
+                    path: php-src-8.4
+                    sparse-checkout: ext/bcmath/tests
+            -   name: Replace php-src tests with the PHP 8.4 ones
+                if: matrix.phpt-override-files
+                run: |
+                  for file in ${{ matrix.phpt-override-files }}; do
+                    cp "php-src-8.4/ext/bcmath/tests/$file" "php-src/ext/bcmath/tests/$file"
+                  done
             -   name: Build Docker test image
                 run: docker build -f Dockerfile.test-without-bcmath --build-arg PHP_VERSION=${{ matrix.php-version }} -t bcmath-phpt-test:${{ matrix.php-version }} .
             -   name: Run Docker-based PHPT tests
@@ -125,14 +139,15 @@ jobs:
                   # bcscale_variation003: expects bcscale() to update ini_get('bcmath.scale'), which cannot be done without the native extension
                   # bcmul_check_overflow: multiplies numbers of up to 131072 digits and times out, since the Docker image has no GMP and phpseclib falls back to a slow engine
                   # gh17398: php-src expects a "Hard memory limit" fatal error, which differs from the polyfill's "Allowed memory size" error
-                  # extra-skip: tests of PHP 8.3 that expect the pre-8.4 behavior (see "Behavior Follows PHP 8.4+" in README.md)
-                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip gh15968,gh16262,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp,bcscale_variation003,bcmul_check_overflow,gh17398${{ matrix.extra-skip }}
+                  docker run --rm -v $PWD:/app bcmath-phpt-test:${{ matrix.php-version }} --skip gh15968,gh16262,gh20006,bcround_precision_bounds,bc_is_zero_for_scale_clamp,bcscale_variation003,bcmul_check_overflow,gh17398
         strategy:
             fail-fast: false
             matrix:
                 php-version: ['8.1', '8.2', '8.3', '8.4', '8.5', '8.6']
                 include:
-                    # The polyfill follows PHP 8.4+, so bcpow of PHP-8.3 expects a different result for 0 ** -15
-                    # (0 instead of DivisionByZeroError)
+                    # The polyfill follows PHP 8.4+ (see "Behavior Follows PHP 8.4+" in README.md), so bcpow of
+                    # PHP-8.3 expects a different result for 0 ** -15 (0 instead of "Negative power of zero").
+                    # Run it with the PHP 8.4 test instead. Its run_bcmath_tests_function.inc is replaced too,
+                    # since the PHP-8.3 one does not catch the exception and the test would stop at that case.
                     -   php-version: '8.3'
-                        extra-skip: ',bcpow'
+                        phpt-override-files: 'bcpow.phpt run_bcmath_tests_function.inc'
