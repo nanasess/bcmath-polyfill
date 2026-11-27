@@ -257,6 +257,9 @@ final class BCMathWithoutExtensionTest extends TestCase
 
         yield 'above INT_MAX is rejected' => ['2147483648', '0 3 0'];
 
+        // On 32-bit PHP, (int) saturates these to 2147483647
+        yield 'largest 10-digit value is rejected' => ['9999999999', '0 3 0'];
+
         yield 'non-numeric is ignored' => ['abc', '0 3 0'];
 
         // Parsed like the native extension (zend_ini_parse_quantity()), which needs ini_parse_quantity()

@@ -133,7 +133,12 @@ abstract class BCMath
                 return 0;
             }
         } elseif (preg_match('/^\s*\+?0*(\d{1,10})\s*$/D', $value, $matches) === 1) {
-            $scale = (int) $matches[1];
+            $digits = $matches[1];
+            // Compare as strings before the (int) cast, which saturates to 2147483647 on 32-bit PHP
+            if (strlen($digits) === 10 && strcmp($digits, '2147483647') > 0) {
+                return 0;
+            }
+            $scale = (int) $digits;
         } else {
             return 0;
         }
