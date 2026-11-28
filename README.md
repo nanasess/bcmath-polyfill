@@ -119,11 +119,11 @@ implementation is used. On environments without the extension only this package 
 
 The polyfill picks the fastest way it has for each call:
 
-- In `bcadd()`, `bcsub()`, `bcmul()`, `bcdiv()`, `bcmod()` and `bcdivmod()`, numbers that fit in a PHP `int` (up to 18 significant digits on 64-bit PHP, 9 on 32-bit; for `bcmul()` the digits of both operands together, for `bcdiv()` the dividend's digits plus `$scale`) are computed with `int` arithmetic.
-- `bcadd()`, `bcsub()` and `bccomp()` work on the digit strings directly, so they are fast at any size, with or without ext-gmp.
-- Everything else uses [ext-gmp](https://www.php.net/manual/en/book.gmp.php) when it is loaded (directly, except `bcpowmod()`, which goes through phpseclib's GMP engine), and otherwise [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger in pure PHP.
+- In `bcadd()`, `bcsub()`, `bcmul()`, `bcdiv()`, `bcmod()` and `bcdivmod()`, numbers that fit in a PHP `int` are computed with `int` arithmetic. The digits are counted after the fractional parts of both operands are padded to the same length, without the decimal point (so `'1'` and `'0.000000000000000001'` count as 19 and 1 digits). The limit is 18 significant digits on 64-bit PHP and 9 on 32-bit; for `bcmul()` it applies to the digits of both operands together, and for `bcdiv()` to the dividend's digits plus `$scale`.
+- `bcadd()`, `bcsub()` and `bccomp()` work on the digit strings directly, so they are fast at any size, with or without ext-gmp. `bcfloor()`, `bcceil()` and `bcround()` are also plain string operations.
+- Everything else depends on the engine of [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger. phpseclib uses its GMP engine when [ext-gmp](https://www.php.net/manual/en/book.gmp.php) is loaded, unless another engine is selected with `BigInteger::setEngine()` (as `run-benchmarks.php -e PHP64` does). With the GMP engine, the polyfill calls the `gmp_*` functions directly (`bcpowmod()` still goes through BigInteger); with the other engines, it uses BigInteger in pure PHP.
 
-**Install ext-gmp if you work with large numbers.** Without it, multiplication, division, `bcsqrt()`, `bcpow()` and `bcpowmod()` of large numbers are hundreds of times slower than native ([#127](https://github.com/nanasess/bcmath-polyfill/issues/127)).
+**Install ext-gmp if you work with large numbers.** Without it, multiplication and division of large numbers are hundreds of times slower than native, and `bcsqrt()`, `bcpow()` and `bcpowmod()` tens to hundreds of times slower (see the table below) ([#127](https://github.com/nanasess/bcmath-polyfill/issues/127)).
 
 ### Rough Guide
 
