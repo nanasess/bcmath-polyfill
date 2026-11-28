@@ -117,7 +117,28 @@ implementation is used. On environments without the extension only this package 
 
 ## ⚡ Performance
 
-This polyfill uses [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger class for arbitrary precision arithmetic, providing reliable performance for applications that cannot use the native bcmath extension.
+The polyfill picks the fastest way it has for each call:
+
+- In `bcadd()`, `bcsub()`, `bcmul()`, `bcdiv()`, `bcmod()` and `bcdivmod()`, numbers that fit in a PHP `int` are computed with `int` arithmetic. The digits are counted after the fractional parts of both operands are padded to the same length, without the decimal point (so `'1'` and `'0.000000000000000001'` count as 19 and 1 digits). The limit is 18 significant digits on 64-bit PHP and 9 on 32-bit; for `bcmul()` it applies to the digits of both operands together, and for `bcdiv()` to the dividend's digits plus `$scale`.
+- `bcadd()`, `bcsub()` and `bccomp()` work on the digit strings directly, so they are fast at any size, with or without ext-gmp. `bcfloor()`, `bcceil()` and `bcround()` are also plain string operations.
+- Everything else depends on the engine of [phpseclib](https://github.com/phpseclib/phpseclib)'s BigInteger. phpseclib uses its GMP engine when [ext-gmp](https://www.php.net/manual/en/book.gmp.php) is loaded, unless another engine is selected with `BigInteger::setEngine()` (as `run-benchmarks.php -e PHP64` does). With the GMP engine, the polyfill calls the `gmp_*` functions directly (`bcpowmod()` still goes through BigInteger); with the other engines, it uses BigInteger in pure PHP.
+
+**Install ext-gmp if you work with large numbers.** Without it, multiplication and division of large numbers are hundreds of times slower than native, and `bcsqrt()`, `bcpow()` and `bcpowmod()` tens to hundreds of times slower (see the table below) ([#127](https://github.com/nanasess/bcmath-polyfill/issues/127)).
+
+### Rough Guide
+
+Time per call, measured with PHP 8.5 on x86-64 (AMD Ryzen, Zen 3) and phpseclib 3.0.47. The numbers depend on the machine; use the ratio to native as the guide.
+
+| Operation | With ext-gmp | Without ext-gmp | Native bcmath |
+|---|---|---|---|
+| `bcadd()` / `bcmul()` / `bcdiv()` / `bccomp()`, small numbers (`'1234.5678'`, `'987.65'`) | ~2 µs (~20x) | ~2 µs (~20x) | ~0.1 µs |
+| `bcadd()`, 1,000 digits | 13 µs (~35x) | 13 µs (~35x) | 0.4 µs |
+| `bccomp()`, 1,000 digits | 2.4 µs (~15x) | 2.4 µs (~15x) | 0.16 µs |
+| `bcmul()`, 1,000 digits | 15 µs (~2x) | 3,600 µs (~460x) | 7.9 µs |
+| `bcdiv()`, 1,000 digits | 7.3 µs (~5x) | 1,300 µs (~950x) | 1.4 µs |
+| `bcsqrt()`, 1,000 digits, scale 50 | 7.4 µs (faster) | 9,000 µs (~33x) | 273 µs |
+| `bcpow('2', '1000')` | 2.5 µs (~2x) | 139 µs (~200x) | 0.7–1.4 µs |
+| `bcround()` / `bcfloor()` | ~1.4 µs (~20x) | ~1.4 µs (~20x) | ~0.07 µs |
 
 ### Performance Benchmarking
 
@@ -136,6 +157,9 @@ php benchmarks/run-benchmarks.php -f json -o results.json
 php benchmarks/run-benchmarks.php -f csv -o results.csv
 php benchmarks/run-benchmarks.php -f markdown -o BENCHMARK.md
 
+# Measure without ext-gmp (phpseclib's pure-PHP engine)
+php benchmarks/run-benchmarks.php -e PHP64
+
 # Show help
 php benchmarks/run-benchmarks.php --help
 ```
@@ -150,29 +174,37 @@ The benchmark tests include:
 
 #### Interpreting Results
 
-Typical performance comparison shows:
-- **Basic operations**: Polyfill is ~100-250x slower than native
-- **Large numbers**: Performance gap increases with number size (up to ~800x slower)
-- **Square root**: Interestingly, polyfill can be faster for high-precision operations
+Each line shows the total time of all iterations for the native function and the polyfill, and their ratio. The `BigInteger engine` line shows whether the polyfill used ext-gmp (`GMP`) or the pure-PHP engine (`PHP64`). Excerpt of a run with ext-gmp:
 
-Example output:
 ```
 BCMath Performance Benchmark
 ========================================
 Iterations per test: 10000
 Native BCMath: Available
+BigInteger engine: GMP
+========================================
 
 Basic Operations
 ----------------
+
   Small numbers (10 digits):
-    bcadd      | Native:    1.5ms | Polyfill:  230ms | Ratio: 150x slower
+    bcadd      | Native:    0.881ms (    0B) | Polyfill:   17.584ms (    0B) | Ratio: 20.0x slower
     ...
+
+High Precision Operations
+-------------------------
+
+  Scale 100:
+    bcdiv      | Native:    3.120ms (    0B) | Polyfill:   27.134ms (    0B) | Ratio: 8.7x slower
+    bcsqrt     | Native:   43.680ms (    0B) | Polyfill:   23.617ms (    0B) | Ratio: 1.8x faster
 
 Summary
 ========================================
-Average performance ratio: 26x
-Polyfill is on average 26x slower than native
+Average performance ratio: 6.62x
+Polyfill is on average 6.6x slower than native
 ```
+
+The same run with `-e PHP64` averages about 230x slower than native, mostly from multiplication, division, `bcpow()` and `bcsqrt()`.
 
 ### GitHub Actions Integration
 
@@ -197,10 +229,9 @@ Trigger via GitHub Actions UI:
 
 ### Performance Considerations
 
-While the polyfill is significantly slower than native bcmath:
-- It provides full functionality when bcmath extension is unavailable
-- Performance is adequate for most applications not requiring intensive calculations
-- Consider using native bcmath for performance-critical applications
+- For numbers that fit in an `int` (see above), the polyfill is about 20x slower than native, whichever engine is used. This is mostly argument validation and normalization, and is adequate for most applications.
+- With large numbers, install ext-gmp. With it, multiplication and division are within a few times of native, and `bcsqrt()` and some `bcpow()` calls (such as `bcpow('1.0001', '10000', 20)`) can be faster than native.
+- For performance-critical code, use the native bcmath extension.
 
 ## ⚠️ Known Limitations
 
